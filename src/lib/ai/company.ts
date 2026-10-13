@@ -72,7 +72,9 @@ export function heuristicSummary(input: SummaryInput): CompanySummary {
     (fr
       ? `${name} est une entreprise${sector}${hq}${size}. ${nOffers ? `Elle publie actuellement ${nOffers} offre${nOffers > 1 ? "s" : ""} suivie${nOffers > 1 ? "s" : ""} dans Khedma.` : ""}`
       : `${name} is a company${sector}${hq}${size}. ${nOffers ? `It currently has ${nOffers} tracked offer${nOffers > 1 ? "s" : ""} in Khedma.` : ""}`);
-  const skills = [...new Set([...askedSkills.slice(0, 6), ...f.tech.slice(0, 4)])];
+  // Languages and soft skills are true but make weak headline tips; keep the technical ones first.
+  const soft = /^(english|french|german|arabic|spanish|italian|anglais|francais|français|communication|teamwork|leadership|excel|powerpoint|word|office)$/i;
+  const skills = [...new Set([...askedSkills.filter((s) => !soft.test(s)).slice(0, 6), ...f.tech.slice(0, 4)])];
   const lookFor = skills.length
     ? fr
       ? `Leurs offres et leur site citent surtout : ${skills.join(", ")}. ${f.culture.length ? `Ils mettent en avant : ${f.culture.join(", ").toLowerCase()}.` : ""}`
