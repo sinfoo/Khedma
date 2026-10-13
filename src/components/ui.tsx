@@ -85,7 +85,7 @@ export function EngineChip({ engine, t }: { engine: string; t: Dict }) {
     <span className={`chip ${offline ? "chip-saffron" : ""}`}>
       <span className="sr-only">{t.common.engine}: </span>
       <span aria-hidden="true" className="inline-block size-1.5 rounded-full" style={{ background: offline ? "var(--saffron)" : "var(--accent)" }} />
-      {offline ? t.common.heuristic : engine.replace("ollama:", "Ollama · ")}
+      {offline ? t.common.heuristic : engine.replace("ollama:", "Ollama · ").replace("claude:", "Claude · ")}
     </span>
   );
 }

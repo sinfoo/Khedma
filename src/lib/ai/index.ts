@@ -1,4 +1,4 @@
-// Public AI API: try Ollama, validate its output, fall back to heuristics.
+// Public AI API: try Claude (if a key is configured), then Ollama, validate the output, fall back to heuristics.
 import type { Evaluation, InterviewPrep, Job, Locale, Profile, Settings, UpskillPlan } from "../types";
 import {
   computeSkillGaps,
@@ -11,36 +11,57 @@ import {
   verdictFor,
 } from "./heuristic";
 import { ollamaChatJSON, ollamaChatStream, ollamaChatText, ollamaHealth, type ChatMessage } from "./ollama";
+import { claudeHealth, claudeJSON, claudeStream, claudeText } from "./anthropic";
 import { coverLetterPrompt, evaluatePrompt, interviewPrompt, tailorCvPrompt, upskillPrompt, type Prompt } from "./prompts";
 
 export { detectLanguage, computeSkillGaps };
 
 interface Engine {
+  kind: "claude" | "ollama";
   url: string;
   model: string;
   label: string;
 }
 
-/** Health-check and pick a model: the configured one if installed, else the first installed. */
+export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
+
+/**
+ * Pick the engine for this call, honouring settings.provider:
+ * "auto" = Claude if a working key is configured, else Ollama, else heuristic.
+ */
 export async function pickEngine(settings: Settings): Promise<{ engine: Engine | null; models: string[] }> {
+  const provider = settings.provider ?? "auto";
+  if (provider === "offline") return { engine: null, models: [] };
+  if ((provider === "auto" || provider === "claude") && (await claudeHealth())) {
+    const model = settings.claude_model || DEFAULT_CLAUDE_MODEL;
+    return { engine: { kind: "claude", url: "", model, label: `claude:${model}` }, models: [] };
+  }
+  if (provider === "claude") return { engine: null, models: [] };
   const h = await ollamaHealth(settings.ollama_url);
   if (!h.ok || h.models.length === 0) return { engine: null, models: h.models };
   const want = settings.ollama_model;
   const model = h.models.find((m) => m === want || m.split(":")[0] === want) ?? h.models[0];
-  return { engine: { url: settings.ollama_url, model, label: `ollama:${model}` }, models: h.models };
+  return { engine: { kind: "ollama", url: settings.ollama_url, model, label: `ollama:${model}` }, models: h.models };
 }
+
+const runJSON = (e: Engine, prompt: Prompt) =>
+  e.kind === "claude" ? claudeJSON<unknown>({ model: e.model, ...prompt }) : ollamaChatJSON<unknown>({ url: e.url, model: e.model, ...prompt });
+const runText = (e: Engine, messages: ChatMessage[]) =>
+  e.kind === "claude" ? claudeText({ model: e.model, messages }) : ollamaChatText({ url: e.url, model: e.model, messages });
+const runStream = (e: Engine, messages: ChatMessage[]) =>
+  e.kind === "claude" ? claudeStream({ model: e.model, messages }) : ollamaChatStream({ url: e.url, model: e.model, messages });
 
 export async function getEngine(settings: Settings): Promise<{ online: boolean; label: string; models: string[] }> {
   const { engine, models } = await pickEngine(settings);
   return { online: !!engine, label: engine?.label ?? "heuristic", models };
 }
 
-/** Run a prompt through Ollama and shape the result; null on any failure so the caller falls back. */
+/** Run a prompt through the picked engine and shape the result; null on any failure so the caller falls back. */
 export async function tryOllama<T>(settings: Settings, prompt: Prompt, shape: (raw: unknown, label: string) => T): Promise<T | null> {
   const { engine } = await pickEngine(settings);
   if (!engine) return null;
   try {
-    const raw = await ollamaChatJSON<unknown>({ url: engine.url, model: engine.model, ...prompt });
+    const raw = await runJSON(engine, prompt);
     return shape(raw, engine.label);
   } catch (e) {
     console.warn(`[ai] ${engine.label} failed, using heuristic:`, (e as Error).message);
@@ -173,7 +194,7 @@ export async function aiText(
   const { engine } = await pickEngine(settings);
   if (engine) {
     try {
-      const text = stripFences(await ollamaChatText({ url: engine.url, model: engine.model, messages }));
+      const text = stripFences(await runText(engine, messages));
       if (text.trim()) return { text, engine: engine.label };
     } catch (e) {
       console.warn(`[ai] ${engine.label} failed, using heuristic:`, (e as Error).message);
@@ -193,7 +214,7 @@ export async function aiStreamResponse(settings: Settings, messages: ChatMessage
   const headers = { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" };
   if (engine) {
     try {
-      const it = ollamaChatStream({ url: engine.url, model: engine.model, messages });
+      const it = runStream(engine, messages);
       const first = await it.next();
       const body = new ReadableStream<Uint8Array>({
         async start(ctrl) {

@@ -39,6 +39,9 @@ export interface Settings {
   theme: "system" | "light" | "dark";
   ollama_url: string;
   ollama_model: string;
+  /** "auto" = Claude when ANTHROPIC_API_KEY works, else Ollama, else heuristic. */
+  provider: "auto" | "claude" | "ollama" | "offline";
+  claude_model: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +49,8 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: "system",
   ollama_url: "http://127.0.0.1:11434",
   ollama_model: "llama3.1",
+  provider: "auto",
+  claude_model: "claude-sonnet-5-5",
 };
 
 export interface Job {

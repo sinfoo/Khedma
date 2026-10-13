@@ -64,7 +64,7 @@ export function Topbar({
             title={ai.online ? ai.label : t.shell2.aiOfflineHint}
           >
             <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: "currentColor" }} />
-            {ai.online ? `${t.shell2.aiOnline} · ${ai.label.replace("ollama:", "")}` : t.shell2.aiOffline}
+            {ai.online ? `${t.shell2.aiOnline} · ${ai.label.replace("ollama:", "").replace("claude:", "Claude ")}` : t.shell2.aiOffline}
           </Link>
 
           <button
