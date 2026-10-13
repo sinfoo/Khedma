@@ -35,7 +35,10 @@ const SYNONYMS: [string, string[]][] = [
 ];
 
 const SYN = new Map<string, string>();
-for (const [canon, alts] of SYNONYMS) for (const a of alts) SYN.set(a, canon);
+for (const [canon, alts] of SYNONYMS) {
+  SYN.set(canon, canon); // canonical words skip stemming so "engineer" ≡ "ingénieur"
+  for (const a of alts) SYN.set(a, canon);
+}
 
 const STOP = new Set(
   (
@@ -57,8 +60,8 @@ export function stem(w: string): string {
   if (w.length <= 3) return w;
   let s = w;
   s = s.replace(/(issements|issement|ements|ement|ations|ation|isation|euses|euse|eurs|eur|ings|ing|ies|ers|er|es|s|e)$/, (m) => {
-    // keep very short stems meaningful ("data" stays "data")
-    return w.length - m.length >= 3 ? "" : m;
+    // keep short stems meaningful ("spring" stays "spring", not "spr")
+    return w.length - m.length >= 4 ? "" : m;
   });
   return s;
 }
