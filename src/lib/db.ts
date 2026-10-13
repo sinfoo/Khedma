@@ -368,11 +368,35 @@ export function listJobs(opts: { q?: string; type?: string; archived?: boolean }
   const rows = db()
     .prepare(`SELECT * FROM jobs WHERE ${where.join(" AND ")} ORDER BY created_at DESC, id DESC`)
     .all(...args) as Row[];
-  return rows.map((r) => withMeta(rowToJob(r)));
+  return attachMeta(rows.map(rowToJob));
 }
 
 export function withMeta(job: Job): JobWithMeta {
   return { ...job, evaluation: latestEvaluation(job.id), application: getApplicationByJob(job.id) };
+}
+
+/** Latest evaluation + application for many jobs in two queries instead of 2N. */
+export function attachMeta(jobs: Job[]): JobWithMeta[] {
+  if (jobs.length === 0) return [];
+  const d = db();
+  const ids = jobs.map((j) => j.id);
+  const marks = ids.map(() => "?").join(",");
+  const evals = new Map<number, Evaluation>();
+  for (const r of d
+    .prepare(
+      `SELECT e.* FROM evaluations e
+       JOIN (SELECT job_id, MAX(id) AS id FROM evaluations WHERE job_id IN (${marks}) GROUP BY job_id) m ON m.id = e.id`,
+    )
+    .all(...ids) as Row[]) {
+    const e = rowToEval(r);
+    evals.set(e.job_id, e);
+  }
+  const apps = new Map<number, Application>();
+  for (const r of d.prepare(`SELECT * FROM applications WHERE job_id IN (${marks})`).all(...ids) as Row[]) {
+    const a = rowToApp(r);
+    apps.set(a.job_id, a);
+  }
+  return jobs.map((j) => ({ ...j, evaluation: evals.get(j.id) ?? null, application: apps.get(j.id) ?? null }));
 }
 
 // ---------- evaluations ----------
@@ -466,9 +490,15 @@ export function listApplications(): ApplicationWithJob[] {
       `SELECT a.*, j.id AS j_id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE j.archived = 0 ORDER BY a.updated_at DESC`,
     )
     .all() as Row[];
-  return rows.map((r) => {
-    const app = rowToApp(r);
-    return { ...app, job: getJob(app.job_id)!, evaluation: latestEvaluation(app.job_id) };
+  const apps = rows.map(rowToApp);
+  if (apps.length === 0) return [];
+  const ids = apps.map((a) => a.job_id);
+  const marks = ids.map(() => "?").join(",");
+  const jobs = new Map<number, JobWithMeta>();
+  for (const j of attachMeta((db().prepare(`SELECT * FROM jobs WHERE id IN (${marks})`).all(...ids) as Row[]).map(rowToJob))) jobs.set(j.id, j);
+  return apps.map((app) => {
+    const j = jobs.get(app.job_id)!;
+    return { ...app, job: j, evaluation: j.evaluation };
   });
 }
 
