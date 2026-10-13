@@ -10,6 +10,7 @@ import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
 import { ScoreRing, StateChip, scoreLabel } from "@/components/ui";
 import { useStageMove } from "./stage";
+import { ApplyLauncher } from "@/components/apply/launcher";
 
 const STEPS: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
 
@@ -56,6 +57,7 @@ export function WorkspaceHeader({
         </div>
         {score !== null && <ScoreRing value={score} size={48} label={scoreLabel(t, score)} />}
         <div className="flex items-center gap-1.5">
+          <ApplyLauncher applicationId={id} className="btn btn-primary btn-sm" />
           <Link href={`/app/coach?application=${id}`} className="btn btn-secondary btn-sm">
             <GraduationCap size={14} aria-hidden="true" /> <span className="hidden sm:inline">{w.prepare}</span>
             <span className="sr-only sm:hidden">{w.prepare}</span>
