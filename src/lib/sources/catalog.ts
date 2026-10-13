@@ -1,6 +1,6 @@
 // Provider catalog shown on the Sources page. Pure data: safe to import from client components.
 
-export const PROVIDER_KINDS = ["keejob", "tanitjobs", "emploitunisie", "farojob", "greenhouse", "lever", "ashby", "rss"] as const;
+export const PROVIDER_KINDS = ["keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin", "greenhouse", "lever", "ashby", "rss"] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
 
@@ -18,6 +18,15 @@ export interface CatalogEntry {
 }
 
 export const CATALOG: CatalogEntry[] = [
+  {
+    kind: "linkedin",
+    name: "LinkedIn (recherche publique)",
+    country: "INT",
+    method: "html",
+    site: "https://www.linkedin.com/jobs",
+    handle: { type: "slug", placeholder: "Tunisia" },
+    keywords: true,
+  },
   { kind: "keejob", name: "Keejob", country: "TN", method: "index", site: "https://www.keejob.com", handle: { type: "none" }, keywords: true },
   {
     kind: "tanitjobs",

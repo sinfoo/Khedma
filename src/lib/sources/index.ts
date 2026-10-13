@@ -10,6 +10,7 @@ import * as keejob from "./keejob";
 import * as tanitjobs from "./tanitjobs";
 import * as emploitunisie from "./emploitunisie";
 import * as farojob from "./farojob";
+import * as linkedin from "./linkedin";
 
 export { importFromUrl } from "./url";
 export { DEMO_JOBS } from "./demo";
@@ -53,6 +54,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   tanitjobs: { list: tanitjobs.scan, detail: tanitjobs.detail },
   emploitunisie: { list: emploitunisie.scan },
   farojob: { list: farojob.scan, detail: farojob.detail },
+  linkedin: { list: linkedin.scan, detail: linkedin.detail },
 };
 
 export interface ScanOptions {

@@ -17,6 +17,7 @@ import type { Discovered, ScanRun, SourceRow } from "@/lib/repo/sources";
 import type { JobType } from "@/lib/types";
 import { Catalog } from "./catalog";
 import { ScanRadar } from "./scan-radar";
+import { Clipper } from "./clipper";
 import { useAutoScan, useScan, type ScanDone, type SourceStatus } from "./use-scan";
 
 const HOURS = [1, 3, 6, 12, 24];
@@ -43,6 +44,7 @@ export function SourcesBoard({
   auto,
   profileKeywords,
   profileLocation = "",
+  clipToken,
   autoStart,
 }: {
   sources: SourceRow[];
@@ -51,6 +53,7 @@ export function SourcesBoard({
   auto: { enabled: boolean; hours: number };
   profileKeywords: string[];
   profileLocation?: string;
+  clipToken: string;
   autoStart: boolean;
 }) {
   const { t, locale } = useT();
@@ -170,6 +173,7 @@ export function SourcesBoard({
         existing={sources.map((s) => `${s.kind}:${s.handle}`)}
         onAdded={(id, name) => toast.success(s2.added, name, { label: s2.scanNow, onClick: () => void scan([id]) })}
       />
+          <Clipper token={clipToken} />
 
       {editing && <EditDialog source={editing} onClose={() => setEditing(null)} />}
     </div>

@@ -1,15 +1,16 @@
 // Shared fetch wrapper: 10s timeout, app User-Agent, never throws.
 
-export const USER_AGENT = "ENITJobs/0.1 (+https://github.com/sinfoo/ENITJobs)";
+export const USER_AGENT = "Khedma/0.2 (+https://github.com/sinfoo/Khedma)";
 
 export async function getText(
   url: string,
   accept = "application/json, text/*;q=0.9, */*;q=0.8",
+  opts: { ua?: string; timeoutMs?: number } = {},
 ): Promise<{ text: string; error?: string }> {
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT, Accept: accept },
-      signal: AbortSignal.timeout(10_000),
+      headers: { "User-Agent": opts.ua ?? USER_AGENT, Accept: accept },
+      signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
       redirect: "follow",
     });
     if (!res.ok) return { text: "", error: `HTTP ${res.status} for ${url}` };

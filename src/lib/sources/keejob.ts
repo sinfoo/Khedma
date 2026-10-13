@@ -65,7 +65,7 @@ export function parseKeejobDetail(md: string): Partial<NewJob> {
 }
 
 export async function scan(_handle: string, keywords: string[] = []): Promise<{ jobs: NewJob[]; error?: string }> {
-  const { text, error } = await getText(INDEX, "text/plain, text/markdown;q=0.9, */*;q=0.5");
+  const { text, error } = await getText(INDEX, "text/plain, text/markdown;q=0.9, */*;q=0.5", { timeoutMs: 30_000 });
   if (error) return { jobs: [], error };
   const all = parseKeejobIndex(text);
   if (!all.length) return { jobs: [], error: "Keejob index format changed: no offers found" };

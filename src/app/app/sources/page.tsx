@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/kit";
 import { SourcesBoard } from "@/components/sources/sources-board";
 import { getDict } from "@/lib/i18n/server";
 import { getProfile } from "@/lib/db";
+import { clipToken } from "@/lib/clip";
 import { defaultKeywords, getAutoScan, listDiscovered, listRuns, listSourceRows } from "@/lib/repo/sources";
 
 export const metadata: Metadata = { title: "Sources" };
@@ -19,6 +20,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         auto={getAutoScan()}
         profileKeywords={defaultKeywords(getProfile())}
         profileLocation={getProfile().target_locations[0] ?? ""}
+        clipToken={clipToken()}
         autoStart={sp.scan === "1"}
       />
     </>

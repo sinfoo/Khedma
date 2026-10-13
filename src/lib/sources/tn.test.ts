@@ -5,6 +5,7 @@ import path from "node:path";
 import { parseKeejobDetail, parseKeejobIndex } from "./keejob";
 import { parseTanitDetail, parseTanitList, tanitListUrl } from "./tanitjobs";
 import { emploitunisieSearchUrl, parseEmploitunisieList } from "./emploitunisie";
+import { parseLinkedinSearch, linkedinSearchUrl } from "./linkedin";
 import { farojobListUrl, parseFarojobDetail, parseFarojobList, stripRecruitPrefix } from "./farojob";
 import { dedupeKey, guessTypeWithContract, matchesKeywords } from "./classify";
 import { mapLimit } from "./http";
@@ -123,4 +124,16 @@ test("mapLimit keeps order and caps concurrency", async () => {
   });
   assert.deepEqual(out, [2, 4, 6, 8, 10, 12, 14]);
   assert.ok(peak <= 3);
+});
+
+test("linkedin guest search parses cards", () => {
+  const html = readFileSync(path.join(import.meta.dirname, "fixtures", "linkedin-search.html"), "utf8");
+  const jobs = parseLinkedinSearch(html);
+  assert.ok(jobs.length >= 5, `got ${jobs.length}`);
+  for (const j of jobs) {
+    assert.match(j.url, /^https:\/\/[a-z]+\.linkedin\.com\/jobs\/view\//);
+    assert.ok(j.title.length > 3 && j.company.length > 0, JSON.stringify(j));
+    assert.equal(j.source, "linkedin");
+  }
+  assert.match(linkedinSearchUrl("stage dev", "Tunisia"), /keywords=stage\+dev&location=Tunisia/);
 });
