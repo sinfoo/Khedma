@@ -417,10 +417,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
           {sectionTitle("sec-places", p2.f.places)}
           <CountryPicker
             value={d.extra.places}
-            onChange={(v) => {
-              updateExtra({ places: v });
-              update({ target_locations: placesToLocations(v) });
-            }}
+            onChange={(v) => update({ extra: { ...d.extra, places: v }, target_locations: placesToLocations(v) })}
           />
           <p className="hint">{p2.places.hint}</p>
         </div>
