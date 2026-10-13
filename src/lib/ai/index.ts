@@ -10,7 +10,7 @@ import {
   heuristicUpskillPlan,
   verdictFor,
 } from "./heuristic";
-import { ollamaChatJSON, ollamaHealth } from "./ollama";
+import { ollamaChatJSON, ollamaChatStream, ollamaChatText, ollamaHealth, type ChatMessage } from "./ollama";
 import { coverLetterPrompt, evaluatePrompt, interviewPrompt, tailorCvPrompt, upskillPrompt, type Prompt } from "./prompts";
 
 export { detectLanguage, computeSkillGaps };
@@ -22,7 +22,7 @@ interface Engine {
 }
 
 /** Health-check and pick a model: the configured one if installed, else the first installed. */
-async function pickEngine(settings: Settings): Promise<{ engine: Engine | null; models: string[] }> {
+export async function pickEngine(settings: Settings): Promise<{ engine: Engine | null; models: string[] }> {
   const h = await ollamaHealth(settings.ollama_url);
   if (!h.ok || h.models.length === 0) return { engine: null, models: h.models };
   const want = settings.ollama_model;
@@ -36,7 +36,7 @@ export async function getEngine(settings: Settings): Promise<{ online: boolean; 
 }
 
 /** Run a prompt through Ollama and shape the result; null on any failure so the caller falls back. */
-async function tryOllama<T>(settings: Settings, prompt: Prompt, shape: (raw: unknown, label: string) => T): Promise<T | null> {
+export async function tryOllama<T>(settings: Settings, prompt: Prompt, shape: (raw: unknown, label: string) => T): Promise<T | null> {
   const { engine } = await pickEngine(settings);
   if (!engine) return null;
   try {
@@ -149,4 +149,69 @@ export async function buildUpskillPlan(jobs: Job[], profile: Profile, locale: Lo
     return { gaps, plan, engine: label, created_at: new Date().toISOString() };
   });
   return r ?? heuristicUpskillPlan(gaps, locale);
+}
+
+// ---------- generic helpers for feature modules (src/lib/ai/<feature>.ts) ----------
+export type { ChatMessage, Prompt };
+
+/** Structured task: Ollama with a JSON schema, shaped/validated, else the deterministic fallback. */
+export async function aiJSON<T>(
+  settings: Settings,
+  prompt: Prompt,
+  shape: (raw: unknown, engineLabel: string) => T,
+  fallback: () => T,
+): Promise<T> {
+  return (await tryOllama(settings, prompt, shape)) ?? fallback();
+}
+
+/** Free-text task (markdown, emails…). Returns the text and which engine produced it. */
+export async function aiText(
+  settings: Settings,
+  messages: ChatMessage[],
+  fallback: () => string,
+): Promise<{ text: string; engine: string }> {
+  const { engine } = await pickEngine(settings);
+  if (engine) {
+    try {
+      const text = stripFences(await ollamaChatText({ url: engine.url, model: engine.model, messages }));
+      if (text.trim()) return { text, engine: engine.label };
+    } catch (e) {
+      console.warn(`[ai] ${engine.label} failed, using heuristic:`, (e as Error).message);
+    }
+  }
+  return { text: fallback(), engine: "heuristic" };
+}
+
+/**
+ * Streaming chat for route handlers: returns a text/plain streaming Response.
+ * The `x-engine` header says which engine answered. Falls back to a single
+ * heuristic chunk when Ollama is offline or fails before the first token.
+ */
+export async function aiStreamResponse(settings: Settings, messages: ChatMessage[], fallback: () => string): Promise<Response> {
+  const { engine } = await pickEngine(settings);
+  const enc = new TextEncoder();
+  const headers = { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" };
+  if (engine) {
+    try {
+      const it = ollamaChatStream({ url: engine.url, model: engine.model, messages });
+      const first = await it.next();
+      const body = new ReadableStream<Uint8Array>({
+        async start(ctrl) {
+          try {
+            if (!first.done) ctrl.enqueue(enc.encode(first.value));
+            for await (const chunk of it) ctrl.enqueue(enc.encode(chunk));
+          } catch (e) {
+            ctrl.enqueue(enc.encode(`
+
+[${(e as Error).message}]`));
+          }
+          ctrl.close();
+        },
+      });
+      return new Response(body, { headers: { ...headers, "x-engine": engine.label } });
+    } catch (e) {
+      console.warn(`[ai] ${engine.label} stream failed, using heuristic:`, (e as Error).message);
+    }
+  }
+  return new Response(fallback(), { headers: { ...headers, "x-engine": "heuristic" } });
 }

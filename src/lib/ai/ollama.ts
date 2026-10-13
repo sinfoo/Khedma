@@ -69,3 +69,65 @@ export async function ollamaChatJSON<T>(opts: {
     throw new Error(`Ollama returned invalid JSON: ${content.slice(0, 300)}`);
   }
 }
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+async function post(url: string, body: object, timeoutMs: number): Promise<Response> {
+  let r: Response;
+  try {
+    r = await fetch(`${base(url)}/api/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new OllamaUnavailable(`Ollama unreachable at ${url}: ${(e as Error).message}`);
+  }
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new Error(`Ollama HTTP ${r.status}: ${text.slice(0, 300)}`);
+  }
+  return r;
+}
+
+/** One-shot free-text completion. */
+export async function ollamaChatText(opts: { url: string; model: string; messages: ChatMessage[]; temperature?: number; timeoutMs?: number }): Promise<string> {
+  const r = await post(
+    opts.url,
+    { model: opts.model, stream: false, options: { temperature: opts.temperature ?? 0.4 }, messages: opts.messages },
+    opts.timeoutMs ?? 180_000,
+  );
+  const data = (await r.json()) as { message?: { content?: string } };
+  return data.message?.content ?? "";
+}
+
+/** Streaming completion: yields text deltas as Ollama produces them (NDJSON). */
+export async function* ollamaChatStream(opts: { url: string; model: string; messages: ChatMessage[]; temperature?: number; timeoutMs?: number }): AsyncGenerator<string> {
+  const r = await post(
+    opts.url,
+    { model: opts.model, stream: true, options: { temperature: opts.temperature ?? 0.5 }, messages: opts.messages },
+    opts.timeoutMs ?? 300_000,
+  );
+  if (!r.body) return;
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      const msg = JSON.parse(line) as { message?: { content?: string }; done?: boolean };
+      if (msg.message?.content) yield msg.message.content;
+      if (msg.done) return;
+    }
+  }
+}

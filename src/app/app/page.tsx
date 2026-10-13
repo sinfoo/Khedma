@@ -42,8 +42,8 @@ export default async function Dashboard() {
           <p className="text-sm text-muted">{t.dashboard.greeting}{profile.name ? `, ${profile.name.split(" ")[0]}` : ""} · {fmtDate(new Date().toISOString(), locale)}</p>
           <h1 className="text-3xl sm:text-4xl mt-1">{t.dashboard.title}</h1>
         </div>
-        <Link href="/app/settings" className={`chip ${engine.online ? "chip-accent" : "chip-amber"}`}>
-          <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: engine.online ? "var(--accent)" : "var(--amber)" }} />
+        <Link href="/app/settings" className={`chip ${engine.online ? "chip-accent" : "chip-saffron"}`}>
+          <span aria-hidden="true" className="size-1.5 rounded-full" style={{ background: engine.online ? "var(--accent)" : "var(--saffron)" }} />
           {engine.online ? `${t.dashboard.ollama.ok} · ${engine.label.replace("ollama:", "")}` : t.dashboard.ollama.off}
         </Link>
       </div>

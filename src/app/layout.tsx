@@ -1,22 +1,26 @@
-import type { Metadata } from "next";
-import { Figtree, Fraunces, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { getDict, getTheme } from "@/lib/i18n/server";
 import { I18nProvider } from "@/lib/i18n/client";
+import { ToastProvider } from "@/components/kit/toast";
 
-const fraunces = Fraunces({
-  variable: "--font-fraunces",
-  subsets: ["latin"],
-  axes: ["opsz", "SOFT"],
-  display: "swap",
-});
-const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], display: "swap" });
-const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
+const display = Bricolage_Grotesque({ variable: "--font-bricolage", subsets: ["latin"], display: "swap" });
+const sans = Instrument_Sans({ variable: "--font-instrument", subsets: ["latin"], display: "swap" });
+const mono = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "ENITJobs", template: "%s · ENITJobs" },
-  description: "Local-first, AI-assisted job and internship search companion for ENIT students.",
+  title: { default: "Khedma", template: "%s · Khedma" },
+  description: "Khedma — local-first, AI-assisted internship and job search companion for engineering students.",
   icons: { icon: "/icon.svg" },
+  applicationName: "Khedma",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f5f1" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0e13" },
+  ],
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -26,17 +30,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       lang={locale}
       data-scroll-behavior="smooth"
       data-theme={theme === "system" ? undefined : theme}
-      className={`${fraunces.variable} ${figtree.variable} ${jetbrains.variable} h-full`}
+      className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}
+      suppressHydrationWarning
     >
-      <body className="grain min-h-full flex flex-col">
-        <a
-          href="#main"
-          className="skip-link btn btn-primary"
-        >
+      <body className="min-h-full flex flex-col">
+        <a href="#main" className="skip-link btn btn-primary">
           {t.nav.skipToContent}
         </a>
         <I18nProvider locale={locale} t={t}>
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </I18nProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 import type { AppState, JobType, Locale } from "../types";
 
 const en = {
-  brand: "ENITJobs",
+  brand: "Khedma",
   tagline: "Your job search, engineered.",
   nav: {
     dashboard: "Dashboard",
@@ -99,7 +99,7 @@ const en = {
     eyebrow: "Built by an ENIT student, for ENIT students",
     heroTitle: ["Stop applying blind.", "Start applying", "engineered."],
     heroText:
-      "ENITJobs collects internship, PFE and junior offers, scores each one against your CV with a local AI model, tailors your application, and tracks every step until the offer. Runs 100% on your machine.",
+      "Khedma collects internship, PFE and junior offers, scores each one against your CV with a local AI model, tailors your application, and tracks every step until the offer. Runs 100% on your machine.",
     ctaPrimary: "Open the app",
     ctaSecondary: "How it works",
     localBadge: "Local-first · No account · Your data stays on your laptop",
@@ -121,7 +121,7 @@ const en = {
     privacyTitle: "Private by design.",
     privacyText:
       "No server, no account, no tracking. Offers and your CV live in a SQLite file on your disk. The AI model runs locally through Ollama. If Ollama is off, a transparent heuristic takes over and says so.",
-    footer: "ENITJobs — end-of-year project (PFA), ENIT.",
+    footer: "Khedma — end-of-year project (PFA), ENIT.",
   },
   dashboard: {
     title: "Dashboard",
@@ -291,7 +291,7 @@ const en = {
     reset: "Reset all data",
     resetConfirm: "Erase all offers, evaluations and applications? Your profile is kept.",
     about: "About",
-    aboutText: "ENITJobs is a local-first job search companion. Everything runs on your computer.",
+    aboutText: "Khedma is a local-first job search companion. Everything runs on your computer.",
   },
   a11y: {
     scoreOutOf: "{v} out of 5",
@@ -302,11 +302,25 @@ const en = {
   },
 };
 
-type DeepString<T> = { [K in keyof T]: T[K] extends string ? string : T[K] extends string[] ? string[] : T[K] extends object ? DeepString<T[K]> : T[K] };
-export type Dict = DeepString<typeof en>;
+import type { DeepString } from "./define";
+import landing from "./messages/landing";
+import offers from "./messages/offers";
+import apps from "./messages/apps";
+import coach from "./messages/coach";
+import profileMsgs from "./messages/profile";
+import insights from "./messages/insights";
+import sourcesMsgs from "./messages/sources";
+import shell from "./messages/shell";
 
-const fr: Dict = {
-  brand: "ENITJobs",
+type CoreDict = DeepString<typeof en>;
+
+// Feature message modules, each owned by one area of the app and namespaced under its key.
+const MODULES = { landing2: landing, offers2: offers, apps2: apps, coach2: coach, profile2: profileMsgs, insights2: insights, sources2: sourcesMsgs, shell2: shell };
+type Modules = typeof MODULES;
+export type Dict = CoreDict & { [K in keyof Modules]: DeepString<Modules[K]["en"]> };
+
+const fr: CoreDict = {
+  brand: "Khedma",
   tagline: "Votre recherche d'emploi, pensée comme un ingénieur.",
   nav: {
     dashboard: "Tableau de bord",
@@ -404,7 +418,7 @@ const fr: Dict = {
     eyebrow: "Conçu par un étudiant de l'ENIT, pour les étudiants de l'ENIT",
     heroTitle: ["Arrêtez de postuler", "à l'aveugle. Postulez", "avec méthode."],
     heroText:
-      "ENITJobs collecte les offres de stage, de PFE et de premier emploi, note chacune face à votre CV avec un modèle d'IA local, adapte votre candidature et suit chaque étape jusqu'à l'offre. 100 % sur votre machine.",
+      "Khedma collecte les offres de stage, de PFE et de premier emploi, note chacune face à votre CV avec un modèle d'IA local, adapte votre candidature et suit chaque étape jusqu'à l'offre. 100 % sur votre machine.",
     ctaPrimary: "Ouvrir l'application",
     ctaSecondary: "Comment ça marche",
     localBadge: "Local d'abord · Sans compte · Vos données restent sur votre ordinateur",
@@ -426,7 +440,7 @@ const fr: Dict = {
     privacyTitle: "Privé par conception.",
     privacyText:
       "Pas de serveur, pas de compte, pas de pistage. Les offres et votre CV vivent dans un fichier SQLite sur votre disque. Le modèle d'IA tourne en local via Ollama. Si Ollama est éteint, une heuristique transparente prend le relais et le dit.",
-    footer: "ENITJobs — projet de fin d'année (PFA), ENIT.",
+    footer: "Khedma — projet de fin d'année (PFA), ENIT.",
   },
   dashboard: {
     title: "Tableau de bord",
@@ -596,7 +610,7 @@ const fr: Dict = {
     reset: "Réinitialiser les données",
     resetConfirm: "Effacer toutes les offres, évaluations et candidatures ? Votre profil est conservé.",
     about: "À propos",
-    aboutText: "ENITJobs est un compagnon de recherche d'emploi local d'abord. Tout tourne sur votre ordinateur.",
+    aboutText: "Khedma est un compagnon de recherche d'emploi local d'abord. Tout tourne sur votre ordinateur.",
   },
   a11y: {
     scoreOutOf: "{v} sur 5",
@@ -607,7 +621,10 @@ const fr: Dict = {
   },
 };
 
-export const dicts: Record<Locale, Dict> = { en, fr };
+const pick = (l: Locale) =>
+  Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m[l]])) as { [K in keyof Modules]: DeepString<Modules[K]["en"]> };
+
+export const dicts: Record<Locale, Dict> = { en: { ...en, ...pick("en") }, fr: { ...fr, ...pick("fr") } };
 
 /** Tiny interpolation: fmt("{n} offers", { n: 3 }) */
 export function fmt(s: string, vars: Record<string, string | number>): string {

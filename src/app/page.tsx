@@ -128,7 +128,7 @@ export default async function Landing() {
         {/* Privacy */}
         <section className="mx-auto max-w-6xl px-4 sm:px-6 py-16">
           <div className="card p-8 sm:p-12 grid md:grid-cols-[auto_1fr] gap-8 items-start">
-            <div className="size-14 rounded-2xl bg-accent-soft grid place-items-center text-accent-strong">
+            <div className="size-14 rounded-2xl bg-accent-soft grid place-items-center text-accent-text">
               <ShieldCheck size={28} aria-hidden="true" />
             </div>
             <div>

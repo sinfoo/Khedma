@@ -45,14 +45,14 @@ export default async function UpskillPage() {
             <h2 id="heat-h" className="text-xl mb-1">{t.upskill.heatmap}</h2>
             <p className="hint mb-4">
               <span className="inline-block size-2.5 rounded-sm bg-accent align-middle mr-1" aria-hidden="true" /> {t.upskill.have}
-              <span className="inline-block size-2.5 rounded-sm bg-amber align-middle ml-3 mr-1" aria-hidden="true" /> {t.upskill.missing}
+              <span className="inline-block size-2.5 rounded-sm bg-saffron align-middle ml-3 mr-1" aria-hidden="true" /> {t.upskill.missing}
             </p>
             <ul className="space-y-1.5">
               {gaps.map((g) => (
                 <li key={g.skill} className="grid grid-cols-[7.5rem_1fr_auto] items-center gap-2 text-sm">
                   <span className="truncate" title={g.skill}>{g.skill}</span>
                   <span className="h-4 rounded-sm bg-surface-2 overflow-hidden" aria-hidden="true">
-                    <span className="block h-full rounded-sm" style={{ width: `${(g.demand / max) * 100}%`, background: g.have ? "var(--accent)" : "var(--amber)", opacity: 0.4 + 0.6 * (g.demand / max) }} />
+                    <span className="block h-full rounded-sm" style={{ width: `${(g.demand / max) * 100}%`, background: g.have ? "var(--accent)" : "var(--saffron)", opacity: 0.4 + 0.6 * (g.demand / max) }} />
                   </span>
                   <span className="mono text-xs text-muted">
                     <span aria-hidden="true">{g.demand}</span>
@@ -77,7 +77,7 @@ export default async function UpskillPage() {
                   <li key={p.skill} className="card p-5 rise" style={{ ["--i" as string]: i + 1 }}>
                     <div className="flex items-start justify-between gap-3">
                       <h3 className="text-lg font-semibold">{p.skill}</h3>
-                      <span className={`chip ${p.priority === 1 ? "chip-danger" : p.priority === 2 ? "chip-amber" : ""}`}>
+                      <span className={`chip ${p.priority === 1 ? "chip-danger" : p.priority === 2 ? "chip-saffron" : ""}`}>
                         {t.upskill.priority} {p.priority}
                       </span>
                     </div>

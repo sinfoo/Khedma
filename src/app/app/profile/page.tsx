@@ -57,7 +57,7 @@ export default async function ProfilePage() {
                 <legend className="label">{t.profile.types}</legend>
                 <div className="flex flex-wrap gap-2">
                   {JOB_TYPES.map((ty) => (
-                    <label key={ty} className="chip cursor-pointer min-h-6 has-checked:bg-accent-soft has-checked:text-accent-strong has-checked:border-transparent">
+                    <label key={ty} className="chip cursor-pointer min-h-6 has-checked:bg-accent-soft has-checked:text-accent-text has-checked:border-transparent">
                       <input type="checkbox" name="target_types" value={ty} defaultChecked={p.target_types.includes(ty)} className="accent-[var(--accent)]" />
                       {t.jobTypes[ty]}
                     </label>

@@ -53,7 +53,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 href={`/app/pipeline/${app.id}?tab=${k}`}
                 aria-current={tab === k ? "page" : undefined}
                 className={`block px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
-                  tab === k ? "border-accent text-accent-strong" : "border-transparent text-muted hover:text-ink"
+                  tab === k ? "border-accent text-accent-text" : "border-transparent text-muted hover:text-ink"
                 }`}
               >
                 {t.application.tabs[k]}
@@ -156,7 +156,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           <ol className="card p-5 space-y-4 rise" style={{ ["--i" as string]: 1 }}>
             {events.map((e) => (
               <li key={e.id} className="grid grid-cols-[auto_1fr] gap-3">
-                <span aria-hidden="true" className="mt-1.5 size-2.5 rounded-full" style={{ background: e.kind === "status" ? "var(--accent)" : e.kind === "doc" ? "var(--amber)" : "var(--line-strong)" }} />
+                <span aria-hidden="true" className="mt-1.5 size-2.5 rounded-full" style={{ background: e.kind === "status" ? "var(--accent)" : e.kind === "doc" ? "var(--saffron)" : "var(--line-strong)" }} />
                 <div>
                   <p className="text-sm">
                     {e.kind === "status" ? `${t.application.changed} ${t.states[e.payload as keyof typeof t.states] ?? e.payload}` : e.kind === "doc" ? `${t.common.generate}: ${e.payload}` : e.payload}

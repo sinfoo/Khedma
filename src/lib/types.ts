@@ -63,6 +63,7 @@ export interface Job {
   deadline: string | null;
   created_at: string;
   archived: boolean;
+  starred: boolean;
 }
 
 export interface Evaluation {
@@ -134,5 +135,42 @@ export interface UpskillPlan {
   gaps: SkillGap[];
   plan: { skill: string; priority: 1 | 2 | 3; why: string; steps: string[]; resources: { title: string; url: string }[] }[];
   engine: string;
+  created_at: string;
+}
+
+export interface Contact {
+  id: number;
+  application_id: number;
+  name: string;
+  role: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  notes: string;
+  created_at: string;
+}
+
+export const INTERVIEW_KINDS = ["phone", "hr", "technical", "case", "onsite", "final"] as const;
+export type InterviewKind = (typeof INTERVIEW_KINDS)[number];
+
+export interface Interview {
+  id: number;
+  application_id: number;
+  starts_at: string; // ISO local datetime "2026-10-20T14:00"
+  duration_min: number;
+  kind: InterviewKind;
+  location: string;
+  notes: string;
+  outcome: string;
+  created_at: string;
+}
+
+export interface Reminder {
+  id: number;
+  application_id: number | null;
+  job_id: number | null;
+  title: string;
+  due_at: string; // ISO date or datetime
+  done: boolean;
   created_at: string;
 }

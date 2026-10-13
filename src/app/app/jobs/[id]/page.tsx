@@ -121,7 +121,7 @@ export default async function JobPage({ params }: PageProps<"/app/jobs/[id]">) {
 
 function Lists({ title, items, tone }: { title: string; items: string[]; tone: "success" | "amber" | "danger" }) {
   if (!items.length) return null;
-  const dot = tone === "success" ? "var(--success)" : tone === "amber" ? "var(--amber)" : "var(--danger)";
+  const dot = tone === "success" ? "var(--success)" : tone === "amber" ? "var(--saffron)" : "var(--danger)";
   return (
     <div className="mt-4">
       <h3 className="text-xs uppercase tracking-wide font-semibold text-muted mb-1.5">{title}</h3>

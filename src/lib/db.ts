@@ -14,8 +14,8 @@ import {
   type Source,
 } from "./types";
 
-const DATA_DIR = process.env.ENITJOBS_DATA ?? path.join(process.cwd(), "data");
-const DB_PATH = process.env.ENITJOBS_DB ?? path.join(DATA_DIR, "enitjobs.db");
+const DATA_DIR = process.env.KHEDMA_DATA ?? path.join(process.cwd(), "data");
+const DB_PATH = process.env.KHEDMA_DB ?? path.join(DATA_DIR, "khedma.db");
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -110,17 +110,79 @@ CREATE TABLE IF NOT EXISTS kv (
 `;
 
 declare global {
-  var __enitjobsDb: DatabaseSync | undefined;
+  var __khedmaDb: DatabaseSync | undefined;
 }
 
 export function db(): DatabaseSync {
-  if (globalThis.__enitjobsDb) return globalThis.__enitjobsDb;
+  if (globalThis.__khedmaDb) return globalThis.__khedmaDb;
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new DatabaseSync(DB_PATH);
   d.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   d.exec(SCHEMA);
-  globalThis.__enitjobsDb = d;
+  globalThis.__khedmaDb = d;
+  runCoreMigrations(d);
   return d;
+}
+
+/**
+ * Run a schema change exactly once, keyed by a unique id ("offers:001-starred").
+ * Feature modules call this lazily before their first query; it is cheap after the first run.
+ */
+export function migrate(id: string, sql: string): void {
+  const d = db();
+  d.exec("CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')))");
+  if (d.prepare("SELECT 1 FROM _migrations WHERE id = ?").get(id)) return;
+  d.exec("BEGIN");
+  try {
+    d.exec(sql);
+    d.prepare("INSERT INTO _migrations (id) VALUES (?)").run(id);
+    d.exec("COMMIT");
+  } catch (e) {
+    d.exec("ROLLBACK");
+    throw e;
+  }
+}
+
+/** Shared tables several areas read (pipeline writes them, calendar/dashboard read them). */
+function runCoreMigrations(d: DatabaseSync) {
+  void d;
+  migrate(
+    "core:001-shared",
+    `ALTER TABLE jobs ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;
+     CREATE TABLE IF NOT EXISTS contacts (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+       name TEXT NOT NULL,
+       role TEXT NOT NULL DEFAULT '',
+       email TEXT NOT NULL DEFAULT '',
+       phone TEXT NOT NULL DEFAULT '',
+       linkedin TEXT NOT NULL DEFAULT '',
+       notes TEXT NOT NULL DEFAULT '',
+       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     );
+     CREATE TABLE IF NOT EXISTS interviews (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       application_id INTEGER NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+       starts_at TEXT NOT NULL,
+       duration_min INTEGER NOT NULL DEFAULT 45,
+       kind TEXT NOT NULL DEFAULT 'technical',
+       location TEXT NOT NULL DEFAULT '',
+       notes TEXT NOT NULL DEFAULT '',
+       outcome TEXT NOT NULL DEFAULT '',
+       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     );
+     CREATE INDEX IF NOT EXISTS interviews_start ON interviews(starts_at);
+     CREATE TABLE IF NOT EXISTS reminders (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       application_id INTEGER REFERENCES applications(id) ON DELETE CASCADE,
+       job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+       title TEXT NOT NULL,
+       due_at TEXT NOT NULL,
+       done INTEGER NOT NULL DEFAULT 0,
+       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     );
+     CREATE INDEX IF NOT EXISTS reminders_due ON reminders(done, due_at);`,
+  );
 }
 
 // ---------- helpers ----------
@@ -148,6 +210,7 @@ const rowToJob = (r: Row): Job => ({
   deadline: (r.deadline as string) ?? null,
   created_at: r.created_at as string,
   archived: !!r.archived,
+  starred: !!r.starred,
 });
 
 const rowToEval = (r: Row): Evaluation => ({
@@ -223,7 +286,7 @@ export function updateProfile(p: Partial<Omit<Profile, "id">>): void {
 }
 
 // ---------- jobs ----------
-export type NewJob = Omit<Job, "id" | "created_at" | "archived"> & { archived?: boolean };
+export type NewJob = Omit<Job, "id" | "created_at" | "archived" | "starred"> & { archived?: boolean; starred?: boolean };
 
 /** Insert or ignore (by url). Returns the job id and whether it was new. */
 export function upsertJob(job: NewJob): { id: number; inserted: boolean } {
@@ -257,7 +320,7 @@ export function updateJob(id: number, patch: Partial<NewJob>): void {
   const n = { ...cur, ...patch };
   db()
     .prepare(
-      `UPDATE jobs SET title=?, company=?, location=?, remote=?, url=?, type=?, description=?, tags=?, posted_at=?, deadline=?, archived=? WHERE id=?`,
+      `UPDATE jobs SET title=?, company=?, location=?, remote=?, url=?, type=?, description=?, tags=?, posted_at=?, deadline=?, archived=?, starred=? WHERE id=?`,
     )
     .run(
       n.title,
@@ -271,6 +334,7 @@ export function updateJob(id: number, patch: Partial<NewJob>): void {
       n.posted_at,
       n.deadline,
       n.archived ? 1 : 0,
+      n.starred ? 1 : 0,
       id,
     );
 }

@@ -6,6 +6,7 @@ import { detectLanguage } from "./index";
 
 const job = (over: Partial<Job> = {}): Job => ({
   id: 1,
+  starred: false,
   title: "Stage PFE – Développeur Embarqué C++",
   company: "Acme Robotics",
   location: "Tunis, Tunisia",

@@ -88,7 +88,7 @@ export function DocEditor({
         )}
       </div>
       <span role="status" className="sr-only">{copied ? t.common.copied : ""}</span>
-      {disabledReason && <p role="status" className="text-sm text-amber mb-3">{disabledReason}</p>}
+      {disabledReason && <p role="status" className="text-sm text-saffron mb-3">{disabledReason}</p>}
       {!value && !gen ? (
         <p className="text-muted">{emptyText} <span className="text-ink-2">{generateHint}</span></p>
       ) : gen && !value ? (

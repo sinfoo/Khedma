@@ -60,7 +60,7 @@ export function ScoreRing({
 
 export function VerdictChip({ verdict, t }: { verdict: Evaluation["verdict"]; t: Dict }) {
   const cls =
-    verdict === "apply_now" ? "chip-accent" : verdict === "apply" ? "chip-success" : verdict === "maybe" ? "chip-amber" : "chip-danger";
+    verdict === "apply_now" ? "chip-accent" : verdict === "apply" ? "chip-success" : verdict === "maybe" ? "chip-saffron" : "chip-danger";
   return <span className={`chip ${cls}`}>{t.verdicts[verdict]}</span>;
 }
 
@@ -68,7 +68,7 @@ const STATE_CLS: Record<AppState, string> = {
   evaluated: "",
   applied: "chip-accent",
   responded: "chip-accent",
-  interview: "chip-amber",
+  interview: "chip-saffron",
   offer: "chip-success",
   hired: "chip-success",
   rejected: "chip-danger",
@@ -82,9 +82,9 @@ export function StateChip({ state, t }: { state: AppState; t: Dict }) {
 export function EngineChip({ engine, t }: { engine: string; t: Dict }) {
   const offline = engine === "heuristic";
   return (
-    <span className={`chip ${offline ? "chip-amber" : ""}`}>
+    <span className={`chip ${offline ? "chip-saffron" : ""}`}>
       <span className="sr-only">{t.common.engine}: </span>
-      <span aria-hidden="true" className="inline-block size-1.5 rounded-full" style={{ background: offline ? "var(--amber)" : "var(--accent)" }} />
+      <span aria-hidden="true" className="inline-block size-1.5 rounded-full" style={{ background: offline ? "var(--saffron)" : "var(--accent)" }} />
       {offline ? t.common.heuristic : engine.replace("ollama:", "Ollama · ")}
     </span>
   );
