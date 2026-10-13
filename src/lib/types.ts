@@ -18,7 +18,7 @@ export const APP_STATES = [
 export type AppState = (typeof APP_STATES)[number];
 export const TERMINAL_STATES: AppState[] = ["offer", "hired", "rejected", "discarded"];
 
-export type SourceKind = "greenhouse" | "lever" | "ashby" | "rss" | "url" | "manual" | "demo";
+export type SourceKind = "greenhouse" | "lever" | "ashby" | "rss" | "keejob" | "tanitjobs" | "emploitunisie" | "farojob" | "url" | "manual" | "demo";
 
 export interface Profile {
   id: 1;

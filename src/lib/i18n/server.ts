@@ -19,3 +19,7 @@ export async function getTheme(): Promise<"light" | "dark" | "system"> {
   const c = (await cookies()).get(THEME_COOKIE)?.value;
   return c === "light" || c === "dark" ? c : "system";
 }
+
+export async function getMotion(): Promise<"auto" | "reduce"> {
+  return (await cookies()).get("khedma_motion")?.value === "reduce" ? "reduce" : "auto";
+}

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { getDict, getTheme } from "@/lib/i18n/server";
+import { getDict, getMotion, getTheme } from "@/lib/i18n/server";
 import { I18nProvider } from "@/lib/i18n/client";
 import { ToastProvider } from "@/components/kit/toast";
 
@@ -23,12 +23,13 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [{ locale, t }, theme] = await Promise.all([getDict(), getTheme()]);
+  const [{ locale, t }, theme, motion] = await Promise.all([getDict(), getTheme(), getMotion()]);
   return (
     <html
       lang={locale}
       data-scroll-behavior="smooth"
       data-theme={theme === "system" ? undefined : theme}
+      data-motion={motion === "reduce" ? "reduce" : undefined}
       className={`${display.variable} ${sans.variable} ${mono.variable} h-full`}
       suppressHydrationWarning
     >
