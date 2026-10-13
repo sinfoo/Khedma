@@ -18,6 +18,8 @@ import * as daijob from "./daijob";
 import * as jobbank from "./jobbank";
 import * as jobcloud from "./jobcloud";
 import * as englishjobs from "./englishjobs";
+import * as remote from "./remote";
+import * as keyed from "./keyed";
 import { countryByCode, fitsPlaces, REMOTE_CODE } from "../geo";
 
 export { importFromUrl } from "./url";
@@ -75,6 +77,15 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   jobbank: { list: jobbank.scan, detail: jobbank.detail, detailGapMs: 5000 },
   daijob: { list: daijob.scan },
   wantedly: { list: wantedly.scan },
+  remoteok: { list: remote.scan.remoteok },
+  jobicy: { list: remote.scan.jobicy },
+  himalayas: { list: remote.scan.himalayas },
+  remotive: { list: remote.scan.remotive },
+  aijobs: { list: remote.scan.aijobs },
+  adzuna: { list: keyed.scan.adzuna },
+  jooble: { list: keyed.scan.jooble },
+  reed: { list: keyed.scan.reed },
+  findwork: { list: keyed.scan.findwork },
 };
 
 export interface ScanOptions {

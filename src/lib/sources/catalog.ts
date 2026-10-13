@@ -4,6 +4,7 @@ import { countryByCode, countryOf, REMOTE_CODE } from "../geo";
 export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
+  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork",
   "greenhouse", "lever", "ashby", "rss",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
@@ -17,7 +18,7 @@ export const LINK_KINDS = [
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 /** ISO country code of the board, or "INT" for worldwide boards. */
-export type CatalogCountry = "TN" | "DE" | "CH" | "US" | "FR" | "CA" | "JP" | "INT";
+export type CatalogCountry = "TN" | "DE" | "CH" | "US" | "FR" | "CA" | "JP" | "GB" | "INT";
 
 export interface CatalogEntry {
   kind: ProviderKind | LinkKind;
@@ -32,6 +33,8 @@ export interface CatalogEntry {
   keywords: boolean;
   /** Cannot be scanned; only opened in the browser through `searchUrl`. */
   linkOnly?: true;
+  /** Free API key(s) read from .env.local; the catalog shows a hint instead of "Add" while one is missing. */
+  needsEnv?: string[];
   /** The site's own search page for these keywords and a free-text location (country name or city). `code` is the ISO country. */
   searchUrl?: (keywords: string, location: string, code: string) => string;
 }
@@ -128,7 +131,41 @@ export const CATALOG: CatalogEntry[] = [
   link("careercross", "CareerCross", "JP", "https://www.careercross.com", (q) => `https://www.careercross.com/en/job-search/result?keyword=${enc(q)}`),
   link("mynavi", "Mynavi (マイナビ転職)", "JP", "https://tenshoku.mynavi.jp", (q) => `https://tenshoku.mynavi.jp/list/kw${enc(q)}/`),
   link("rikunabi", "Rikunabi NEXT", "JP", "https://next.rikunabi.com", (q) => `https://next.rikunabi.com/rnc/docs/cp_s01880.jsp?kw=${enc(q)}`),
-  // Worldwide
+  // United Kingdom
+  { kind: "reed", name: "Reed", country: "GB", method: "api", site: "https://www.reed.co.uk", handle: none, keywords: true, needsEnv: ["REED_KEY"] },
+  // Worldwide / remote (free JSON APIs)
+  { kind: "remoteok", name: "Remote OK", country: "INT", method: "api", site: "https://remoteok.com", handle: none, keywords: true },
+  {
+    kind: "jobicy",
+    name: "Jobicy",
+    country: "INT",
+    method: "api",
+    site: "https://jobicy.com",
+    handle: { type: "select", options: [{ value: "", label: "Anywhere" }, { value: "europe", label: "Europe" }, { value: "emea", label: "EMEA" }, { value: "uk", label: "United Kingdom" }, { value: "canada", label: "Canada" }, { value: "usa", label: "United States" }] },
+    keywords: true,
+  },
+  { kind: "himalayas", name: "Himalayas", country: "INT", method: "api", site: "https://himalayas.app", handle: none, keywords: true },
+  { kind: "remotive", name: "Remotive", country: "INT", method: "api", site: "https://remotive.com", handle: none, keywords: true },
+  { kind: "aijobs", name: "Artificial Intelligence Jobs", country: "INT", method: "api", site: "https://artificialintelligencejobs.co", handle: none, keywords: true },
+  {
+    kind: "adzuna",
+    name: "Adzuna",
+    country: "INT",
+    method: "api",
+    site: "https://www.adzuna.com",
+    handle: {
+      type: "select",
+      options: [
+        { value: "fr", label: "France" }, { value: "de", label: "Germany" }, { value: "ch", label: "Switzerland" }, { value: "be", label: "Belgium" }, { value: "nl", label: "Netherlands" },
+        { value: "it", label: "Italy" }, { value: "es", label: "Spain" }, { value: "at", label: "Austria" }, { value: "pl", label: "Poland" }, { value: "gb", label: "United Kingdom" },
+        { value: "ca", label: "Canada" }, { value: "us", label: "United States" },
+      ],
+    },
+    keywords: true,
+    needsEnv: ["ADZUNA_APP_ID", "ADZUNA_APP_KEY"],
+  },
+  { kind: "jooble", name: "Jooble", country: "INT", method: "api", site: "https://jooble.org", handle: { type: "slug", placeholder: "tunisia" }, keywords: true, needsEnv: ["JOOBLE_KEY"] },
+  { kind: "findwork", name: "Findwork", country: "INT", method: "api", site: "https://findwork.dev", handle: none, keywords: true, needsEnv: ["FINDWORK_KEY"] },
   link("indeed", "Indeed", "INT", "https://www.indeed.com", (q, loc, code) => `https://${INDEED_HOSTS[code] ?? "www"}.indeed.com/jobs?q=${enc(q)}&l=${enc(loc)}`),
   link("google", "Google Jobs", "INT", "https://www.google.com", (q, loc) => `https://www.google.com/search?q=${enc(`${q} ${loc}`.trim())}&ibp=htl;jobs`),
   { kind: "greenhouse", name: "Greenhouse", country: "INT", method: "api", site: "https://boards.greenhouse.io", handle: { type: "slug", placeholder: "vercel" }, keywords: false },

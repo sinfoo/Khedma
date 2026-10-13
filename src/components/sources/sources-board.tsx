@@ -46,6 +46,7 @@ export function SourcesBoard({
   profileLocation = "",
   clipToken,
   autoStart,
+  missingEnv = [],
 }: {
   sources: SourceRow[];
   discovered: Discovered[];
@@ -55,6 +56,8 @@ export function SourcesBoard({
   profileLocation?: string;
   clipToken: string;
   autoStart: boolean;
+  /** Catalog kinds whose API key env var is not set (computed server-side). */
+  missingEnv?: string[];
 }) {
   const { t, locale } = useT();
   const s2 = t.sources2;
@@ -169,6 +172,7 @@ export function SourcesBoard({
       <Catalog
         existing={sources.map((s) => `${s.kind}:${s.handle}`)}
         keywords={profileKeywords}
+        missingEnv={missingEnv}
         onAdded={(id, name) => toast.success(s2.added, name, { label: s2.scanNow, onClick: () => void scan([id]) })}
       />
           <Clipper token={clipToken} />

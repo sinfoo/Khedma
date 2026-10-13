@@ -4,6 +4,7 @@ import { SourcesBoard } from "@/components/sources/sources-board";
 import { getDict } from "@/lib/i18n/server";
 import { getProfile } from "@/lib/db";
 import { clipToken } from "@/lib/clip";
+import { CATALOG } from "@/lib/sources/catalog";
 import { defaultKeywords, getAutoScan, listDiscovered, listRuns, listSourceRows } from "@/lib/repo/sources";
 
 export const metadata: Metadata = { title: "Sources" };
@@ -22,6 +23,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         profileLocation={getProfile().target_locations[0] ?? ""}
         clipToken={clipToken()}
         autoStart={sp.scan === "1"}
+        missingEnv={CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind)}
       />
     </>
   );

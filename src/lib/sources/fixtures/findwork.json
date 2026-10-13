@@ -1,0 +1,37 @@
+{
+ "count": 2,
+ "next": null,
+ "previous": null,
+ "results": [
+  {
+   "id": "a1b2c3d4e5",
+   "role": "Software Engineering Intern",
+   "company_name": "Lumen Labs",
+   "company_num_employees": "11-50",
+   "employment_type": "contract",
+   "location": "Berlin, Germany",
+   "remote": true,
+   "logo": "",
+   "url": "https://findwork.dev/a1b2c3d4e5/software-engineering-intern-at-lumen-labs",
+   "text": "<p>Summer internship, 3 months, remote-friendly. TypeScript, React, Node.js.</p>",
+   "date_posted": "2026-10-09T12:00:00Z",
+   "keywords": ["typescript", "react", "node"],
+   "source": "Lumen Labs"
+  },
+  {
+   "id": "f6g7h8i9j0",
+   "role": "Backend Developer",
+   "company_name": "Orbit",
+   "company_num_employees": null,
+   "employment_type": "full time",
+   "location": null,
+   "remote": true,
+   "logo": "",
+   "url": "https://findwork.dev/f6g7h8i9j0/backend-developer-at-orbit",
+   "text": "<p>Go and PostgreSQL, worldwide remote.</p>",
+   "date_posted": "2026-10-08T09:30:00Z",
+   "keywords": ["go", "postgresql"],
+   "source": "Hacker News"
+  }
+ ]
+}

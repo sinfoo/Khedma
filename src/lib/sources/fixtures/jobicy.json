@@ -1,0 +1,82 @@
+{
+ "apiVersion": "2.2.19",
+ "documentationUrl": "https://jobi.cy/apidocs",
+ "friendlyNotice": "Thanks for using Jobicy API! Please ensure Jobicy is clearly credited with a direct link to the source, and all application buttons redirect to the original job URL provided in this feed. That’s all! You might be building something amazing, we wish you the best of luck!",
+ "jobCount": 3,
+ "lastUpdate": "2026-10-13T09:48:25+00:00",
+ "nextCursor": "AgAAAABqzj1LAAAAAGrN_dAAAAAAAAJeOQKrZojyxTrPGU2G7C7nqnmUUchCHaUKkR7SwsVEQbgWJ0RQqc-nw9aKoxyC4H4COfc3QIcMdFc87ZWN1HXRFt0",
+ "hasMore": true,
+ "appliedFilters": {
+  "count": 3,
+  "tag": "software"
+ },
+ "jobs": [
+  {
+   "id": 155203,
+   "url": "https://jobicy.com/jobs/155203-commercial-legal-counsel-2",
+   "jobSlug": "155203-commercial-legal-counsel-2",
+   "jobTitle": "Commercial Legal Counsel",
+   "companyName": "Tailscale",
+   "companyLogo": "",
+   "jobIndustry": [
+    "Legal & Compliance"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "Canada",
+   "jobLevel": "Director",
+   "jobExcerpt": "Thank you for considering Tailscale. If this job description resonates with you, please apply. Frequently cited statistics show that people who identify with historically marginalized groups are likely to apply to jobs only if they meet 100% of the qualifications. We encourage you to help us break that statistic! About Tailscale Tailscale is making safe&hellip;",
+   "jobDescription": "<p>Thank you for considering <a href=\"https://jobicy.com/company/tailscale\" target=\"_blank\" rel=\"noopener\">Tailscale</a>. If this job description resonates with you, please apply. <em>Frequently cited statistics show that people who identify with historically marginalized groups are likely to apply to jobs only if they meet 100% of the qualifications. </em><em>We encourage you to help us break that statistic!</em></p>\n<p><strong>About Tailscale </strong></p>\n<p>Tailscale is making safe connection effortless by delivering software that makes it easy to securely interconnect people and their devices, no matter where they are. From hobbyists to multinational corporations, teams of every size use Tailscale each day to protect their networks, share access to internal tools, and more. We're building a future for the Internet that's easy, sensible, and safe, like it used to be. Founded in 2019 and fully distributed, we're backed by Accel, CRV, Insight, Heavybit, and Uncork Capital.</p>\n<p><strong>About the Role</strong></p>\n<p>We are hiring a Commercial Legal Counsel to lead day-to-day commercial legal support as Tailscale continues to grow. You will partner closely with Sales, Partnershi",
+   "pubDate": "2026-10-13T09:48:25+00:00",
+   "salaryMin": 250580,
+   "salaryMax": 313560,
+   "salaryCurrency": "CAD",
+   "salaryPeriod": "yearly"
+  },
+  {
+   "id": 155199,
+   "url": "https://jobicy.com/jobs/155199-staff-software-engineer-8",
+   "jobSlug": "155199-staff-software-engineer-8",
+   "jobTitle": "Staff Software Engineer",
+   "companyName": "Solace",
+   "companyLogo": "",
+   "jobIndustry": [
+    "Software Engineering"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "USA",
+   "jobLevel": "Senior",
+   "jobExcerpt": "About Solace Healthcare in the U.S. is fundamentally broken. The system is so complex that 88% of U.S. adults do not have the health literacy necessary to navigate it without help. Solace cuts through the red tape of healthcare by pairing patients with expert advocates and giving them the tools to make better decisions—and get&hellip;",
+   "jobDescription": "<h3><strong>About <a href=\"https://jobicy.com/company/solace\" target=\"_blank\" rel=\"noopener\">Solace</a></strong></h3>\n<p>Healthcare in the U.S. is fundamentally broken. The system is so complex that 88% of U.S. adults do not have the health literacy necessary to navigate it without help. Solace cuts through the red tape of healthcare by pairing patients with expert advocates and giving them the tools to make better decisions—and get better outcomes.</p>\n<p>We're a Series C startup, founded in 2022 and backed by Inspired Capital, Craft Ventures, Torch Capital, Menlo Ventures, Signalfire, and IVP. Our U.S. based team is lean, mission-driven, and growing quickly.</p>\n<p>Solace isn't a place to coast. We're here to redefine healthcare—and that demands urgency, precision, and heart. If you're looking to stretch yourself, sharpen your edge, and do the best work of your life alongside a team that cares deeply, you're in the right place. We’re intense, and we like it that way.</p>\n<p><em><strong>Read more in our Bloomberg funding announcement </strong></em>",
+   "pubDate": "2026-10-13T09:48:23+00:00",
+   "salaryMin": 180000,
+   "salaryMax": 250000,
+   "salaryCurrency": "USD",
+   "salaryPeriod": "yearly"
+  },
+  {
+   "id": 155193,
+   "url": "https://jobicy.com/jobs/155193-technical-program-manager-7",
+   "jobSlug": "155193-technical-program-manager-7",
+   "jobTitle": "Technical Program Manager",
+   "companyName": "Able",
+   "companyLogo": "",
+   "jobIndustry": [
+    "Project & Program Management"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "LATAM",
+   "jobLevel": "Senior",
+   "jobExcerpt": "Back in 2012, we were a group of engineers and designers who decided we wanted to build things, so we did. Able started as an engineering and product hub building for a portfolio of early-stage startups. We built many relationships while developing products that were thoughtful, effective, and genuinely useful. But, since then, we’ve grown…&hellip;",
+   "jobDescription": "<p>Back in 2012, we were a group of engineers and designers who decided we wanted to build things, so we did. <a href=\"https://jobicy.com/company/able\" target=\"_blank\" rel=\"noopener\">Able</a> started as an engineering and product hub building for a portfolio of early-stage startups. We built many relationships while developing products that were thoughtful, effective, and genuinely useful. But, since then, we’ve grown… and so has our ambition. </p>\n<p>Now, we’re entering our next chapter, defined by applied AI. AI is a powerful force in the end-to-end software development cycle, and we’re creating practices that allow us to deliver software fast and more effectively than traditional approaches, creating meaningful value for our partners. Today, our builder mindset is driving us to become an AI-native organization across every function. We’re still evolving, and that’s part of the opportunity. If you want to build, learn, and tackle challenges alongside an ambitious team, let’s build together.</p>\n<p><strong>This position is 100% remote within LatAm.</strong></p>\n<h3><strong>About the Role</strong></h3>\n<p>As a Technical Program Manager at Able, you'll drive the execution of AI and ",
+   "pubDate": "2026-10-13T09:45:52+00:00"
+  }
+ ],
+ "statusCode": 200,
+ "success": true
+}

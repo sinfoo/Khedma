@@ -1,0 +1,142 @@
+{
+ "comments": "21/08/2026: Cursor pagination is now available and is the preferred way to page through the feed. Pass the nextCursor value from each response back as ?cursor=. It is faster than offset and will never return the same job twice. The offset parameter is deprecated and will be removed in a future release. 13/03/2026: The API has been updated to include the companySlug field in the response.",
+ "updatedAt": 1791895511,
+ "offset": 0,
+ "limit": 3,
+ "totalCount": 124472,
+ "nextCursor": "MjAyNi0xMC0xM1QxMjozNDo1NC40NjU3NjRafDI0MDEwMDg",
+ "jobs": [
+  {
+   "title": "Spanish Voice Actor (Mexico)",
+   "excerpt": "Job Title: Spanish Voice Actor (Mexico) Job Type: Contract Location: Remote Job Summary:Join our customer's team as a Spanish (Mexico) Voice Actor, where your unique voice talents will shape the future of AI voice technology.",
+   "companyName": "micro1",
+   "companySlug": "micro1",
+   "companyLogo": "",
+   "employmentType": "Part Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "hourly",
+   "seniority": [
+    "Entry-level",
+    "Mid-level"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "Mexico"
+   ],
+   "timezoneRestrictions": [
+    -8,
+    -7,
+    -6,
+    -5
+   ],
+   "categories": [
+    "Spanish-Voice-Actor",
+    "Spanish-Voice-Acting",
+    "Latin-American-Spanish-Voice-Actor",
+    "Spanish-Language-Voice-Artist",
+    "Spanish-Voice-Talent",
+    "Spanish-Language-Voice-Acting",
+    "Voice-Actor",
+    "Voice-Artist"
+   ],
+   "parentCategories": [],
+   "description": "<p><strong>Job Title:</strong> Spanish Voice Actor (Mexico)</p><p><strong>Job Type:</strong> Contract</p><p><strong>Location:</strong> Remote</p><h3>Job Summary:</h3><p>Join our customer's team as a Spanish (Mexico) Voice Actor, where your unique voice talents will shape the future of AI voice technology. In this engaging, remote role, you will contribute your vocal skills to high-impact projects for a leading AI lab, helping train the next generation of intelligent systems.</p><p><strong>Please note: the interview and project recordings must be conducted using your best audio setup.</strong></p><h3>Key Responsibilities:</h3><ol>\n<li>Perform high-quality voice recordings in Spanish (Mexico) for AI training applications.</li>\n<li>Interpret scripts with clarity, emotion, and natural conversational flow.</li>\n<li>Demonstrate versatility by expressing a range of emotions and character nuances as required by project scripts.</li>\n<li>Deliver 20+ hours per week of polished, production-ready audio using professional recording equipment.</li>\n<li>Follow detailed project guidelines and meet deadlines with consistency.</li>\n<li>Collaborate remotely with project managers and technical teams t",
+   "pubDate": 1791895511,
+   "expiryDate": 1796514315,
+   "applicationLink": "https://himalayas.app/companies/micro1/jobs/spanish-voice-actor-mexico-6924016910",
+   "guid": "https://himalayas.app/companies/micro1/jobs/spanish-voice-actor-mexico-6924016910"
+  },
+  {
+   "title": "Senior Software Engineer - GenAI",
+   "excerpt": "This is a remote position. Senior Software Engineer - Fully Remote in Ireland, Europe or United KingdomA growing technology company who develop AI B2B solutions across multi-sectors globally have an interesting opportunity for a Backend Senior Software Engineer.",
+   "companyName": "StackandCo",
+   "companySlug": "stackandco",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    14
+   ],
+   "categories": [
+    "Software-Engineer",
+    "Backend-Engineer",
+    "Software-Developer",
+    "Python-Developer",
+    "Generative-AI-Engineer",
+    "GenAI-Software-Engineer",
+    "Senior-AI-Software-Engineer",
+    "Senior-Software-AI-Engineer",
+    "Senior-Gen-AI-Developer",
+    "Senior-AI-Engineer",
+    "Senior-AI-Engineering"
+   ],
+   "parentCategories": [
+    "Developer",
+    "Data Science"
+   ],
+   "description": "<h3>This is a remote position.</h3><div>\n<b>Senior Software Engineer - Fully Remote in Ireland, Europe or United Kingdom</b><div>A growing technology company who develop AI B2B solutions across multi-sectors globally have an interesting opportunity for a Backend Senior Software Engineer.<div>You will play a key role building AI solutions &amp; services which are customised and built to specification for leading companies. You will focus on greenfield projects as each client assignment will be unique and built from scratch.<div>You will have full license on all client projects from the consultation, planning, design, build and deployment.<div>You'll play a key technical role, and you will work with a team of highly skilled software engineers.<div>As a Senior Software Engineer, you will have a serious track record of technical achievement building products in a high-aptitude engineering environment.<div>You will have strong hands-on experience with backend engineering, building greenfield products, problem solving, mentoring engineers and you will have excellent communication skills. You'll have the experience and confidence to talk to customers and discover their needs.<br><h3>Requi",
+   "pubDate": 1791895217,
+   "expiryDate": 1797079216,
+   "applicationLink": "https://himalayas.app/companies/stackandco/jobs/senior-software-engineer-genai",
+   "guid": "https://himalayas.app/companies/stackandco/jobs/senior-software-engineer-genai"
+  },
+  {
+   "title": "RQ08739 - Business Intelligence Specialist - Senior",
+   "excerpt": "Responsibilities:• Document the new requirements and complete analysis and design document • Convert the user requirements into business model for Cognos BI • Convert the business model into Framework Manager Models • Build the security model for the BI implementation • Create metadata, user groups and folder structure for BI objects • Develop reports in Cognos on Cloud Pak for Data and AWS Redshift database • Test, debug, re-engineer standard reports and dashboards in Cognos on AWS • Support converted Dynamic Cubes functionality in DMR or Transformer Cubes without any loss in performance • Document test cases to ensure expected functionality of the reports • Deploy reports using Cognos Framework Manager • Develop SQL and PLSQL process and procedures to implement complex logic.",
+   "companyName": "Rubicon Path",
+   "companySlug": "rubicon-path",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Canada"
+   ],
+   "timezoneRestrictions": [
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5
+   ],
+   "categories": [
+    "Business-Intelligence-Specialist",
+    "BI-Developer",
+    "Business-Intelligence-Analyst",
+    "Business-Intelligence-Developer",
+    "Senior-Business-Intelligence",
+    "Senior-BI-Analyst"
+   ],
+   "parentCategories": [
+    "Data Science"
+   ],
+   "description": "<h3>Responsibilities:</h3><ul>\n<li>Document the new requirements and complete analysis and design document</li>\n<li>Convert the user requirements into business model for Cognos BI</li>\n<li>Convert the business model into Framework Manager Models</li>\n<li>Build the security model for the BI implementation</li>\n<li>Create metadata, user groups and folder structure for BI objects</li>\n<li>Develop reports in Cognos on Cloud Pak for Data and AWS Redshift database</li>\n<li>Test, debug, re-engineer standard reports and dashboards in Cognos on AWS</li>\n<li>Support converted Dynamic Cubes functionality in  DMR or Transformer Cubes without any loss in performance</li>\n<li>Document test cases to ensure expected functionality of the reports</li>\n<li>Deploy reports using Cognos Framework Manager</li>\n<li>Develop SQL and PLSQL process and procedures to implement complex logic. </li>\n<li>Assist with SQL tuning and optimization activities related to the Cognos reports.</li>\n<li>Help to optimize the SQL and PL/SQL process for optimal report performance.    </li>\n<li>Prepare scripts and documentation for the data preparation process and regular performance checks &amp; monitoring.</li>\n<li>Support u",
+   "pubDate": 1791894894,
+   "expiryDate": 1797078893,
+   "applicationLink": "https://himalayas.app/companies/rubicon-path/jobs/rq08739-business-intelligence-specialist-senior-6392646004",
+   "guid": "https://himalayas.app/companies/rubicon-path/jobs/rq08739-business-intelligence-specialist-senior-6392646004"
+  }
+ ]
+}

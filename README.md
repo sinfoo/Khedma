@@ -34,6 +34,17 @@ Open http://localhost:3000.
 - **Ollama**: install from https://ollama.com (`winget install Ollama.Ollama` on Windows), then `ollama pull llama3.1`.
 - Choose the provider in Settings → AI engine. Without either, Khedma works in offline mode.
 
+### Optional job APIs
+
+Some catalog boards read aggregator APIs that hand out free developer keys. Add the variables to `.env.local` and restart; the catalog shows the missing names until then.
+
+- **Adzuna** (Europe / North America, one country per source): `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` from https://developer.adzuna.com
+- **Jooble** (Tunisia and 60+ countries): `JOOBLE_KEY` from https://jooble.org/api/about
+- **Reed** (United Kingdom): `REED_KEY` from https://www.reed.co.uk/developers
+- **Findwork** (remote / US developer jobs): `FINDWORK_KEY` from https://findwork.dev/developers
+
+Remote OK, Jobicy, Himalayas, Remotive, Artificial Intelligence Jobs and Arbeitnow need no key.
+
 ### Data
 
 All data lives in `data/khedma.db` (SQLite) and `data/cv/` (uploaded CV). Export, restore and reset from Settings → Data.

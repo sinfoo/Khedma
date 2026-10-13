@@ -1,0 +1,91 @@
+{
+ "00-warning": "Remotive main domain moved to remotive.com ! Please make your API calls on remotive.com/api/remote-jobs instead of remotive.io now ;) Legacy endpoint remotive.io/api/remote-jobs will be terminated in June 2022. Thank you!",
+ "0-legal-notice": "Legal warning - Hey, thanks for using Remotive's API, we appreciate it! Please note that API documentation and access is granted so that developers can share our jobs further. Please do not submit Remotive jobs to third Party websites, including but not limited to: Jooble, Neuvoo, Google Jobs, LinkedIn Jobs. Please link back to the URL found on Remotive AND mention Remotive as a source in order to Remotive to get traffic from your listing. If you don't do that, we'll terminate your API access, sorry! Jobs displayed are delayed by 24 hours, the goal being that jobs are attributed to Remotive on various platforms. Displaying our jobs in order to collect signups/email addresses to show a listing constitutes a breach of our terms of services. We offer a private, paid-for API, please email us at hello(at)remotive(dot)io for more information (starting budget is $5k/mo). Please find out terms of services on https://remotive.com/api-documentation. Please note that there is absolutely no need to request Remotive Job data too frequently. Typically, you only need to GET Remotive job data through this API a couple of times a day (we advise max. 4 times a day). Our data is not changing much faster than that anyway. Note that excessive requests will be blocked. Many thanks (Rodolphe & the Remotive team!)",
+ "job-count": 16,
+ "total-job-count": 16,
+ "jobs": [
+  {
+   "id": 1680495,
+   "url": "https://remotive.com/remote-jobs/marketing/remote-office-assistant-1680495",
+   "title": "Remote Office Assistant",
+   "company_name": "Coalition Technologies ",
+   "company_logo": "",
+   "category": "Marketing",
+   "tags": [
+    "CSS",
+    "excel",
+    "frontend",
+    "git",
+    "html",
+    "illustrator",
+    "magento",
+    "photoshop",
+    "php",
+    "shopify",
+    "wordpress",
+    "MySQL",
+    "startup",
+    "responsive",
+    "themes",
+    "bootstrap",
+    "insurance",
+    "jQuery",
+    "Ajax"
+   ],
+   "job_type": "full_time",
+   "publication_date": "2026-10-11T20:17:27",
+   "candidate_required_location": "Worldwide",
+   "salary": "$35,3k- $52k",
+   "description": "<p class=\"h3\">Coalition Technologies is seeking a reliable, detail-oriented, and highly organized Remote Office Assistant to support administrative, bookkeeping, billing, reporting, data entry, and internal operations tasks. This role is ideal for someone with strong communication skills, discretion, attention to detail, and a willingness to learn and grow within a fast-paced remote work environment.</p>\n<p class=\"h3\">As an Office Assistant, you will help support daily administrative operations, assist with entry-level bookkeeping, organize client documents, support internal reporting, and help maintain accurate company records. This position offers strong growth potential for the right candidate, including opportunities for advancement within the Accounting team or other departments.</p>\n<p class=\"h3\">We are looking for talented and diligent candidates who perform well on our skills assessments. Strong skills test performance may be considered even if a candidate does not meet every preferred experience or educational background requirement.</p>\n<p class=\"h3\"> </p>\n<p class=\"h3\"><strong>Why Join Coalition Technologies?</strong></p>\n<p class=\"h3\">Coalition Technologies is committed",
+   "company_logo_url": ""
+  },
+  {
+   "id": 2086540,
+   "url": "https://remotive.com/remote-jobs/sales/inside-sales-contractor-2086540",
+   "title": "Inside Sales Contractor",
+   "company_name": "Credit Wellness, LLC",
+   "company_logo": "",
+   "category": "Sales",
+   "tags": [
+    "CRM",
+    "google sheets",
+    "financial services",
+    "Inside Sales"
+   ],
+   "job_type": "full_time",
+   "publication_date": "2026-10-08T21:47:32",
+   "candidate_required_location": "Worldwide",
+   "salary": "OTE $25k - $35k",
+   "description": "<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\"><span style=\"color: #2d2d2d; background-color: transparent; font-weight: bold; font-style: normal; font-variant: normal; text-decoration: none; vertical-align: baseline; white-space: pre-wrap;\">About Us</span></p>\n<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\"><span style=\"color: #2d2d2d; background-color: transparent; font-weight: 400; font-style: normal; font-variant: normal; text-decoration: none; vertical-align: baseline; white-space: pre-wrap;\">We are a financial services start up focusing on helping to improve consumer credit profiles. We are currently seeking KPI driven sales representatives looking to earn up to 45K in their first year while working remotely. We offer comprehensive training and continuous sales coaching to help you meet your financial goals.</span></p>\n<p dir=\"ltr\" style=\"line-height: 1.38; background-color: #ffffff; margin-top: 0pt; margin-bottom: 0pt; padding: 0pt 0pt 12pt 0pt;\">",
+   "company_logo_url": ""
+  },
+  {
+   "id": 2091045,
+   "url": "https://remotive.com/remote-jobs/information-technology/tier-iii-service-desk-engineer-2091045",
+   "title": "Tier III Service Desk Engineer",
+   "company_name": "Unio Digital",
+   "company_logo": "",
+   "category": "Information Technology",
+   "tags": [
+    "azure",
+    "cisco",
+    "security",
+    "video",
+    "documentation",
+    "hardware",
+    "helpdesk",
+    "onboarding",
+    "MSP",
+    "ticketing",
+    "Microsoft 365",
+    "IT systems"
+   ],
+   "job_type": "full_time",
+   "publication_date": "2026-10-07T01:11:09",
+   "candidate_required_location": "Worldwide",
+   "salary": "",
+   "description": "<p class=\"MsoNormal\" style=\"margin: 0in 0in 8pt; line-height: 15.6933px; color: #000000;\">Unió Digital is an Arizona-based managed service provider (MSP) delivering Managed IT Services, Low Voltage Cabling, Access Control, Video Surveillance, and Intrusion Services. We believe technology should be intuitive, not intimidating.</p>\n<p> </p>\n<p class=\"MsoNormal\" style=\"margin: 0in 0in 8pt; line-height: 15.6933px; color: #000000;\">We are looking for an experienced Tier 3 Service Desk Technician with exceptional problem-solving skills. You will serve as the escalation point within the team, resolving complex technical issues while also leading client onboarding and project initiatives. You are expected to be involved in direct end-user support when required. If you have a passion for ensuring top-quality user support and thrive in a collaborative environment, this role is for you.</p>\n<p> </p>\n<p class=\"MsoNormal\" style=\"margin: 0in 0in 8pt; line-height: 15.6933px; color: #000000;\"><strong>Duties</strong></p>\n<p> </p>\n<p class=\"MsoListParagraphCxSpFirst\" style=\"margin: 0in 0in 0in 0.5in; line-height: 15.6933px; color: #000000; text-indent: -0.25in;\">·",
+   "company_logo_url": ""
+  }
+ ]
+}

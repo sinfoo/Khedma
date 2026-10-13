@@ -4,7 +4,7 @@ const NAMED: Record<string, string> = {
   amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", hellip: "…", mdash: "—", ndash: "–",
   laquo: "«", raquo: "»", rsquo: "’", lsquo: "‘", rdquo: "”", ldquo: "“", eacute: "é", egrave: "è",
   ecirc: "ê", agrave: "à", acirc: "â", ccedil: "ç", ocirc: "ô", ugrave: "ù", ucirc: "û", icirc: "î",
-  iuml: "ï", euml: "ë", copy: "©", reg: "®", trade: "™", bull: "•", middot: "·", euro: "€",
+  iuml: "ï", euml: "ë", pound: "£", copy: "©", reg: "®", trade: "™", bull: "•", middot: "·", euro: "€",
 };
 
 export function decodeEntities(s: string): string {

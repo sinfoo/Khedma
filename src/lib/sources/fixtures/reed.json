@@ -1,0 +1,40 @@
+{
+ "results": [
+  {
+   "jobId": 55123456,
+   "employerId": 1001,
+   "employerName": "Bright Software Ltd",
+   "employerProfileId": null,
+   "employerProfileName": null,
+   "jobTitle": "Graduate Software Engineer Intern",
+   "locationName": "Manchester",
+   "minimumSalary": 24000,
+   "maximumSalary": 28000,
+   "currency": "GBP",
+   "expirationDate": "15/11/2026",
+   "date": "08/10/2026",
+   "jobDescription": "12-month internship for a recent graduate. You will work in Java and Spring Boot with AWS deployments. &pound;24k-&pound;28k.",
+   "applications": 12,
+   "jobUrl": "https://www.reed.co.uk/jobs/graduate-software-engineer-intern/55123456"
+  },
+  {
+   "jobId": 55123457,
+   "employerId": 1002,
+   "employerName": "Northern Data Co",
+   "employerProfileId": null,
+   "employerProfileName": null,
+   "jobTitle": "Junior Data Engineer",
+   "locationName": "Remote",
+   "minimumSalary": 32000,
+   "maximumSalary": 38000,
+   "currency": "GBP",
+   "expirationDate": "30/10/2026",
+   "date": "01/10/2026",
+   "jobDescription": "Python, SQL, Airflow. Fully remote within the UK.",
+   "applications": 40,
+   "jobUrl": "https://www.reed.co.uk/jobs/junior-data-engineer/55123457"
+  }
+ ],
+ "ambiguousLocations": [],
+ "totalResults": 2
+}

@@ -5,11 +5,13 @@ export const USER_AGENT = "Khedma/0.2 (+https://github.com/sinfoo/Khedma)";
 export async function getText(
   url: string,
   accept = "application/json, text/*;q=0.9, */*;q=0.8",
-  opts: { ua?: string; timeoutMs?: number } = {},
+  opts: { ua?: string; timeoutMs?: number; headers?: Record<string, string>; body?: string } = {},
 ): Promise<{ text: string; error?: string }> {
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": opts.ua ?? USER_AGENT, Accept: accept },
+      method: opts.body === undefined ? "GET" : "POST",
+      headers: { "User-Agent": opts.ua ?? USER_AGENT, Accept: accept, ...(opts.body !== undefined && { "Content-Type": "application/json" }), ...opts.headers },
+      body: opts.body,
       signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
       redirect: "follow",
     });
@@ -20,8 +22,8 @@ export async function getText(
   }
 }
 
-export async function getJson<T>(url: string): Promise<{ data?: T; error?: string }> {
-  const { text, error } = await getText(url, "application/json");
+export async function getJson<T>(url: string, opts: { headers?: Record<string, string>; body?: string } = {}): Promise<{ data?: T; error?: string }> {
+  const { text, error } = await getText(url, "application/json", opts);
   if (error) return { error };
   try {
     return { data: JSON.parse(text) as T };

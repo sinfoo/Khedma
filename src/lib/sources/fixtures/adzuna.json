@@ -1,0 +1,29 @@
+{
+ "count": 2,
+ "results": [
+  {
+   "id": "5312345678",
+   "title": "Stagiaire Développeur <strong>Logiciel</strong> H/F",
+   "description": "Rejoignez notre équipe R&amp;D pour un stage de 6 mois : développement d'applications web en Python et React, intégration continue avec Docker. Stage conventionné.",
+   "redirect_url": "https://www.adzuna.fr/land/ad/5312345678?se=abc&utm_medium=api&v=1",
+   "company": { "display_name": "Acme Logiciels" },
+   "location": { "display_name": "Paris, Île-de-France", "area": ["France", "Île-de-France", "Paris"] },
+   "created": "2026-10-10T08:15:02Z",
+   "contract_type": "contract",
+   "contract_time": "full_time",
+   "category": { "label": "Emplois IT - Informatique", "tag": "it-jobs" }
+  },
+  {
+   "id": "5312345679",
+   "title": "Ingénieur DevOps junior (H/F)",
+   "description": "CDI à Lyon. Kubernetes, Terraform, GitLab CI. Télétravail partiel possible.",
+   "redirect_url": "https://www.adzuna.fr/land/ad/5312345679?se=def&utm_medium=api&v=1",
+   "company": { "display_name": "Nuage SAS" },
+   "location": { "display_name": "Lyon, Rhône", "area": ["France", "Auvergne-Rhône-Alpes", "Rhône", "Lyon"] },
+   "created": "2026-10-09T17:40:00Z",
+   "contract_type": "permanent",
+   "contract_time": "full_time",
+   "category": { "label": "Emplois IT - Informatique", "tag": "it-jobs" }
+  }
+ ]
+}

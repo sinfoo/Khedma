@@ -11,10 +11,10 @@ import { CATALOG, type CatalogCountry, type CatalogEntry } from "@/lib/sources/c
 import { countryByCode } from "@/lib/geo";
 import { addProviderSource } from "@/app/actions/sources";
 
-const COUNTRY_ORDER: CatalogCountry[] = ["TN", "FR", "DE", "CH", "CA", "US", "JP", "INT"];
+const COUNTRY_ORDER: CatalogCountry[] = ["TN", "FR", "DE", "CH", "GB", "CA", "US", "JP", "INT"];
 
-/** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. */
-export function Catalog({ existing, keywords = [], onAdded }: { existing: string[]; keywords?: string[]; onAdded: (id: number, name: string) => void }) {
+/** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. `missingEnv` = kinds whose API key is not set. */
+export function Catalog({ existing, keywords = [], missingEnv = [], onAdded }: { existing: string[]; keywords?: string[]; missingEnv?: string[]; onAdded: (id: number, name: string) => void }) {
   const { t } = useT();
   const s2 = t.sources2;
   const [adding, setAdding] = useState<CatalogEntry | null>(null);
@@ -68,6 +68,8 @@ export function Catalog({ existing, keywords = [], onAdded }: { existing: string
                       <a href={searchHref} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" aria-label={`${s2.openSearch} – ${c.name}`}>
                         <ExternalLink size={14} aria-hidden="true" /> {s2.openSearch}
                       </a>
+                    ) : missingEnv.includes(c.kind) ? (
+                      <p className="max-w-[60%] text-right text-xs text-muted">{fmt(s2.keyNeeded, { vars: (c.needsEnv ?? []).join(", ") })}</p>
                     ) : already ? (
                       <span className="chip chip-success">
                         <Check size={12} aria-hidden="true" /> {s2.added}

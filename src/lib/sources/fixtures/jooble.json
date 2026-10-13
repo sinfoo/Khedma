@@ -1,0 +1,29 @@
+{
+ "totalCount": 2,
+ "jobs": [
+  {
+   "title": "Stage PFE Développeur Full Stack",
+   "location": "Tunis, Tunisie",
+   "snippet": "Nous recherchons un(e) étudiant(e) en dernière année pour un <b>stage PFE</b> de 6 mois : Node.js, React, PostgreSQL. Encadrement assuré.",
+   "salary": "",
+   "source": "keejob.com",
+   "type": "Stage",
+   "link": "https://tn.jooble.org/desc/1234567890123456789?ckey=stage&rgn=1&pos=1",
+   "company": "Digital Tunisia",
+   "updated": "2026-10-11T00:00:00.0000000",
+   "id": 1234567890123456789
+  },
+  {
+   "title": "Ingénieur Embarqué C/C++",
+   "location": "Sousse, Tunisie",
+   "snippet": "CDI. Développement firmware STM32, FreeRTOS, bus CAN.",
+   "salary": "",
+   "source": "tanitjobs.com",
+   "type": "CDI",
+   "link": "https://tn.jooble.org/desc/9876543210987654321?ckey=embarque&rgn=2&pos=2",
+   "company": "Embedtech",
+   "updated": "2026-10-10T00:00:00.0000000",
+   "id": 9876543210987654321
+  }
+ ]
+}

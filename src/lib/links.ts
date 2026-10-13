@@ -44,6 +44,15 @@ const PLATFORMS: [RegExp, string][] = [
   [/mynavi\.jp/, "Mynavi"],
   [/rikunabi\.com/, "Rikunabi"],
   [/stackoverflow\.com\/jobs/, "Stack Overflow"],
+  [/remoteok\.com/, "Remote OK"],
+  [/jobicy\.com/, "Jobicy"],
+  [/himalayas\.app/, "Himalayas"],
+  [/remotive\.com/, "Remotive"],
+  [/artificialintelligencejobs\.co/, "AI Jobs"],
+  [/adzuna\./, "Adzuna"],
+  [/jooble\.org/, "Jooble"],
+  [/reed\.co\.uk/, "Reed"],
+  [/findwork\.dev/, "Findwork"],
 ];
 
 export const isRealUrl = (url: string) => /^https?:\/\//i.test(url) && !/\.local(\/|$)/i.test(url);
