@@ -78,10 +78,9 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
       />
       {search}
       <OffersBrowser
-        rows={applyFilters(all, f)}
+        all={all}
         total={all.length}
         filters={f}
-        query={query}
         views={listViews()}
         sources={listSources()}
         countryCodes={countryCodesOf(all)}

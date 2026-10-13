@@ -13,7 +13,8 @@ import { CompanyAvatar, Progress } from "@/components/kit";
 import { PostingLink } from "@/components/posting-link";
 import { ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreLabel } from "@/components/ui";
 import type { AppState } from "@/lib/types";
-import type { OfferFilters, OfferRow, SavedView } from "@/lib/repo/offers";
+import type { SavedView } from "@/lib/repo/offers";
+import { applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
 import { archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
 import { OffersToolbar, SavedViews } from "./offers-toolbar";
 
@@ -48,10 +49,9 @@ const subscribeView = (l: () => void) => {
 };
 
 export function OffersBrowser({
-  rows,
+  all,
   total,
-  filters,
-  query,
+  filters: initialFilters,
   views,
   sources,
   countryCodes,
@@ -59,10 +59,9 @@ export function OffersBrowser({
   pending,
   autoEvaluate,
 }: {
-  rows: OfferRow[];
+  all: OfferRow[];
   total: number;
   filters: OfferFilters;
-  query: string;
   views: SavedView[];
   sources: string[];
   countryCodes: string[];
@@ -80,18 +79,29 @@ export function OffersBrowser({
   const storedView = useSyncExternalStore(subscribeView, () => memView ?? readView(), () => null);
   const view: View = storedView ?? "table";
 
+  // Filters apply instantly in the browser; the URL is kept in sync without a server round-trip,
+  // except for "archived" which needs a different dataset from the server.
+  const [filters, setFilters] = useState<OfferFilters>(initialFilters);
+  const query = filtersToQuery(filters);
   const setParams = useCallback(
     (patch: Record<string, string | null>) => {
-      const p = new URLSearchParams(query);
+      const p = new URLSearchParams(filtersToQuery(filters));
       for (const [k, v] of Object.entries(patch)) {
         if (v) p.set(k, v);
         else p.delete(k);
       }
-      const s = p.toString();
-      startNav(() => router.replace(s ? `/app/jobs?${s}` : "/app/jobs", { scroll: false }));
+      const next = parseFilters(p);
+      const s = filtersToQuery(next);
+      if (next.archived !== filters.archived) {
+        startNav(() => router.replace(s ? `/app/jobs?${s}` : "/app/jobs", { scroll: false }));
+        return;
+      }
+      setFilters(next);
+      window.history.replaceState(null, "", s ? `/app/jobs?${s}` : "/app/jobs");
     },
-    [query, router],
+    [filters, router],
   );
+  const rows = useMemo(() => applyFilters(all, filters), [all, filters]);
 
   // ---------- optimistic rows ----------
   const [list, applyPatch] = useOptimistic(rows, (cur: OfferRow[], p: Patch) =>

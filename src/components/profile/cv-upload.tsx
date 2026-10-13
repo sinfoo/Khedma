@@ -24,7 +24,7 @@ const size = (n: number, locale: string) =>
     : new Intl.NumberFormat(locale, { style: "unit", unit: "kilobyte", maximumFractionDigits: 0 }).format(Math.max(1, n / 1024));
 
 /** Drag & drop / file picker for the profile CV. Posts to /api/cv/upload with progress. */
-export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; onUploaded: (meta: UploadMeta, text: string) => void }) {
+export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void }) {
   const { t, locale } = useT();
   const c = t.profile2.cv;
   const toast = useToast();
@@ -51,9 +51,9 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
     };
     xhr.onload = () => {
       setProgress(null);
-      const r = xhr.response as { ok?: boolean; code?: ErrCode; text?: string; fileName?: string; uploadedAt?: string; size?: number } | null;
+      const r = xhr.response as { ok?: boolean; code?: ErrCode; text?: string; fileName?: string; uploadedAt?: string; size?: number; markdown?: string; skills?: string[] } | null;
       if (!r?.ok || !r.text) return fail(r?.code ?? "bad_request");
-      onUploaded({ fileName: r.fileName ?? file.name, uploadedAt: r.uploadedAt ?? new Date().toISOString(), size: r.size ?? file.size }, r.text);
+      onUploaded({ fileName: r.fileName ?? file.name, uploadedAt: r.uploadedAt ?? new Date().toISOString(), size: r.size ?? file.size }, r.text, typeof r.markdown === "string" ? r.markdown : undefined, Array.isArray(r.skills) ? r.skills : undefined);
       toast.success(c.uploadedToast, fmt(c.uploadedBody, { n: wordCount(r.text) }));
     };
     setProgress(0);

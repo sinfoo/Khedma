@@ -1,8 +1,11 @@
-import { CvImportError, MAX_CV_BYTES, getUpload, saveUploadedCv } from "@/lib/cv/source";
+import { CvImportError, MAX_CV_BYTES, getUpload, saveUploadedCv, sectionizeToMarkdown, setCvSourcePref } from "@/lib/cv/source";
+import { getProfile, updateProfile } from "@/lib/db";
+import { extractSkills } from "@/lib/ai/heuristic";
+import { mergeSkills } from "@/lib/cv/model";
 
 const STATUS = { tooLarge: 413, unsupported: 415, empty: 422, corrupt: 422 } as const;
 
-/** Upload the profile CV (multipart field "file"). Keeps cv_md untouched. */
+/** Upload the profile CV (multipart field "file"). The text is converted to Markdown and becomes the editable CV. */
 export async function POST(req: Request) {
   let file: FormDataEntryValue | null = null;
   try {
@@ -15,7 +18,18 @@ export async function POST(req: Request) {
   try {
     const { text } = await saveUploadedCv(file.name, new Uint8Array(await file.arrayBuffer()));
     const up = getUpload();
-    return Response.json({ ok: true, text, fileName: up?.fileName ?? file.name, uploadedAt: up?.uploadedAt ?? new Date().toISOString(), size: up?.size ?? file.size });
+    // Automatic conversion: the Markdown becomes the editable, AI-readable CV; the original file stays downloadable.
+    const markdown = sectionizeToMarkdown(text);
+    let skillsAdded = 0;
+    let skills = getProfile().skills;
+    if (markdown.trim().length > 40) {
+      const merged = mergeSkills(skills, extractSkills(text));
+      skillsAdded = merged.length - skills.length;
+      skills = merged;
+      updateProfile({ cv_md: markdown, skills });
+      setCvSourcePref("markdown");
+    }
+    return Response.json({ ok: true, text, markdown, skills, skillsAdded, fileName: up?.fileName ?? file.name, uploadedAt: up?.uploadedAt ?? new Date().toISOString(), size: up?.size ?? file.size });
   } catch (e) {
     if (e instanceof CvImportError) return Response.json({ ok: false, code: e.code, error: e.message }, { status: STATUS[e.code] });
     return Response.json({ ok: false, code: "corrupt", error: "Could not save this file." }, { status: 500 });
