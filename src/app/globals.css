@@ -204,6 +204,7 @@ h1, h2, h3, .display {
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 @keyframes draw { from { stroke-dashoffset: var(--dash, 300); } to { stroke-dashoffset: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes radar-sweep { to { transform: rotate(360deg); } }
 @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: none; } }
 
 /* Page enter (template.tsx re-mounts per navigation) + cross-fade via View Transitions. */

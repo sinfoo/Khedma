@@ -10,7 +10,7 @@ import { Dialog } from "@/components/kit/dialog";
 import { Markdown } from "@/components/markdown";
 import { JOB_TYPES } from "@/lib/types";
 import { extractSkills } from "@/lib/ai/heuristic";
-import { saveProfileDraft } from "@/app/actions/profile";
+import { saveProfileDraft, chooseCvSource } from "@/app/actions/profile";
 import {
   CEFR_LEVELS,
   CITY_SUGGESTIONS,
@@ -79,7 +79,8 @@ ${contact || (fr ? "e-mail · téléphone · ville · LinkedIn · GitHub" : "ema
 
 type Mode = "write" | "preview" | "health" | "review";
 
-export function ProfileEditor({ initial, upload: initialUpload, uploadText: initialUploadText, initialReview = null }: { initial: DraftState; upload: UploadMeta | null; uploadText: string; initialReview?: CvReview | null }) {
+export function ProfileEditor({ initial, upload: initialUpload, uploadText: initialUploadText, initialReview = null, sourcePref = "markdown" }: { initial: DraftState; upload: UploadMeta | null; uploadText: string; initialReview?: CvReview | null; sourcePref?: "upload" | "markdown" }) {
+  const [pref, setPref] = useState<"upload" | "markdown">(sourcePref);
   const { t, locale } = useT();
   const p2 = t.profile2;
   const toast = useToast();
@@ -290,6 +291,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
           <CvUpload
             upload={upload}
             onUploaded={(m, text) => {
+              setPref("upload");
               setUpload(m);
               setUploadText(text);
             }}
@@ -377,7 +379,29 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             <span>
               {fmt(p2.cv.words, { n: words })} · {fmt(p2.cv.pages, { n: Math.max(1, Math.ceil(words / 450)) })}
             </span>
-            <span>{fmt(p2.cv.tailorNote, { src: d.cv_md.trim() ? p2.cv.srcMarkdown : upload ? p2.cv.srcFile : "—" })}</span>
+            {upload && d.cv_md.trim() ? (
+              <span className="inline-flex items-center gap-2">
+                <span>{p2.cv.sourceLabel}:</span>
+                <span role="group" aria-label={p2.cv.sourceLabel} className="inline-flex overflow-hidden rounded-lg border border-line-strong">
+                  {(["upload", "markdown"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={pref === k}
+                      className={`px-2 py-0.5 text-xs font-semibold ${pref === k ? "bg-accent-soft text-accent-text" : "text-muted hover:text-ink"}`}
+                      onClick={() => {
+                        setPref(k);
+                        void chooseCvSource(k).then(() => toast.success(fmt(p2.cv.sourceChanged, { src: k === "upload" ? p2.cv.sourceUpload : p2.cv.sourceMarkdown })));
+                      }}
+                    >
+                      {k === "upload" ? p2.cv.sourceUpload : p2.cv.sourceMarkdown}
+                    </button>
+                  ))}
+                </span>
+              </span>
+            ) : (
+              <span>{fmt(p2.cv.tailorNote, { src: d.cv_md.trim() ? p2.cv.srcMarkdown : upload ? p2.cv.srcFile : "—" })}</span>
+            )}
           </p>
         </section>
       </div>

@@ -18,6 +18,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         runs={listRuns(8)}
         auto={getAutoScan()}
         profileKeywords={defaultKeywords(getProfile())}
+        profileLocation={getProfile().target_locations[0] ?? ""}
         autoStart={sp.scan === "1"}
       />
     </>

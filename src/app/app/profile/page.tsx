@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getProfile } from "@/lib/db";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { getUpload } from "@/lib/cv/source";
+import { getCvSourcePref, getUpload } from "@/lib/cv/source";
 import { kvGet } from "@/lib/db";
 import type { CvReview } from "@/lib/ai/cv-review";
 import { ProfileEditor, type DraftState } from "@/components/profile/profile-editor";
@@ -30,6 +30,7 @@ export default async function ProfilePage() {
       upload={up ? { fileName: up.fileName, uploadedAt: up.uploadedAt, size: up.size } : null}
       uploadText={up?.text ?? ""}
       initialReview={kvGet<CvReview | null>("cv_review", null)}
+      sourcePref={getCvSourcePref()}
     />
   );
 }

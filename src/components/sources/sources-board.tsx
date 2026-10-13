@@ -16,6 +16,7 @@ import { loadSuggestedSources, removeSource, setAutoScan, updateSourceSettings }
 import type { Discovered, ScanRun, SourceRow } from "@/lib/repo/sources";
 import type { JobType } from "@/lib/types";
 import { Catalog } from "./catalog";
+import { ScanRadar } from "./scan-radar";
 import { useAutoScan, useScan, type ScanDone, type SourceStatus } from "./use-scan";
 
 const HOURS = [1, 3, 6, 12, 24];
@@ -41,6 +42,7 @@ export function SourcesBoard({
   runs,
   auto,
   profileKeywords,
+  profileLocation = "",
   autoStart,
 }: {
   sources: SourceRow[];
@@ -48,6 +50,7 @@ export function SourcesBoard({
   runs: ScanRun[];
   auto: { enabled: boolean; hours: number };
   profileKeywords: string[];
+  profileLocation?: string;
   autoStart: boolean;
 }) {
   const { t, locale } = useT();
@@ -87,6 +90,15 @@ export function SourcesBoard({
 
   const lastRun = runs[0];
   const [editing, setEditing] = useState<SourceRow | null>(null);
+  const [showRadar, setShowRadar] = useState(false);
+  useEffect(() => {
+    if (running) {
+      setShowRadar(true);
+      return;
+    }
+    const id = setTimeout(() => setShowRadar(false), 3000);
+    return () => clearTimeout(id);
+  }, [running]);
 
   return (
     <div className="space-y-8">
@@ -103,14 +115,16 @@ export function SourcesBoard({
         </div>
       </div>
 
-      {running && total > 0 && (
-        <div className="card p-4 fade" role="status" aria-live="polite">
-          <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium">{fmt(s2.progress, { done: finished, total })}</span>
-            <span className="tabular text-muted">{Math.round((finished / total) * 100)}%</span>
-          </div>
-          <Progress value={finished} max={total} label={fmt(s2.progress, { done: finished, total })} />
-        </div>
+      {(running || showRadar) && total > 0 && (
+        <ScanRadar
+          sources={enabled.map((s) => ({ id: s.id, label: s.label, kind: s.kind }))}
+          status={status}
+          keywords={profileKeywords}
+          location={profileLocation}
+          finished={finished}
+          total={total}
+          running={running}
+        />
       )}
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">

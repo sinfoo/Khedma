@@ -1,7 +1,7 @@
 // The user's CV as a first-class source: Markdown from the profile, or the text of the uploaded file.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { db, getProfile, migrate } from "@/lib/db";
+import { db, getProfile, migrate, kvGet, kvSet } from "@/lib/db";
 import { docxToText } from "./docx";
 import { unzipEntry } from "./zip";
 
@@ -138,6 +138,7 @@ export function readUploadBytes(u: CvUpload): Uint8Array | null {
 export async function saveUploadedCv(fileName: string, bytes: Uint8Array): Promise<{ text: string }> {
   ensure();
   const text = await extractCvText(fileName, bytes);
+  setCvSourcePref("upload");
   const ext = extOf(fileName);
   const safeBase =
     path
@@ -163,10 +164,24 @@ export async function saveUploadedCv(fileName: string, bytes: Uint8Array): Promi
 }
 
 /** CV text for tailoring/evaluation: profile Markdown first, else the uploaded file's text. */
+export type CvSourcePref = "upload" | "markdown";
+const PREF_KEY = "cv_source_pref";
+
+/** Which CV the AI features read when both a Markdown CV and an uploaded file exist. */
+export function getCvSourcePref(): CvSourcePref {
+  const v = kvGet<string>(PREF_KEY, "");
+  return v === "upload" || v === "markdown" ? v : "markdown";
+}
+export function setCvSourcePref(pref: CvSourcePref): void {
+  kvSet(PREF_KEY, pref);
+}
+
 export function getCvSource(): CvSource {
   const md = getProfile().cv_md;
   const up = getUpload();
   const meta = { fileName: up?.fileName ?? null, uploadedAt: up?.uploadedAt ?? null, hasFile: !!up };
+  const pref = getCvSourcePref();
+  if (pref === "upload" && up) return { text: up.text, format: "text", ...meta };
   if (md.trim()) return { text: md, format: "markdown", ...meta };
   if (up) return { text: up.text, format: "text", ...meta };
   return { text: "", format: "text", ...meta };

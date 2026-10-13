@@ -107,3 +107,11 @@ export async function applyReviewToCv(): Promise<{ ok: true; md: string; engine:
   const r = await applyCvReview(cv, review, getProfile(), await getLocale());
   return { ok: true, ...r };
 }
+
+export async function chooseCvSource(pref: string): Promise<{ ok: boolean }> {
+  const { setCvSourcePref } = await import("@/lib/cv/source");
+  if (pref !== "upload" && pref !== "markdown") return { ok: false };
+  setCvSourcePref(pref);
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
