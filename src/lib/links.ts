@@ -91,3 +91,8 @@ export function postingLinks(job: Pick<Job, "url" | "title" | "company" | "locat
   ];
   return { primary: isRealUrl(job.url) ? { url: job.url, platform: platformOf(job.url) } : null, search };
 }
+
+/** LinkedIn people search for recruiters at a company: the referral / warm-contact shortcut. */
+export function contactSearchUrl(company: string): string {
+  return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${company.trim()} recruiter`)}`;
+}

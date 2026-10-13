@@ -409,6 +409,19 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
           ))}
           <p className="hint !mt-0">{p2.f.linkHint}</p>
         </div>
+        <div className="card space-y-4 p-5 rise lg:col-span-2" aria-labelledby="sec-style" style={{ ["--i" as string]: 2 }}>
+          {sectionTitle("sec-style", p2.sections.style)}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Field id="f-writing-sample" label={p2.f.writingSample}>
+              <textarea id="f-writing-sample" className="input !min-h-36 leading-relaxed" maxLength={4000} placeholder={p2.f.writingSamplePh} aria-describedby="f-writing-sample-hint" value={d.extra.writing_sample} onChange={(e) => updateExtra({ writing_sample: e.target.value })} />
+              <p id="f-writing-sample-hint" className="hint">{p2.f.writingSampleHint}</p>
+            </Field>
+            <Field id="f-house-rules" label={p2.f.houseRules}>
+              <textarea id="f-house-rules" className="input !min-h-36 leading-relaxed" maxLength={1500} placeholder={p2.f.houseRulesPh} aria-describedby="f-house-rules-hint" value={d.extra.house_rules} onChange={(e) => updateExtra({ house_rules: e.target.value })} />
+              <p id="f-house-rules-hint" className="hint">{p2.f.houseRulesHint}</p>
+            </Field>
+          </div>
+        </div>
       </section>
 
       {/* Targets */}

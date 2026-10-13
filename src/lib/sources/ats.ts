@@ -1,0 +1,217 @@
+// Tracked companies: detect which ATS a careers URL runs on, and read plain careers pages.
+import type { NewJob } from "../db";
+import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
+import { decodeEntities, htmlToText, pickMeta } from "./html";
+import { getText, mapLimit, prettySlug } from "./http";
+import { importFromUrl, validatePublicUrl } from "./url";
+
+export type AtsKind = "greenhouse" | "lever" | "ashby" | "rss" | "careers";
+
+export interface Detected {
+  kind: AtsKind;
+  handle: string;
+  label: string;
+  /** Name of the system recognised, for user feedback ("Workday" pages are read as plain careers pages). */
+  ats?: string;
+}
+
+const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,80}$/;
+const HTML_ACCEPT = "text/html, application/xhtml+xml;q=0.9, */*;q=0.5";
+
+/** Recognise an ATS from the URL alone (no network). */
+export function detectAtsUrl(raw: string): Detected | null {
+  let u: URL;
+  try {
+    u = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase().replace(/^www\./, "");
+  const seg = u.pathname.split("/").filter(Boolean).map((s) => s.toLowerCase());
+  const slug = seg[0] ?? "";
+  const ok = SLUG_RE.test(slug);
+  let m: RegExpExecArray | null;
+  if (/^(boards|job-boards)(\.eu)?\.greenhouse\.io$/.test(host) && ok) {
+    // boards.greenhouse.io/embed/job_board?for=slug
+    const forSlug = slug === "embed" ? (u.searchParams.get("for") ?? "").toLowerCase() : slug;
+    return SLUG_RE.test(forSlug) ? { kind: "greenhouse", handle: forSlug, label: prettySlug(forSlug), ats: "Greenhouse" } : null;
+  }
+  if (host === "boards-api.greenhouse.io" && seg[0] === "v1" && seg[1] === "boards" && seg[2] && SLUG_RE.test(seg[2])) return { kind: "greenhouse", handle: seg[2], label: prettySlug(seg[2]), ats: "Greenhouse" };
+  if (/^jobs(\.eu)?\.lever\.co$/.test(host) && ok) return { kind: "lever", handle: slug, label: prettySlug(slug), ats: "Lever" };
+  if (host === "api.lever.co" && seg[0] === "v0" && seg[1] === "postings" && seg[2] && SLUG_RE.test(seg[2])) return { kind: "lever", handle: seg[2], label: prettySlug(seg[2]), ats: "Lever" };
+  if (host === "jobs.ashbyhq.com" && ok) return { kind: "ashby", handle: slug, label: prettySlug(slug), ats: "Ashby" };
+  if ((m = /^([a-z0-9-]+)\.teamtailor\.com$/.exec(host))) return { kind: "rss", handle: `https://${host}/jobs.rss`, label: prettySlug(m[1]), ats: "Teamtailor" };
+  // ponytail: no dedicated readers for these yet; their public pages are read like any careers page.
+  if ((m = /^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "Workday" };
+  if (/^(careers|jobs)\.smartrecruiters\.com$/.test(host) && ok) return { kind: "careers", handle: u.toString(), label: prettySlug(slug), ats: "SmartRecruiters" };
+  if ((m = /^([a-z0-9-]+)\.recruitee\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "Recruitee" };
+  if ((m = /^([a-z0-9-]+)\.bamboohr\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "BambooHR" };
+  return null;
+}
+
+const EMBEDS: [RegExp, AtsKind, string][] = [
+  [/boards-api\.greenhouse\.io\/v1\/boards\/([a-z0-9._-]+)/i, "greenhouse", "Greenhouse"],
+  [/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/embed\/job_board(?:\/js)?\?for=([a-z0-9._-]+)/i, "greenhouse", "Greenhouse"],
+  [/(?:boards|job-boards)(?:\.eu)?\.greenhouse\.io\/([a-z0-9._-]+)/i, "greenhouse", "Greenhouse"],
+  [/api\.ashbyhq\.com\/posting-api\/job-board\/([a-z0-9._-]+)/i, "ashby", "Ashby"],
+  [/jobs\.ashbyhq\.com\/([a-z0-9._-]+)/i, "ashby", "Ashby"],
+  [/api\.lever\.co\/v0\/postings\/([a-z0-9._-]+)/i, "lever", "Lever"],
+  [/jobs(?:\.eu)?\.lever\.co\/([a-z0-9._-]+)/i, "lever", "Lever"],
+];
+const NOT_SLUGS = new Set(["embed", "v0", "v1", "js", "api", "jobs", "boards"]);
+
+/** Find an embedded ATS (links, iframes, board scripts) or a jobs RSS feed in a careers page. */
+export function detectAtsInHtml(html: string): Detected | null {
+  for (const [re, kind, ats] of EMBEDS) {
+    const m = re.exec(html);
+    const slug = m?.[1]?.toLowerCase();
+    if (slug && SLUG_RE.test(slug) && !NOT_SLUGS.has(slug)) return { kind, handle: slug, label: prettySlug(slug), ats };
+  }
+  const linkRe = /<link\b[^>]*>/gi;
+  let l: RegExpExecArray | null;
+  while ((l = linkRe.exec(html))) {
+    const tag = l[0];
+    if (!/type\s*=\s*["']application\/(rss|atom)\+xml["']/i.test(tag)) continue;
+    const href = /href\s*=\s*["']([^"']+)["']/i.exec(tag)?.[1];
+    if (href && /job|career|carri|offre|emploi|vacanc/i.test(href) && /^https?:\/\//i.test(href)) return { kind: "rss", handle: decodeEntities(href), label: "", ats: "RSS" };
+  }
+  return null;
+}
+
+function labelFor(u: URL, html: string): string {
+  const site = pickMeta(html, "og:site_name");
+  if (site) return site.slice(0, 80);
+  const parts = u.hostname.toLowerCase().replace(/^(www|careers|jobs|career|emploi|recrutement)\./, "").split(".");
+  return prettySlug(parts.length > 1 ? parts[parts.length - 2] : parts[0]);
+}
+
+/** Careers URL -> the source to create: a known ATS board, an RSS feed, or the page itself. */
+export async function detectAts(raw: string): Promise<Detected | { error: string }> {
+  const { url, error } = validatePublicUrl(raw);
+  if (!url) return { error: error ?? "Invalid URL" };
+  const direct = detectAtsUrl(url.toString());
+  if (direct) return direct;
+  const res = await getText(url.toString(), HTML_ACCEPT, { timeoutMs: 12_000 });
+  if (res.error) return { error: res.error };
+  const label = labelFor(url, res.text);
+  const embedded = detectAtsInHtml(res.text);
+  if (embedded) return { ...embedded, label: embedded.label || label };
+  return { kind: "careers", handle: url.toString(), label };
+}
+
+// ---------- plain careers page ----------
+type Json = Record<string, unknown>;
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+const obj = (v: unknown): Json => (v && typeof v === "object" && !Array.isArray(v) ? (v as Json) : {});
+const first = (v: unknown): unknown => (Array.isArray(v) ? v[0] : v);
+
+/** Every JSON-LD JobPosting on a page (ItemList and @graph wrappers included). */
+export function allJsonLdJobPostings(html: string): Json[] {
+  const out: Json[] = [];
+  const re = /<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    let data: unknown;
+    try {
+      data = JSON.parse(m[1].trim());
+    } catch {
+      continue;
+    }
+    const stack: unknown[] = [data];
+    while (stack.length) {
+      const cur = stack.pop();
+      if (Array.isArray(cur)) stack.push(...cur);
+      else if (cur && typeof cur === "object") {
+        const o = cur as Json;
+        const t = o["@type"];
+        if (t === "JobPosting" || (Array.isArray(t) && t.includes("JobPosting"))) out.push(o);
+        for (const k of ["@graph", "itemListElement", "item"]) if (o[k]) stack.push(o[k]);
+      }
+    }
+  }
+  return out;
+}
+
+function fromJsonLd(ld: Json, company: string): NewJob | null {
+  const title = str(ld.title) || str(ld.name);
+  const url = str(ld.url);
+  if (!title || !/^https?:\/\//i.test(url)) return null;
+  const addr = obj(obj(first(ld.jobLocation)).address);
+  const location = [str(addr.addressLocality), str(addr.addressRegion), str(addr.addressCountry)].filter(Boolean).join(", ");
+  const description = htmlToText(str(ld.description)).slice(0, 12_000);
+  return {
+    title,
+    company: str(obj(ld.hiringOrganization).name) || company,
+    location,
+    remote: str(ld.jobLocationType).toUpperCase() === "TELECOMMUTE" || guessRemote(location),
+    url,
+    source: "url",
+    type: guessType(`${title} ${str(first(ld.employmentType))}`, description),
+    description,
+    tags: extractTags(title, description),
+    posted_at: normalizeDate(str(ld.datePosted)),
+    deadline: normalizeDate(str(ld.validThrough)),
+  };
+}
+
+const JOB_PATH = /job|career|carri|offre|poste|emploi|stage|vacanc|position|opening|recrut/i;
+const ATS_HOST = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|teamtailor\.com|bamboohr\.com|workable\.com)$/i;
+
+/** Candidate posting links on a listing page: same site or an ATS host, deeper than the page itself, with their link text. */
+export function collectJobLinks(html: string, page: URL): { href: string; text: string }[] {
+  const out = new Map<string, string>();
+  const re = /<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(m[1]), page);
+    } catch {
+      continue;
+    }
+    if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+    const sameSite = u.hostname.replace(/^www\./, "") === page.hostname.replace(/^www\./, "");
+    if (!sameSite && !ATS_HOST.test(u.hostname)) continue;
+    if (sameSite && !JOB_PATH.test(u.pathname + u.search)) continue;
+    // The listing page itself, or a parent of it, is not a posting.
+    if (sameSite && (u.pathname.replace(/\/$/, "") === page.pathname.replace(/\/$/, "") || u.pathname.length <= page.pathname.length)) continue;
+    if (/\.(pdf|png|jpe?g|svg|css|js)$/i.test(u.pathname)) continue;
+    u.hash = "";
+    const href = u.toString();
+    const text = htmlToText(m[2]).replace(/\s+/g, " ").trim();
+    if (!out.has(href) || (text && !out.get(href))) out.set(href, text);
+  }
+  return [...out.entries()].map(([href, text]) => ({ href, text }));
+}
+
+const foldTxt = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+/** Read a plain careers page: JSON-LD postings when present, else up to 20 linked posting pages. */
+export async function scanCareersPage(handle: string, keywords: string[] = []): Promise<{ jobs: NewJob[]; error?: string }> {
+  const { url, error } = validatePublicUrl(handle);
+  if (!url) return { jobs: [], error };
+  const res = await getText(url.toString(), HTML_ACCEPT, { timeoutMs: 12_000 });
+  if (res.error) return { jobs: [], error: res.error };
+  const company = labelFor(url, res.text);
+  const ld = allJsonLdJobPostings(res.text).map((o) => fromJsonLd(o, company)).filter((j): j is NewJob => !!j);
+  if (ld.length) return { jobs: ld };
+
+  const links = collectJobLinks(res.text, url);
+  if (!links.length) return { jobs: [], error: "No job links found on that page (it may need JavaScript)" };
+  // Links whose text mentions a keyword first, then titles-looking texts; cap the detail fetches.
+  const terms = keywords.flatMap((k) => foldTxt(k).split(/\s+/)).filter((w) => w.length >= 4);
+  const pick = links
+    .map((l) => ({ ...l, score: (terms.some((t) => foldTxt(l.text).includes(t)) ? 2 : 0) + (l.text.length >= 8 && l.text.length <= 120 ? 1 : 0) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20);
+  // ponytail: 20 pages, 3 at a time, 400 ms apart; a real crawler would read the site's own listing API.
+  const pages = await mapLimit(pick, 3, async (l) => (await importFromUrl(l.href)).job ?? null, 400);
+  const seen = new Set<string>();
+  const jobs: NewJob[] = [];
+  for (const j of pages) {
+    if (!j || seen.has(j.url)) continue;
+    seen.add(j.url);
+    jobs.push({ ...j, company: j.company === url.hostname.replace(/^www\./, "") ? company : j.company });
+  }
+  return { jobs };
+}

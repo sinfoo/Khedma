@@ -2,12 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAutoScanState } from "@/app/actions/sources";
+import type { FoundJob } from "@/lib/repo/sources";
+import type { PlanRun, PlanSkipped, Remote } from "@/lib/search/plan";
+import type { JobType } from "@/lib/types";
+
+export type { FoundJob };
 
 export interface SourceStatus {
   state: "queued" | "running" | "done" | "error";
   added?: number;
   listed?: number;
+  kept?: number;
+  dropped?: Record<string, number>;
   error?: string;
+}
+
+export interface ScanPlan {
+  runs: PlanRun[];
+  skipped: PlanSkipped[];
+  skippedBlacklist: number;
 }
 
 export interface ScanDone {
@@ -16,19 +29,35 @@ export interface ScanDone {
   added: number;
   errors: number;
   duplicates: number;
+  dropped?: Record<string, number>;
+  closed?: number;
   jobs: { id: number; title: string; company: string }[];
+}
+
+export interface ScanRequest {
+  ids?: number[];
+  trigger?: "manual" | "auto";
+  keywords?: string[];
+  countries?: string[];
+  remote?: Remote;
+  types?: JobType[];
+  negatives?: string[];
+  includeSenior?: boolean;
 }
 
 export type ScanOutcome = { kind: "done"; done: ScanDone } | { kind: "skipped" } | { kind: "busy" } | { kind: "error"; error: string };
 
-/** Client for POST /api/sources/scan: reads the NDJSON progress stream into per-source state. */
+/** Client for POST /api/sources/scan: reads the NDJSON stream into the plan, per-run status and the live job list. */
 export function useScan() {
   const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState<Record<number, SourceStatus>>({});
+  // Keyed by run key, and by saved-source id when the run has one (the Sources page reads by id).
+  const [status, setStatus] = useState<Record<string | number, SourceStatus>>({});
+  const [plan, setPlan] = useState<ScanPlan | null>(null);
+  const [jobs, setJobs] = useState<FoundJob[]>([]);
   const [total, setTotal] = useState(0);
   const busy = useRef(false);
 
-  const start = useCallback(async (opts: { ids?: number[]; trigger?: "manual" | "auto"; keywords?: string[]; countries?: string[] } = {}): Promise<ScanOutcome> => {
+  const start = useCallback(async (opts: ScanRequest = {}): Promise<ScanOutcome> => {
     if (busy.current) return { kind: "busy" };
     busy.current = true;
     let done: ScanDone | null = null;
@@ -43,9 +72,11 @@ export function useScan() {
       if (res.status === 409) return { kind: "busy" };
       if (!res.ok || !res.body) return { kind: "error", error: `HTTP ${res.status}` };
       setRunning(true);
+      setJobs([]);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
+      const keysOf = (e: { key?: string; id?: number }) => [e.key, e.id].filter((k): k is string | number => k !== undefined && k !== 0);
       for (;;) {
         const { value, done: end } = await reader.read();
         if (end) break;
@@ -56,11 +87,24 @@ export function useScan() {
           buf = buf.slice(nl + 1);
           if (!line) continue;
           const e = JSON.parse(line);
-          if (e.type === "start") {
-            setTotal(e.sources.length);
-            setStatus(Object.fromEntries(e.sources.map((s: { id: number }) => [s.id, { state: "queued" }])));
+          if (e.type === "plan") {
+            const runs = e.runs as PlanRun[];
+            setPlan({ runs, skipped: e.skipped ?? [], skippedBlacklist: e.skipped_blacklist ?? 0 });
+            setTotal(runs.length);
+            const init: Record<string | number, SourceStatus> = {};
+            for (const r of runs) for (const k of keysOf({ key: r.key, id: r.sourceId })) init[k] = { state: "queued" };
+            setStatus(init);
           } else if (e.type === "source") {
-            setStatus((st) => ({ ...st, [e.id]: e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, error: e.error } }));
+            const next: SourceStatus = e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, kept: e.kept, dropped: e.dropped, error: e.error };
+            setStatus((st) => {
+              const out = { ...st };
+              for (const k of keysOf(e)) out[k] = next;
+              return out;
+            });
+          } else if (e.type === "job") setJobs((js) => [...js, e.job as FoundJob]);
+          else if (e.type === "liveness") {
+            const closed = new Set<number>(e.closed ?? []);
+            if (closed.size) setJobs((js) => js.filter((j) => !closed.has(j.id)));
           } else if (e.type === "done") done = e;
           else if (e.type === "error") error = e.error;
         }
@@ -75,8 +119,10 @@ export function useScan() {
     return { kind: "error", error: error ?? "Scan interrupted" };
   }, []);
 
-  const finished = Object.values(status).filter((s) => s.state === "done" || s.state === "error").length;
-  return { start, running, status, total, finished };
+  const finished = plan ? plan.runs.filter((r) => ["done", "error"].includes(status[r.key]?.state ?? "")).length : 0;
+  const dropped: Record<string, number> = {};
+  for (const r of plan?.runs ?? []) for (const [k, n] of Object.entries(status[r.key]?.dropped ?? {})) dropped[k] = (dropped[k] ?? 0) + n;
+  return { start, running, status, total, finished, plan, jobs, dropped };
 }
 
 /**

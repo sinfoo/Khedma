@@ -1,14 +1,26 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
 import { getProfileExtra } from "../cv/profile-extra";
-import { db, getProfile, kvGet, kvSet, migrate, upsertJob, type NewJob } from "../db";
-import type { Profile } from "../types";
-import { dedupeKey, isProviderKind, scanSource, type ProviderKind } from "../sources";
+import { db, getProfile, kvGet, kvSet, migrate, updateJob, upsertJob } from "../db";
+import type { JobType, Profile } from "../types";
+import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit } from "../sources/http";
+import { trustScore, type HostClass } from "../sources/trust";
+import { checkJobs } from "../company/liveness";
+import { planSearch, planSources, type PlanRun, type PlanSkipped, type Remote } from "../search/plan";
+import { buildFilter, compileKeyword, fold } from "../search/filter";
+import { companyKey, scoreJob, type RankContext } from "../search/rank";
+import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust } from "../search/store";
+import { buildTiers, type Tier, type Tiers } from "../search/tiers";
+import { sweep } from "../search/sweep";
+
+export { getSearchPrefs, setSearchPrefs } from "../search/store";
+export { sweep } from "../search/sweep";
 
 type Row = Record<string, unknown>;
 
 function ensure() {
+  ensureSearchSchema();
   migrate(
     "sources:001-config-and-runs",
     `ALTER TABLE sources ADD COLUMN keywords TEXT NOT NULL DEFAULT '';
@@ -46,6 +58,8 @@ export interface SourceRow {
   last_count: number;
   last_total: number;
   last_error: string | null;
+  /** Tracked company (career board / careers page) rather than a job board. */
+  company: boolean;
 }
 
 const toSource = (r: Row): SourceRow => ({
@@ -60,6 +74,7 @@ const toSource = (r: Row): SourceRow => ({
   last_count: (r.last_count as number) ?? 0,
   last_total: (r.last_total as number) ?? 0,
   last_error: (r.last_error as string) ?? null,
+  company: !!r.company,
 });
 
 export function listSourceRows(): SourceRow[] {
@@ -79,14 +94,15 @@ export interface SourceInput {
   handle: string;
   keywords: string[];
   keep_all: boolean;
+  company?: boolean;
 }
 
 /** Returns the new id, or null when the same board (kind + handle) is already there. */
 export function createSourceRow(s: SourceInput): number | null {
   ensure();
   const res = db()
-    .prepare("INSERT OR IGNORE INTO sources (kind, label, handle, keywords, keep_all) VALUES (?,?,?,?,?)")
-    .run(s.kind, s.label, s.handle, s.keywords.join(", "), s.keep_all ? 1 : 0);
+    .prepare("INSERT OR IGNORE INTO sources (kind, label, handle, keywords, keep_all, company) VALUES (?,?,?,?,?,?)")
+    .run(s.kind, s.label, s.handle, s.keywords.join(", "), s.keep_all ? 1 : 0, s.company ? 1 : 0);
   return res.changes ? Number(res.lastInsertRowid) : null;
 }
 
@@ -141,12 +157,17 @@ export function autoScanDue(now = Date.now()): boolean {
 
 // ---------- runs ----------
 export interface RunSourceDetail {
+  /** Saved source id, 0 for a catalog run. */
   id: number;
+  key?: string;
   label: string;
   listed: number;
   matched: number;
+  /** Offers that passed the filter and were not already known. */
+  kept?: number;
   added: number;
   known: number;
+  dropped?: Record<string, number>;
   error?: string;
   ms: number;
 }
@@ -216,11 +237,47 @@ export function listDiscovered(limit = 8): Discovered[] {
 }
 
 // ---------- scan orchestrator ----------
+export interface FoundJob {
+  id: number;
+  title: string;
+  company: string;
+  location: string;
+  remote: boolean;
+  type: string;
+  url: string;
+  source: string;
+  deadline: string | null;
+  relevance: number;
+  why: string[];
+  trust: number;
+  trustFlags: string[];
+  host: HostClass;
+  queryTier: Tier;
+  /** You already applied at this company (work preference "apply once"). */
+  appliedHere: boolean;
+}
+
 export type ScanEvent =
-  | { type: "start"; run_id: number; sources: { id: number; label: string; kind: string }[] }
-  | { type: "source"; id: number; status: "running" }
+  | { type: "plan"; run_id: number; runs: PlanRun[]; skipped: PlanSkipped[]; skipped_blacklist: number }
+  | { type: "source"; key: string; id?: number; status: "running" }
   | ({ type: "source"; status: "done" | "error" } & RunSourceDetail)
-  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; jobs: { id: number; title: string; company: string }[] };
+  | { type: "job"; job: FoundJob }
+  | { type: "liveness"; checked: number; closed: number[] }
+  | { type: "sweep"; urgent: number; merged: number }
+  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[] };
+
+export interface ScanRequest {
+  /** Explicit sources (Sources page): they all run, whatever the countries. */
+  ids?: number[];
+  trigger?: "manual" | "auto";
+  onEvent?: (e: ScanEvent) => void;
+  keywords?: string[];
+  countries?: string[];
+  remote?: Remote;
+  types?: JobType[];
+  negatives?: string[];
+  includeSenior?: boolean;
+}
 
 declare global {
   var __khedmaScanBusy: boolean | undefined;
@@ -228,61 +285,83 @@ declare global {
 
 export const scanBusy = () => !!globalThis.__khedmaScanBusy;
 
-/** URLs and company+title keys of every stored offer (archived ones too, so they do not come back). */
-function knownIndex() {
-  const rows = db().prepare("SELECT url, company, title FROM jobs").all() as Row[];
-  const urls = new Set(rows.map((r) => r.url as string));
-  const keys = new Set(rows.map((r) => dedupeKey(r.company as string, r.title as string)));
-  return {
-    has: (j: NewJob) => urls.has(j.url) || keys.has(dedupeKey(j.company, j.title)),
-    add: (j: NewJob) => {
-      urls.add(j.url);
-      keys.add(dedupeKey(j.company, j.title));
-    },
-  };
+const LIVENESS_TOP = 20;
+const TIER_MIN: Record<Tier, number> = { 1: 10, 2: 3, 3: 0 };
+
+/** Query a keyword board tier by tier until it answers with enough listings; other boards run once. */
+async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Omit<ScanOptions, "keywords">): Promise<ScanResult & { tierOf: Map<string, Tier> }> {
+  const usesKeywords = CATALOG.find((c) => c.kind === run.kind)?.keywords ?? false;
+  const tierOf = new Map<string, Tier>();
+  let out: ScanResult = { jobs: [], total: 0, matched: 0, known: 0, dropped: {} };
+  const order: Tier[] = usesKeywords ? [1, 2, 3] : [1];
+  for (const t of order) {
+    const keywords = t === 1 ? run.keywords : tiers[t];
+    if (t > 1 && (out.total >= TIER_MIN[(t - 1) as Tier] || !keywords.length)) break;
+    const r = await scanSource(run, profile, { ...opts, keywords });
+    for (const j of r.jobs) if (!tierOf.has(j.url)) tierOf.set(j.url, t);
+    const seen = new Set(out.jobs.map((j) => j.url));
+    out = {
+      jobs: [...out.jobs, ...r.jobs.filter((j) => !seen.has(j.url))],
+      total: out.total + r.total,
+      matched: out.matched + r.matched,
+      known: out.known + r.known,
+      dropped: Object.fromEntries([...new Set([...Object.keys(out.dropped), ...Object.keys(r.dropped)])].map((k) => [k, (out.dropped[k] ?? 0) + (r.dropped[k] ?? 0)])),
+      error: r.error ?? out.error,
+    };
+  }
+  return { ...out, tierOf };
 }
 
 /**
- * Scan the given sources (default: all enabled), 3 boards at a time. Emits progress
- * events and records one scan_runs row. Returns null when another scan is running.
+ * Search: plan the runs from the chosen countries (or the explicit ids), scan 3 boards at a time,
+ * filter + rank each offer, stream events, check liveness of the best new offers, sweep, record one
+ * scan_runs row. Returns null when another scan is running.
  */
-export async function runScan(opts: { ids?: number[]; trigger?: "manual" | "auto"; onEvent?: (e: ScanEvent) => void; keywords?: string[]; countries?: string[] } = {}): Promise<ScanRun | null> {
+export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
   if (globalThis.__khedmaScanBusy) return null;
   globalThis.__khedmaScanBusy = true;
   try {
     ensure();
     const emit = opts.onEvent ?? (() => {});
-    const all = listSourceRows();
-    const sources = opts.ids?.length ? all.filter((s) => opts.ids!.includes(s.id)) : all.filter((s) => s.enabled);
     const profile = getProfile();
-    const started = new Date().toISOString();
-    const runId = Number(
-      db().prepare("INSERT INTO scan_runs (started_at, trigger, sources) VALUES (?,?,?)").run(started, opts.trigger ?? "manual", sources.length).lastInsertRowid,
-    );
-    emit({ type: "start", run_id: runId, sources: sources.map((s) => ({ id: s.id, label: s.label, kind: s.kind })) });
+    const extra = getProfileExtra();
+    const prefs = getSearchPrefs();
+    const all = listSourceRows();
+    const keywords = opts.keywords ?? [];
+    const countries = opts.countries?.length ? opts.countries : extra.places.countries;
+    const places = { countries, cities: countries.includes("TN") ? extra.places.cities : [], remote: opts.remote ?? extra.places.remote };
+    const missingEnv = CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind);
+    const plan = opts.ids?.length
+      ? planSources(all.filter((s) => opts.ids!.includes(s.id)), keywords, defaultKeywords(profile))
+      : planSearch({ keywords, countries: places.countries, cities: places.cities, remote: places.remote, enabledSources: all, missingEnv, defaultKeywords: defaultKeywords(profile) });
+    // Blacklisted employers never run as tracked companies.
+    const blocked = prefs.companyBlacklist.map((k) => compileKeyword(k));
+    const runs = plan.runs.filter((r) => !(r.company && blocked.some((m) => m(fold(r.label)))));
+    const skippedBlacklist = plan.runs.length - runs.length;
 
+    const started = new Date().toISOString();
+    const runId = Number(db().prepare("INSERT INTO scan_runs (started_at, trigger, sources) VALUES (?,?,?)").run(started, opts.trigger ?? "manual", runs.length).lastInsertRowid);
+    emit({ type: "plan", run_id: runId, runs, skipped: plan.skipped, skipped_blacklist: skippedBlacklist });
+
+    const filter = buildFilter({ keywords, profile, places, types: opts.types, extraNegatives: opts.negatives, includeSenior: opts.includeSenior, prefs });
+    const tiers = buildTiers(keywords, profile.target_roles);
     const known = knownIndex();
+    const tracked = new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
+    const applied = prefs.applyOnceAtCompany ? appliedCompanies() : new Set<string>();
+    const rank: RankContext = { positives: filter.positives, keywords, types: filter.types, places, tracked, seen: known.seen };
     const newIds: number[] = [];
-    const newJobs: { id: number; title: string; company: string }[] = [];
+    const found: FoundJob[] = [];
+    const dropped: Record<string, number> = {};
     let duplicates = 0;
 
-    const detail = await mapLimit(sources, 3, async (s): Promise<RunSourceDetail> => {
-      emit({ type: "source", id: s.id, status: "running" });
+    const detail = await mapLimit(runs, 3, async (run): Promise<RunSourceDetail> => {
+      emit({ type: "source", key: run.key, id: run.sourceId, status: "running" });
       const t0 = Date.now();
-      let res: Awaited<ReturnType<typeof scanSource>>;
-      if (!isProviderKind(s.kind)) res = { jobs: [], total: 0, matched: 0, known: 0, error: `Unknown source kind: ${s.kind}` };
-      else {
-        try {
-          const extra = getProfileExtra();
-          res = await scanSource(s, profile, {
-            keywords: opts.keywords?.length ? opts.keywords : s.keywords.length ? s.keywords : defaultKeywords(profile),
-            keepAll: s.keep_all && !opts.countries,
-            isKnown: known.has,
-            places: opts.countries ? { countries: opts.countries, cities: [], remote: extra.places.remote } : extra.places,
-          });
-        } catch (e) {
-          res = { jobs: [], total: 0, matched: 0, known: 0, error: (e as Error).message };
-        }
+      let res: Awaited<ReturnType<typeof scanTiered>>;
+      try {
+        res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide: filter.decide });
+      } catch (e) {
+        res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };
       }
       let added = 0;
       for (const j of res.jobs) {
@@ -291,34 +370,78 @@ export async function runScan(opts: { ids?: number[]; trigger?: "manual" | "auto
           duplicates++;
           continue;
         }
+        const ranked = scoreJob(j, rank);
+        const tier = res.tierOf.get(j.url) ?? 1;
+        ranked.score = Math.min(100, ranked.score + (tier === 1 ? 6 : tier === 2 ? 3 : 0));
+        if (tier === 1) ranked.why.push("tier:1");
+        const trust = trustScore(j);
         const { id, inserted } = upsertJob(j);
         known.add(j);
+        known.seen.add(dedupeKey(j.company, j.title));
         if (!inserted) {
           duplicates++;
           continue;
         }
+        setRelevance(id, ranked.score, ranked.why);
+        setTrust(id, trust.score, trust.flags);
         added++;
         newIds.push(id);
-        newJobs.push({ id, title: j.title, company: j.company });
+        const fj: FoundJob = {
+          id, title: j.title, company: j.company, location: j.location, remote: j.remote, type: j.type, url: j.url, source: j.source, deadline: j.deadline,
+          relevance: ranked.score, why: ranked.why, trust: trust.score, trustFlags: trust.flags, host: trust.host, queryTier: tier,
+          appliedHere: applied.has(companyKey(j.company)),
+        };
+        found.push(fj);
+        emit({ type: "job", job: fj });
       }
       duplicates += res.known;
+      for (const [k, n] of Object.entries(res.dropped)) dropped[k] = (dropped[k] ?? 0) + n;
       const error = res.error && !res.jobs.length && !res.total ? res.error.slice(0, 300) : undefined;
-      db()
-        .prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?")
-        .run(new Date().toISOString(), added, res.total, error ?? null, s.id);
-      const d: RunSourceDetail = { id: s.id, label: s.label, listed: res.total, matched: res.matched, added, known: res.known, error, ms: Date.now() - t0 };
+      if (run.sourceId) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
+      const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, ms: Date.now() - t0 };
       emit({ type: "source", status: error ? "error" : "done", ...d });
       return d;
     });
+
+    // Liveness: the best new offers are opened once; closed ones are archived with the check as the note.
+    let closed: number[] = [];
+    const top = [...found].sort((a, b) => b.relevance - a.relevance).slice(0, LIVENESS_TOP);
+    if (top.length) {
+      try {
+        const checks = await checkJobs(top.map((j) => j.id));
+        closed = checks.filter((c) => c.status === "closed").map((c) => c.job_id);
+        for (const id of closed) updateJob(id, { archived: true });
+        emit({ type: "liveness", checked: checks.length, closed });
+      } catch (e) {
+        console.warn("[search] liveness pass failed:", (e as Error).message);
+      }
+    }
+    try {
+      const sw = sweep();
+      emit({ type: "sweep", urgent: sw.urgent.length, merged: sw.merged.length });
+    } catch (e) {
+      console.warn("[search] sweep failed:", (e as Error).message);
+    }
 
     const sum = (k: "listed" | "matched" | "added") => detail.reduce((a, d) => a + d[k], 0);
     const errors = detail.filter((d) => d.error).length;
     db()
       .prepare("UPDATE scan_runs SET finished_at=?, listed=?, matched=?, added=?, duplicates=?, errors=?, new_job_ids=?, detail=? WHERE id=?")
       .run(new Date().toISOString(), sum("listed"), sum("matched"), sum("added"), duplicates, errors, JSON.stringify(newIds), JSON.stringify(detail), runId);
-    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, jobs: newJobs.slice(0, 8) });
+    const best = found.filter((j) => !closed.includes(j.id)).sort((a, b) => b.relevance - a.relevance).slice(0, 8).map((j) => ({ id: j.id, title: j.title, company: j.company }));
+    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, dropped, closed: closed.length, jobs: best });
     return listRuns(1)[0];
   } finally {
     globalThis.__khedmaScanBusy = false;
   }
+}
+
+/** Tracked company from a careers URL: detect the ATS, store it as a company source. */
+export async function trackCompany(url: string, name?: string): Promise<{ ok: true; id: number; kind: string; label: string; ats?: string } | { ok: false; error: "invalid" | "unreachable" | "duplicate" }> {
+  const d = await detectAts(url);
+  if ("error" in d) return { ok: false, error: /Invalid|Private|Only http/.test(d.error) ? "invalid" : "unreachable" };
+  const label = (name?.trim() || d.label || "").slice(0, 80) || d.handle;
+  const id = createSourceRow({ kind: d.kind, label, handle: d.handle, keywords: [], keep_all: false, company: true });
+  if (!id) return { ok: false, error: "duplicate" };
+  return { ok: true, id, kind: d.kind, label, ats: d.ats };
 }

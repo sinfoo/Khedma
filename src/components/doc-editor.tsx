@@ -1,15 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Check, Columns2, Copy, Download, Eye, FileText, Loader2, Pencil, Printer, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { Menu, MenuItem } from "@/components/kit/menu";
 import type { Result } from "@/lib/repo/apps";
+import type { LintFinding } from "@/lib/ai/writing";
 import { Markdown } from "./markdown";
 import { EngineChip } from "./ui";
 import { diffLines } from "./pipeline/diff";
+import { FactGate, WritingLint, useFacts } from "./writing-lint";
 
 const words = (s: string) => (s.replace(/[#>*_`|[\]()-]+/g, " ").match(/[\p{L}\p{N}][\p{L}\p{N}'’+#.]*/gu) ?? []).length;
 
@@ -52,6 +54,29 @@ export function DocEditor({
   const [saving, startSave] = useTransition();
   const current = dirty ? draft : (value ?? "");
   const count = useMemo(() => words(current), [current]);
+  const area = useRef<HTMLTextAreaElement>(null);
+  const [select, setSelect] = useState<string | null>(null);
+  const facts = useFacts(original, current);
+
+  // Replace one sentence (from a lint fix) in the working copy; the user saves explicitly.
+  const replaceSentence = (sentence: string, next: string) => {
+    if (!current.includes(sentence)) return;
+    setDraft(current.replace(sentence, next));
+    setDirty(true);
+  };
+  const editAt = (f: LintFinding) => {
+    if (!dirty) setDraft(current);
+    setMode("edit");
+    setSelect(f.excerpt);
+  };
+  useEffect(() => {
+    if (mode !== "edit" || !select || !area.current) return;
+    const el = area.current;
+    const at = el.value.indexOf(select);
+    el.focus();
+    if (at >= 0) el.setSelectionRange(at, at + select.length);
+    setSelect(null);
+  }, [mode, select]);
 
   const generate = () => {
     if (dirty && !window.confirm(d.discardConfirm)) return;
@@ -175,6 +200,7 @@ export function DocEditor({
           <label className="sr-only" htmlFor="doc-md">{d.editLabel}</label>
           <textarea
             id="doc-md"
+            ref={area}
             className="input mono text-sm !min-h-[60vh]"
             value={draft}
             onChange={(e) => {
@@ -191,11 +217,20 @@ export function DocEditor({
           />
         </>
       ) : mode === "compare" && original ? (
-        <Compare original={original} tailored={current} />
+        <>
+          <FactGate findings={facts} className="mb-3 no-print" />
+          <Compare original={original} tailored={current} />
+        </>
       ) : (
         <article className={gen ? "opacity-60 transition-opacity" : ""}>
           <Markdown>{current}</Markdown>
         </article>
+      )}
+      {value && !gen && (
+        <div className="mt-4 space-y-3 no-print">
+          {mode !== "compare" && facts.length > 0 && <FactGate findings={facts} />}
+          <WritingLint text={current} onReplace={replaceSentence} onEdit={editAt} />
+        </div>
       )}
     </div>
   );

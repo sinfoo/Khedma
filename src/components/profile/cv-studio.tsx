@@ -3,13 +3,31 @@
 import { useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Download, FileText, Printer } from "lucide-react";
+import { CheckCircle2, Download, FileText, Printer, XCircle } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { parseCv, SECTION_LABELS, toPlainText, type CvSection } from "@/lib/cv/sectionize";
+import { fmt } from "@/lib/i18n/dict";
+import { parseCv, SECTION_LABELS, type CvSection } from "@/lib/cv/sectionize";
+import { atsVerify, type AtsLayout } from "@/lib/cv/ats-check";
+import { atsPlainText, type Paper } from "@/lib/cv/export";
 import type { Locale } from "@/lib/types";
 
-const TEMPLATES = ["classic", "modern", "compact"] as const;
+const TEMPLATES = ["classic", "modern", "compact", "ats"] as const;
 type Template = (typeof TEMPLATES)[number];
+// What each template looks like to a parser (fonts as declared in the paper CSS below).
+const LAYOUT: Record<Template, AtsLayout> = {
+  classic: { columns: 1, fonts: ["Instrument Sans"] },
+  modern: { columns: 2, fonts: ["Instrument Sans"] },
+  compact: { columns: 2, fonts: ["Instrument Sans"] },
+  ats: { columns: 1, fonts: ["Arial"] },
+};
+
+export interface Coverage {
+  title: string;
+  company: string;
+  pct: number | null;
+  present: string[];
+  missing: string[];
+}
 
 // Print-safe accents, each ≥ 4.5:1 on white.
 const ACCENTS = [
@@ -51,16 +69,19 @@ const md = (size: "base" | "sm"): Components => ({
   ),
 });
 
-export function CvStudio({ markdown, fromUpload, fileBase }: { markdown: string; fromUpload: boolean; fileBase: string }) {
+export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverage = null }: { markdown: string; fromUpload: boolean; fileBase: string; paper?: Paper; coverage?: Coverage | null }) {
   const { t, locale } = useT();
   const s = t.profile2.studio;
   const [tpl, setTpl] = useState<Template>("classic");
   const [accent, setAccent] = useState<AccentKey>("blue");
   const [labels, setLabels] = useState<Locale | "asis">(locale);
-  const hex = ACCENTS.find((a) => a.key === accent)!.hex;
+  const hex = tpl === "ats" ? "#111111" : ACCENTS.find((a) => a.key === accent)!.hex;
+  const ats = atsVerify(markdown, LAYOUT[tpl]);
+  const textLocale: Locale = labels === "asis" ? locale : labels;
 
   const doc = parseCv(markdown);
-  const title = (sec: CvSection) => (labels !== "asis" && sec.key !== "other" ? SECTION_LABELS[labels][sec.key] : sec.title);
+  // The ATS template always prints standard headings so parsers key off them.
+  const title = (sec: CvSection) => ((labels !== "asis" || tpl === "ats") && sec.key !== "other" ? SECTION_LABELS[textLocale][sec.key] : sec.title);
   const introLines = doc.intro.split("\n").map((l) => l.trim()).filter(Boolean);
   const headline = introLines.filter((l) => /^\*\*.+\*\*$/.test(l) || !/[@·|]|https?:|\+?\d{2}[\d ]{6,}/.test(l)).map((l) => l.replace(/^\*\*|\*\*$/g, ""));
   const contact = introLines.filter((l) => !headline.includes(l.replace(/^\*\*|\*\*$/g, ""))).flatMap((l) => l.split(/\s*[·|•]\s*/)).filter(Boolean);
@@ -102,7 +123,12 @@ export function CvStudio({ markdown, fromUpload, fileBase }: { markdown: string;
         .cv-compact { font-size: 8.8pt; line-height: 1.32; }
         .cv-compact .cv-h2 { font-size: 8.4pt; margin: 7pt 0 2pt; border-bottom: 0.75pt solid #d5d8dd; padding-bottom: 1pt; }
         .cv-compact .cv-h3 { font-size: 9.2pt; margin-top: 0.35em; }
-        @page { size: A4; margin: 12mm 13mm; }
+        .cv-ats { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.4; color: #000; }
+        .cv-ats h1, .cv-ats h2, .cv-ats h3, .cv-ats h4, .cv-ats .cv-name { font-family: Arial, Helvetica, sans-serif; color: #000; }
+        .cv-ats .cv-h2 { font-size: 11pt; letter-spacing: 0.04em; border-bottom: 1px solid #000; padding-bottom: 2pt; margin: 12pt 0 5pt; }
+        .cv-ats .cv-h3 { font-size: 10.5pt; }
+        .cv-ats li::marker { color: #000; }
+        @page { size: ${paper === "letter" ? "Letter" : "A4"}; margin: 12mm 13mm; }
         @media print {
           main#main { padding: 0 !important; max-width: none !important; }
           .cv-paper { box-shadow: none !important; border: 0 !important; width: auto !important; min-height: 0 !important; padding: 0 !important; margin: 0 !important; }
@@ -162,20 +188,67 @@ export function CvStudio({ markdown, fromUpload, fileBase }: { markdown: string;
           </div>
         </fieldset>
 
+        <section className="card p-4" aria-labelledby="ats-score-h" aria-live="polite">
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="ats-score-h" className="text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{s.ats.title}</h2>
+            <span className={`chip ${ats.grade === "A" ? "chip-success" : ats.grade === "B" ? "chip-accent" : ats.grade === "C" ? "chip-saffron" : "chip-danger"} tabular`}>
+              {fmt(s.ats.grade, { g: ats.grade })} · {ats.score}/100
+            </span>
+          </div>
+          <p className="hint mt-1">{s.ats.hint}</p>
+          <ul className="mt-3 space-y-1 text-xs">
+            {ats.items.map((i) => (
+              <li key={i.id} className={`flex items-start gap-1.5 ${i.ok ? "text-ink-2" : "text-danger"}`}>
+                {i.ok ? <CheckCircle2 size={14} aria-hidden="true" className="mt-px shrink-0 text-success" /> : <XCircle size={14} aria-hidden="true" className="mt-px shrink-0" />}
+                <span>
+                  <span className="sr-only">{i.ok ? t.common.yes : t.common.no}: </span>
+                  {s.ats.items[i.id]} <span className="text-muted tabular">({i.weight})</span>
+                  {!i.ok && i.id === "sections" && ats.missing.length > 0 && <span className="block">{fmt(s.ats.missing, { list: ats.missing.map((k) => SECTION_LABELS[textLocale][k]).join(", ") })}</span>}
+                  {!i.ok && i.id === "fonts" && i.detail?.length ? <span className="block">{i.detail.join(", ")}</span> : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted tabular">{fmt(s.ats.pages, { n: ats.pages })}</p>
+          <p className="text-xs text-muted">{paper === "letter" ? s.ats.paperLetter : s.ats.paperA4}</p>
+        </section>
+
+        {coverage && (
+          <section className="card p-4" aria-labelledby="ats-cov-h">
+            <h2 id="ats-cov-h" className="text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{fmt(s.ats.coverage, { title: coverage.title, company: coverage.company })}</h2>
+            {coverage.pct === null ? (
+              <p className="hint mt-1">{s.ats.coverageNone}</p>
+            ) : (
+              <>
+                <p className={`mt-1 text-sm font-semibold tabular ${coverage.pct >= 70 ? "text-success" : coverage.pct >= 40 ? "text-saffron" : "text-danger"}`}>{fmt(s.ats.coveragePct, { n: coverage.pct })}</p>
+                <div role="progressbar" aria-label={s.ats.title} aria-valuenow={coverage.pct} aria-valuemin={0} aria-valuemax={100} className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-3">
+                  <div className={`h-full rounded-full ${coverage.pct >= 70 ? "bg-success" : coverage.pct >= 40 ? "bg-saffron" : "bg-danger"}`} style={{ width: `${coverage.pct}%` }} />
+                </div>
+                {coverage.missing.length > 0 && (
+                  <>
+                    <p className="mt-2 text-xs text-ink-2">{fmt(s.ats.coverageMissing, { list: coverage.missing.join(", ") })}</p>
+                    <p className="hint mt-2">{s.ats.coverageHint}</p>
+                  </>
+                )}
+              </>
+            )}
+          </section>
+        )}
+
         <div className="space-y-2">
           <button type="button" className="btn btn-primary w-full" onClick={() => window.print()}>
             <Printer size={16} aria-hidden="true" /> {s.print}
           </button>
           <p className="hint">{s.printTip}</p>
           <div className="grid gap-1.5 pt-1">
-            <a className="btn btn-secondary btn-sm" href={`/api/cv/docx?accent=${hex.slice(1)}`} download>
+            <a className="btn btn-secondary btn-sm" href={`/api/cv/docx?accent=${hex.slice(1)}&paper=${paper}`} download>
               <FileText size={14} aria-hidden="true" /> {s.downloadDocx}
             </a>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => download(`CV_${fileBase}.md`, markdown, "text/markdown;charset=utf-8")}>
               <Download size={14} aria-hidden="true" /> {s.downloadMd}
             </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => download(`CV_${fileBase}.txt`, toPlainText(markdown), "text/plain;charset=utf-8")}>
-              <Download size={14} aria-hidden="true" /> {s.downloadTxt}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => download(`CV_${fileBase}.txt`, atsPlainText(markdown, textLocale), "text/plain;charset=utf-8")}>
+              <Download size={14} aria-hidden="true" /> {s.ats.downloadTxt}
             </button>
           </div>
         </div>
@@ -226,6 +299,21 @@ export function CvStudio({ markdown, fromUpload, fileBase }: { markdown: string;
               <div className="grid grid-cols-2 gap-x-6">
                 {doc.sections.filter((x) => SIDEBAR_KEYS.has(x.key)).map((sec, i) => section(sec, i, true))}
               </div>
+            </>
+          )}
+
+          {tpl === "ats" && (
+            <>
+              <header>
+                <h1 className="cv-name text-[18pt] font-bold leading-tight">{name}</h1>
+                {headline.map((h) => (
+                  <p key={h} className="mt-1 text-[10.5pt]">
+                    {inline(h)}
+                  </p>
+                ))}
+                {contact.length > 0 && <p className="mt-1 text-[10pt]">{contact.join(" | ")}</p>}
+              </header>
+              {doc.sections.map((sec, i) => section(sec, i))}
             </>
           )}
 

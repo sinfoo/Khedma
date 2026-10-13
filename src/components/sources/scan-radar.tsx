@@ -5,18 +5,21 @@ import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { placeCodes, platformLinks } from "@/lib/sources/catalog";
+import type { PlanSkipped } from "@/lib/search/plan";
 import type { SourceStatus } from "./use-scan";
 
 interface RadarSource {
-  id: number;
+  /** Saved source id (Sources page) and/or plan run key (search). */
+  id?: number;
+  key?: string;
   label: string;
   kind: string;
 }
 
 /**
- * Live "searching" radar shown during a scan: a sweeping beam, one blip per source
- * that lights up as it is searched, a live counter and the keywords being used.
- * Major platforms that cannot be crawled (LinkedIn, Indeed…) get ready-made search links.
+ * Live "searching" radar shown during a scan: a sweeping beam, one blip per planned run that
+ * lights up as it is searched, a live counter, the keywords being used, and why offers were dropped.
+ * Only planned runs are shown; sources skipped by the country plan get one summary line.
  */
 export function ScanRadar({
   sources,
@@ -26,23 +29,35 @@ export function ScanRadar({
   finished,
   total,
   running,
+  skipped = [],
+  skippedBlacklist = 0,
+  dropped = {},
 }: {
   sources: RadarSource[];
-  status: Record<number, SourceStatus>;
+  status: Record<string | number, SourceStatus>;
   keywords: string[];
   location: string;
   finished: number;
   total: number;
   running: boolean;
+  skipped?: PlanSkipped[];
+  skippedBlacklist?: number;
+  dropped?: Record<string, number>;
 }) {
   const { t, locale } = useT();
   const r = t.sources2.radar;
   const fr = locale === "fr";
-  const added = Object.values(status).reduce((n, s) => n + (s.added ?? 0), 0);
-  const current = sources.find((s) => status[s.id]?.state === "running");
+  const st = (s: RadarSource) => status[s.key ?? s.id ?? ""];
+  const added = sources.reduce((n, s) => n + (st(s)?.added ?? 0), 0);
+  const current = sources.find((s) => st(s)?.state === "running");
   const kw = keywords.slice(0, 4).join(", ");
   // `location` is either ISO codes ("DE,FR") or free-text places; link-only boards of those countries get a search link.
   const links = platformLinks(keywords.length ? keywords : [fr ? "stage ingénieur" : "engineering internship"], placeCodes(location));
+  const droppedTotal = Object.values(dropped).reduce((a, b) => a + b, 0);
+  const droppedText = Object.entries(dropped)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${r.reasons[k as keyof typeof r.reasons] ?? k} ${n}`)
+    .join(", ");
 
   // Rotating status line: the running source, else a reassuring phrase.
   const phrases = useMemo(() => [r.phrase1, r.phrase2, r.phrase3], [r.phrase1, r.phrase2, r.phrase3]);
@@ -75,12 +90,12 @@ export function ScanRadar({
           />
           {sources.map((s, i) => {
             const a = (i / Math.max(1, sources.length)) * Math.PI * 2 - Math.PI / 2;
-            const st = status[s.id]?.state ?? "queued";
-            const col = st === "done" ? "var(--success)" : st === "error" ? "var(--danger)" : st === "running" ? "var(--accent)" : "var(--line-strong)";
+            const state = st(s)?.state ?? "queued";
+            const col = state === "done" ? "var(--success)" : state === "error" ? "var(--danger)" : state === "running" ? "var(--accent)" : "var(--line-strong)";
             return (
               <span
-                key={s.id}
-                className={`absolute size-3 rounded-full ${st === "running" ? "pulse-soft" : ""}`}
+                key={s.key ?? s.id}
+                className={`absolute size-3 rounded-full ${state === "running" ? "pulse-soft" : ""}`}
                 style={{ left: `calc(50% + ${Math.cos(a) * R}px - 6px)`, top: `calc(50% + ${Math.sin(a) * R}px - 6px)`, background: col, transition: "background .3s" }}
                 title={s.label}
               />
@@ -102,26 +117,39 @@ export function ScanRadar({
             <p className="mt-1 text-sm text-muted">
               {fmt(r.progress, { done: finished, total })}
               {kw ? ` · ${fmt(r.using, { kw })}` : ""}
+              {droppedTotal > 0 && (
+                <>
+                  {" · "}
+                  <span>{fmt(r.dropped, { n: droppedTotal })} ({droppedText})</span>
+                </>
+              )}
             </p>
           </div>
           <ul className="flex flex-wrap gap-1.5" aria-label={r.sourcesLabel}>
             {sources.map((s) => {
-              const st = status[s.id];
-              const state = st?.state ?? "queued";
+              const x = st(s);
+              const state = x?.state ?? "queued";
               const cls = state === "done" ? "chip-success" : state === "error" ? "chip-danger" : state === "running" ? "chip-accent" : "";
               return (
-                <li key={s.id} className={`chip ${cls}`}>
+                <li key={s.key ?? s.id} className={`chip ${cls}`} title={state === "error" ? x?.error : undefined}>
                   {state === "running" && <Loader2 size={11} className="animate-spin" aria-hidden="true" />}
                   {state === "error" && <AlertTriangle size={11} aria-hidden="true" />}
                   {s.label}
-                  {state === "done" && <span className="tabular">· {st?.added ?? 0}</span>}
+                  {state === "done" && <span className="tabular">· {x?.added ?? 0}</span>}
                   <span className="sr-only">
-                    {state === "done" ? fmt(r.srDone, { n: st?.added ?? 0 }) : state === "running" ? r.srRunning : state === "error" ? r.srError : r.srQueued}
+                    {state === "done" ? fmt(r.srDone, { n: x?.added ?? 0 }) : state === "running" ? r.srRunning : state === "error" ? r.srError : r.srQueued}
                   </span>
                 </li>
               );
             })}
           </ul>
+          {(skipped.length > 0 || skippedBlacklist > 0) && (
+            <p className="text-xs text-muted" title={skipped.map((s) => s.label).join(", ")}>
+              {skipped.length > 0 && fmt(r.skipped, { n: skipped.length })}
+              {skipped.length > 0 && skippedBlacklist > 0 && " · "}
+              {skippedBlacklist > 0 && fmt(r.skippedBlacklist, { n: skippedBlacklist })}
+            </p>
+          )}
           <div className="rounded-xl border border-dashed border-line-strong p-3">
             <p className="text-xs font-semibold text-ink-2">{r.linksTitle}</p>
             <p className="mb-2 text-xs text-muted">{r.linksHint}</p>

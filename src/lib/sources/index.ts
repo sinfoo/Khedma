@@ -20,13 +20,16 @@ import * as jobcloud from "./jobcloud";
 import * as englishjobs from "./englishjobs";
 import * as remote from "./remote";
 import * as keyed from "./keyed";
-import { countryByCode, fitsPlaces, REMOTE_CODE } from "../geo";
+import * as ats from "./ats";
+import { fitsPlaces } from "../geo";
+import { dropBucket, type Decision } from "../search/filter";
 
 export { importFromUrl } from "./url";
 export { DEMO_JOBS } from "./demo";
 export { guessType, extractTags, matchesProfile, matchesKeywords, dedupeKey } from "./classify";
 export { CATALOG, PROVIDER_KINDS, LINK_KINDS, isProviderKind, platformLinks, placeCodes, type ProviderKind, type LinkKind, type CatalogEntry, type CatalogCountry } from "./catalog";
-import { CATALOG, type ProviderKind } from "./catalog";
+export { detectAts, detectAtsUrl, detectAtsInHtml, scanCareersPage, type Detected } from "./ats";
+import type { ProviderKind } from "./catalog";
 
 /** Public boards verified live on 2026-10-07 (all returned 200 with postings). */
 export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
@@ -86,6 +89,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   jooble: { list: keyed.scan.jooble },
   reed: { list: keyed.scan.reed },
   findwork: { list: keyed.scan.findwork },
+  careers: { list: ats.scanCareersPage },
 };
 
 export interface ScanOptions {
@@ -99,6 +103,8 @@ export interface ScanOptions {
   maxDetails?: number;
   /** Where the user wants to apply; offers in other countries are dropped (unknown locations pass). */
   places?: { countries: string[]; remote: "yes" | "only" | "no" };
+  /** Search filter (title / seniority / location / type); replaces the plain profile match when given. */
+  decide?: (job: NewJob) => Decision;
 }
 
 export interface ScanResult {
@@ -109,27 +115,33 @@ export interface ScanResult {
   matched: number;
   /** Matched offers already in the database (same URL or same company + title). */
   known: number;
+  /** Why offers were dropped, by bucket ("senior", "location", "type", "title"…). */
+  dropped: Record<string, number>;
   error?: string;
 }
 
-/** Scan one source: list, dedupe by url, filter by profile, skip known offers, enrich with detail pages. */
+/** Scan one source: list, dedupe by url, filter, skip known offers, enrich with detail pages. */
 export async function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
   const provider = PROVIDERS[source.kind as ProviderKind];
-  if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, error: `Unknown source kind: ${source.kind}` };
-  // A board tied to one country is not worth a request when the user applies elsewhere.
-  const chosen = (opts.places?.countries ?? []).filter((c) => c !== REMOTE_CODE);
-  const home = CATALOG.find((c) => c.kind === source.kind)?.country;
-  if (chosen.length && home && home !== "INT" && !chosen.includes(home)) return { jobs: [], total: 0, matched: 0, known: 0 };
-  let listed: { jobs: NewJob[]; error?: string };
-  if (source.kind === "linkedin" && !source.handle.trim() && opts.places?.countries.length) {
-    // No explicit location: search each chosen country (two at most, politeness).
-    const names = opts.places.countries.map((c) => countryByCode(c)?.search).filter((x): x is string => !!x).slice(0, 2);
-    const parts = await Promise.all((names.length ? names : ["Tunisia"]).map((n) => provider.list(n, opts.keywords ?? [])));
-    listed = { jobs: parts.flatMap((p) => p.jobs), error: parts.find((p) => p.error && !p.jobs.length)?.error };
-  } else listed = await provider.list(source.handle, opts.keywords ?? []);
-  const { jobs, error } = listed;
+  if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, error: `Unknown source kind: ${source.kind}` };
+  const { jobs, error } = await provider.list(source.handle, opts.keywords ?? []);
   const seen = new Set<string>();
-  const keep = (j: NewJob) => opts.keepAll || (matchesProfile(j, profile) && (!opts.places || fitsPlaces(j, opts.places)));
+  const dropped: Record<string, number> = {};
+  const decide = (j: NewJob): Decision => {
+    if (opts.keepAll) return { keep: true, reasons: [] };
+    if (opts.decide) return opts.decide(j);
+    if (!matchesProfile(j, profile)) return { keep: false, reasons: ["title"] };
+    if (opts.places && !fitsPlaces(j, opts.places)) return { keep: false, reasons: ["location"] };
+    return { keep: true, reasons: [] };
+  };
+  const keep = (j: NewJob) => {
+    const d = decide(j);
+    if (!d.keep) {
+      const b = dropBucket(d.reasons);
+      dropped[b] = (dropped[b] ?? 0) + 1;
+    }
+    return d.keep;
+  };
   const matched = jobs.filter((j) => {
     if (seen.has(j.url) || !keep(j)) return false;
     seen.add(j.url);
@@ -151,5 +163,5 @@ export async function scanSource(source: { kind: string; handle: string }, profi
     }, provider.detailGapMs ?? 400);
     out = [...enriched, ...fresh.slice(cap)].filter(keep);
   }
-  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, error };
+  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, dropped, error };
 }

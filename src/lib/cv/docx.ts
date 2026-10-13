@@ -35,8 +35,9 @@ function runs(text: string): string {
 const para = (style: string | null, text: string) =>
   `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ""}${runs(text)}</w:p>`;
 
-export function markdownToDocx(md: string, opts: { title?: string; accent?: string } = {}): Uint8Array {
+export function markdownToDocx(md: string, opts: { title?: string; accent?: string; paper?: "a4" | "letter" } = {}): Uint8Array {
   const accent = /^#?[0-9a-f]{6}$/i.test(opts.accent ?? "") ? opts.accent!.replace("#", "") : "0B5CAD";
+  const pgSz = opts.paper === "letter" ? 'w:w="12240" w:h="15840"' : 'w:w="11906" w:h="16838"';
   const body: string[] = [];
   for (const raw of (md ?? "").replace(/\r\n?/g, "\n").split("\n")) {
     const line = raw.trim();
@@ -50,7 +51,7 @@ export function markdownToDocx(md: string, opts: { title?: string; accent?: stri
 
   const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
   const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document ${W}><w:body>${body.join("")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+<w:document ${W}><w:body>${body.join("")}<w:sectPr><w:pgSz ${pgSz}/><w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>`;
 
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles ${W}>

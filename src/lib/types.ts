@@ -75,6 +75,40 @@ export interface Job {
   starred: boolean;
 }
 
+// ---------- evaluation v2 (requirement → evidence table, legitimacy, comp reliability, triage) ----------
+export const IMPORTANCE = ["critical", "high", "meaningful", "preferred", "low_signal"] as const;
+export type Importance = (typeof IMPORTANCE)[number];
+export const EVIDENCE_TIERS = ["stated", "structural", "inferred"] as const;
+export type EvidenceTier = (typeof EVIDENCE_TIERS)[number];
+
+export interface Requirement {
+  text: string;
+  importance: Importance;
+  evidence: EvidenceTier; // inferred rows are never critical/high
+  met: "yes" | "partial" | "no";
+  proof: string; // verbatim CV line backing a yes/partial, "" otherwise
+}
+
+export type LegitimacyTier = "high" | "caution" | "suspicious";
+export interface Legitimacy {
+  tier: LegitimacyTier;
+  score: number; // 0-100, zero-LLM
+  signals: { key: string; delta: number }[];
+}
+
+export const COMPANY_TYPES = [
+  "big_tech", "growth_startup", "early_startup", "enterprise", "agency", "local_smb", "commission", "staffing", "public_academic", "community", "unknown",
+] as const;
+export type CompanyType = (typeof COMPANY_TYPES)[number];
+export type CompReliability = "high" | "medium" | "low" | "unknown";
+
+export interface Triage {
+  score: number; // 0-100
+  verdict: "pass" | "marginal" | "fail";
+  reason: string;
+  skipped: boolean; // true when the full evaluation was not run because of this verdict
+}
+
 export interface Evaluation {
   id: number;
   job_id: number;
@@ -91,6 +125,15 @@ export interface Evaluation {
   summary: string;
   engine: string; // "ollama:llama3.1" | "heuristic"
   created_at: string;
+  // v2 (optional: rows written before the v2 migration have none)
+  requirements?: Requirement[];
+  legitimacy?: Legitimacy;
+  company_type?: CompanyType;
+  comp_reliability?: CompReliability;
+  level_plan?: string;
+  cv_changes?: string[];
+  archetype?: string;
+  triage?: Triage;
 }
 
 export interface Application {

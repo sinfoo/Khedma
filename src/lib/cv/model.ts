@@ -24,6 +24,10 @@ export interface ProfileExtra {
   /** Where the student wants to apply: ISO country codes, Tunisian cities, remote preference. */
   places: { countries: string[]; cities: string[]; remote: "yes" | "only" | "no" };
   onboarding: { step: number; done: boolean };
+  /** A past letter or LinkedIn "About" the AI matches in tone (never copies). */
+  writing_sample: string;
+  /** Procedural rules that override the writing guardrail ("jamais de tutoiement"). */
+  house_rules: string;
 }
 
 export const ONBOARDING_STEPS = 5;
@@ -40,6 +44,8 @@ export const EMPTY_EXTRA: ProfileExtra = {
   availability: { from: "", to: "" },
   places: { countries: ["TN"], cities: [], remote: "yes" },
   onboarding: { step: 1, done: false },
+  writing_sample: "",
+  house_rules: "",
 };
 
 const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -92,6 +98,8 @@ export function normalizeExtra(raw: unknown): ProfileExtra {
       step: Number.isFinite(step) ? Math.min(ONBOARDING_STEPS, Math.max(1, Math.round(step))) : 1,
       done: ob.done === true,
     },
+    writing_sample: s(r.writing_sample, 4000),
+    house_rules: s(r.house_rules, 1500),
   };
 }
 

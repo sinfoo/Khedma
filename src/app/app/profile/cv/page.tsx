@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
-import { getProfile } from "@/lib/db";
+import { getJob, getProfile } from "@/lib/db";
 import { getCvSource, sectionizeToMarkdown } from "@/lib/cv/source";
+import { keywordCoverage, paperFor } from "@/lib/cv/export";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { EmptyState, PageHeader } from "@/components/kit";
 import { CvStudio } from "@/components/profile/cv-studio";
 
 export const metadata: Metadata = { title: "CV" };
 
-export default async function CvPage() {
+/** CV templates page; `?job=<id>` adds keyword coverage against that offer. */
+export default async function CvPage({ searchParams }: PageProps<"/app/profile/cv">) {
   const { t } = await getDict();
   const s = t.profile2.studio;
   const src = getCvSource();
@@ -28,12 +31,16 @@ export default async function CvPage() {
   }
   const markdown = src.format === "markdown" ? src.text : sectionizeToMarkdown(src.text);
   const fileBase = (getProfile().name || "CV").normalize("NFKD").replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "") || "CV";
+  const paper = paperFor(getProfileExtra().places.countries);
+  const jobParam = Number((await searchParams).job);
+  const job = Number.isInteger(jobParam) && jobParam > 0 ? getJob(jobParam) : null;
+  const coverage = job ? { title: job.title, company: job.company, ...keywordCoverage(`${job.title}\n${job.tags.join(", ")}\n${job.description}`, markdown) } : null;
   return (
     <>
       <div className="no-print">
         <PageHeader title={s.title} lead={s.lead} back={back} />
       </div>
-      <CvStudio markdown={markdown} fromUpload={src.format === "text"} fileBase={fileBase} />
+      <CvStudio markdown={markdown} fromUpload={src.format === "text"} fileBase={fileBase} paper={paper} coverage={coverage} />
     </>
   );
 }

@@ -13,6 +13,7 @@ import { Dialog } from "@/components/kit/dialog";
 import { Markdown } from "@/components/markdown";
 import { EngineChip } from "@/components/ui";
 import { useToast } from "@/components/kit/toast";
+import { FactGate, WritingLint, useFacts } from "@/components/writing-lint";
 
 // ---------- Markdown editor with a small toolbar ----------
 export function MarkdownEditor({ id, value, onChange, label, describedBy }: { id: string; value: string; onChange: (v: string) => void; label: string; describedBy?: string }) {
@@ -236,6 +237,8 @@ export function ReviewPanel({
 }) {
   const [applying, startApply] = useTransition();
   const [proposal, setProposal] = useState<{ md: string; engine: string } | null>(null);
+  const [ack, setAck] = useState(false);
+  const facts = useFacts(cvMd, proposal?.md ?? "");
   const { t, locale } = useT();
   const r = t.profile2.review;
   const toast = useToast();
@@ -282,22 +285,27 @@ export function ReviewPanel({
       </div>
       <Dialog
         open={!!proposal}
-        onClose={() => setProposal(null)}
+        onClose={() => {
+          setProposal(null);
+          setAck(false);
+        }}
         title={r.previewTitle}
         description={r.previewLead}
         wide
         footer={
           <>
-            <button type="button" className="btn btn-ghost" onClick={() => setProposal(null)}>
+            <button type="button" className="btn btn-ghost" onClick={() => { setProposal(null); setAck(false); }}>
               {r.discard}
             </button>
             <button
               type="button"
               className="btn btn-primary"
+              disabled={facts.length > 0 && !ack}
               onClick={() => {
                 if (!proposal) return;
                 onReplaceCv(proposal.md);
                 setProposal(null);
+                setAck(false);
               }}
             >
               {r.accept}
@@ -308,6 +316,8 @@ export function ReviewPanel({
         {proposal && (
           <div className="space-y-3">
             <EngineChip engine={proposal.engine} t={t} />
+            <FactGate findings={facts} confirmed={ack} onConfirm={setAck} />
+            <WritingLint text={proposal.md} onReplace={(s, n) => setProposal({ ...proposal, md: proposal.md.replace(s, n) })} />
             <div className="rounded-xl border border-line p-4">
               <Markdown>{proposal.md}</Markdown>
             </div>

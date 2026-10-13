@@ -8,13 +8,18 @@ import {
   AUTO_HOURS,
   createSourceRow,
   getAutoScan,
+  getSearchPrefs,
   lastRunAt,
   listSourceRows,
   runScan,
   setAutoScan as saveAutoScan,
+  setSearchPrefs as savePrefs,
+  sweep,
+  trackCompany,
   updateSourceRow,
   type SourceInput,
 } from "@/lib/repo/sources";
+import { normalizePrefs, type SearchPrefs } from "@/lib/search/prefs";
 import type { Source } from "@/lib/types";
 
 const id = (v: unknown) => {
@@ -110,6 +115,33 @@ export async function setAutoScan(enabled: boolean, hours: number) {
   const h = AUTO_HOURS.includes(hours as (typeof AUTO_HOURS)[number]) ? hours : 6;
   saveAutoScan({ enabled: !!enabled, hours: h });
   revalidatePath("/app/sources");
+}
+
+/** Tracked company from a careers URL (ATS auto-detected). `name` overrides the detected label. */
+export async function addTrackedCompany(url: string, name?: string) {
+  const u = String(url ?? "").trim().slice(0, 1000);
+  if (!u) return { ok: false as const, error: "invalid" as const };
+  const r = await trackCompany(u, name ? String(name).slice(0, 80) : undefined);
+  if (r.ok) revalidatePath("/app/sources");
+  return r;
+}
+
+export async function loadSearchPrefs(): Promise<SearchPrefs> {
+  return getSearchPrefs();
+}
+
+/** Work preferences for the search (validated server-side). */
+export async function saveSearchPrefs(prefs: Partial<SearchPrefs>): Promise<SearchPrefs> {
+  const next = savePrefs(normalizePrefs(prefs));
+  revalidatePath("/app", "layout");
+  return next;
+}
+
+/** Deadline sweep + mass-posting consolidation on demand. */
+export async function runSweep(): Promise<{ urgent: number; merged: number }> {
+  const r = sweep();
+  revalidatePath("/app", "layout");
+  return { urgent: r.urgent.length, merged: r.merged.length };
 }
 
 /** First search with no sources: add the Tunisian boards and LinkedIn's public search, return the enabled list. */
