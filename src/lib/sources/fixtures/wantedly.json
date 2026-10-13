@@ -1,0 +1,81 @@
+{
+ "data": [
+  {
+   "id": 2368531,
+   "title": "防衛SE｜Forward Deployed Engineer",
+   "published_at": "2026-03-11T17:42:31.063+09:00",
+   "support_count": 0,
+   "page_view": 937,
+   "candidate_count": 20,
+   "location": "東京都港区虎ノ門 1-17-1 ",
+   "location_suffix": "虎ノ門ヒルズビジネスタワー 15階",
+   "description": "■ポジションについて\nForward Deployed Engineer（Software Engineer）は、顧客の現場に入り込み、課題を最短で「動くソフトウェア」として実装するポジションです。PoCから本番導入までの価値提供を担い、デジタルツイン、データ基盤、AI／シミュレーション連携などのプロダクトやプラットフォームの導入・拡張を、設計から運用定着まで推進します。\n\n■仕事内容\n【顧客課題の整理】\n・顧客課題のヒアリング\n・要件定義\n・スコープ策定\n・成功指標（KPI）設計\n\n【PoC・プロトタイプ開発】\n・PoC / デモ / プロトタイプの迅速な実装\n・短サイクルでの検証・改善\n\n【アーキテクチャ設計】\n・既存システム、データ、運用を踏まえたアーキテクチャ設計\n\n【バックエンド開発】\n・API設計／実装\n・データ処理パイプライン開発\n・ワークフロー自動化\n\n【運用設計】\n・テス",
+   "looking_for": "ソフトウェアエンジニア",
+   "use_webview": false,
+   "company": {
+    "id": 1319355,
+    "name": "株式会社スペースデータ"
+   },
+   "staffings_count": 1,
+   "video_available": false,
+   "tags": [],
+   "category_message": "",
+   "can_support": false,
+   "supported": false,
+   "can_bookmark": false
+  },
+  {
+   "id": 2114557,
+   "title": "AIの社会実装を支えるSoftware Engineer募集",
+   "published_at": "2025-06-24T19:00:55.672+09:00",
+   "support_count": 0,
+   "page_view": 508,
+   "candidate_count": 12,
+   "location": "東京都港区虎ノ門二丁目2番1号",
+   "location_suffix": "住友不動産虎ノ門タワー13階 ",
+   "description": "Software Engineerは、AI技術を組み込んだアプリケーションの設計・開発を担い、製造業・官公庁といったMission Critical領域で、顧客にプロダクトとして価値を届けます。\n\n■ 主な業務内容\nSoftware Engineerは、AI技術を活用したアプリケーションのフロントエンドからバックエンド、インフラまでを一貫して設計・開発し、顧客に価値を届けます。\nApplied Research EngineerやResearch Scientistが開発したAIモデルを、実際に動くプロダクトとして実装します。LLM APIを用いたアプリケーション開発、Webアプリケーションの設計・実装、クラウド環境の構築・運用など、プロジェクトの性質に応じて幅広い技術領域を担当します。\nまた、Project ManagerやAccount Executiveと連携し、顧客の要件を技術的な",
+   "looking_for": "ソフトウェアエンジニア",
+   "use_webview": false,
+   "company": {
+    "id": 6278110,
+    "name": "Polaris.AI株式会社"
+   },
+   "staffings_count": 4,
+   "video_available": false,
+   "tags": [],
+   "category_message": "",
+   "can_support": false,
+   "supported": false,
+   "can_bookmark": false
+  },
+  {
+   "id": 868403,
+   "title": "Join our strong software development ",
+   "published_at": "2022-03-04T11:04:06.046+09:00",
+   "support_count": 1,
+   "page_view": 1633,
+   "candidate_count": 87,
+   "location": "東京都渋谷区広尾1丁目1番39号",
+   "location_suffix": "恵比寿プライムスクエアタワー19F",
+   "description": "Develop a mobile application for our service.\nWe're running a development platform for mobile applications named Platio (https://plat.io/).\nThe platform is designed to develop data-driven mobile applications with server-side data integration without coding. \n\nThese applications will be used to gather and process data from IoT devices as well as human-generated business data. You're going to join t",
+   "looking_for": "Developers",
+   "use_webview": false,
+   "company": {
+    "id": 2210244,
+    "name": "アステリア株式会社"
+   },
+   "staffings_count": 4,
+   "video_available": false,
+   "tags": [],
+   "category_message": "",
+   "can_support": false,
+   "supported": false,
+   "can_bookmark": false
+  }
+ ],
+ "_metadata": {
+  "total_objects": 63,
+  "per_page": 10,
+  "total_pages": 7
+ }
+}

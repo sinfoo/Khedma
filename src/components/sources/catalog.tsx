@@ -7,18 +7,22 @@ import { Dialog } from "@/components/kit/dialog";
 import { Switch } from "@/components/toggle-box";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
-import { CATALOG, type CatalogEntry } from "@/lib/sources/catalog";
+import { CATALOG, type CatalogCountry, type CatalogEntry } from "@/lib/sources/catalog";
+import { countryByCode } from "@/lib/geo";
 import { addProviderSource } from "@/app/actions/sources";
 
-/** Provider catalog: Tunisian boards first, then company ATS boards and feeds. */
-export function Catalog({ existing, onAdded }: { existing: string[]; onAdded: (id: number, name: string) => void }) {
+const COUNTRY_ORDER: CatalogCountry[] = ["TN", "FR", "DE", "CH", "CA", "US", "JP", "INT"];
+
+/** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. */
+export function Catalog({ existing, keywords = [], onAdded }: { existing: string[]; keywords?: string[]; onAdded: (id: number, name: string) => void }) {
   const { t } = useT();
   const s2 = t.sources2;
   const [adding, setAdding] = useState<CatalogEntry | null>(null);
-  const groups: [string, CatalogEntry[]][] = [
-    [s2.tunisia, CATALOG.filter((c) => c.country === "TN")],
-    [s2.international, CATALOG.filter((c) => c.country !== "TN")],
-  ];
+  const groups = COUNTRY_ORDER.map((code) => {
+    const c = countryByCode(code);
+    return { code, title: `${c ? `${c.flag} ` : ""}${s2.country[code]}`, entries: CATALOG.filter((e) => e.country === code) };
+  }).filter((g) => g.entries.length);
+  const q = keywords.slice(0, 3).join(" ");
   return (
     <section aria-labelledby="catalog-h" className="rise" style={{ ["--i" as string]: 6 }}>
       <div className="mb-4">
@@ -27,15 +31,16 @@ export function Catalog({ existing, onAdded }: { existing: string[]; onAdded: (i
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">{s2.catalogLead}</p>
       </div>
-      {groups.map(([title, entries]) => (
-        <div key={title} className="mb-6">
+      {groups.map(({ code, title, entries }) => (
+        <div key={code} className="mb-6">
           <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={{ fontFamily: "var(--font-sans)" }}>
             {title}
           </h3>
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {entries.map((c) => {
               // Boards without a handle can only be added once.
-              const already = c.handle.type === "none" && existing.includes(`${c.kind}:`);
+              const already = !c.linkOnly && c.handle.type === "none" && existing.includes(`${c.kind}:`);
+              const searchHref = c.linkOnly && c.searchUrl ? c.searchUrl(q, countryByCode(code)?.search ?? "", code) : null;
               return (
                 <li key={c.kind} className="card card-hover flex flex-col p-4">
                   <div className="flex items-start gap-3">
@@ -49,6 +54,7 @@ export function Catalog({ existing, onAdded }: { existing: string[]; onAdded: (i
                     </div>
                   </div>
                   <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-2">{s2.desc[c.kind]}</p>
+                  {searchHref && <p className="mt-2 text-xs text-muted">{s2.linkOnly}</p>}
                   <div className="mt-4 flex items-center justify-between gap-2">
                     {c.site ? (
                       <a href={c.site} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center gap-1 text-xs text-muted hover:text-ink">
@@ -58,7 +64,11 @@ export function Catalog({ existing, onAdded }: { existing: string[]; onAdded: (i
                     ) : (
                       <span />
                     )}
-                    {already ? (
+                    {searchHref ? (
+                      <a href={searchHref} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" aria-label={`${s2.openSearch} – ${c.name}`}>
+                        <ExternalLink size={14} aria-hidden="true" /> {s2.openSearch}
+                      </a>
+                    ) : already ? (
                       <span className="chip chip-success">
                         <Check size={12} aria-hidden="true" /> {s2.added}
                       </span>

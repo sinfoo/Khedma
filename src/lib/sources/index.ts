@@ -11,13 +11,20 @@ import * as tanitjobs from "./tanitjobs";
 import * as emploitunisie from "./emploitunisie";
 import * as farojob from "./farojob";
 import * as linkedin from "./linkedin";
-import { countryByCode, fitsPlaces } from "../geo";
+import * as arbeitnow from "./arbeitnow";
+import * as jobroom from "./jobroom";
+import * as wantedly from "./wantedly";
+import * as daijob from "./daijob";
+import * as jobbank from "./jobbank";
+import * as jobcloud from "./jobcloud";
+import * as englishjobs from "./englishjobs";
+import { countryByCode, fitsPlaces, REMOTE_CODE } from "../geo";
 
 export { importFromUrl } from "./url";
 export { DEMO_JOBS } from "./demo";
 export { guessType, extractTags, matchesProfile, matchesKeywords, dedupeKey } from "./classify";
-export { CATALOG, PROVIDER_KINDS, isProviderKind, type ProviderKind, type CatalogEntry } from "./catalog";
-import type { ProviderKind } from "./catalog";
+export { CATALOG, PROVIDER_KINDS, LINK_KINDS, isProviderKind, platformLinks, placeCodes, type ProviderKind, type LinkKind, type CatalogEntry, type CatalogCountry } from "./catalog";
+import { CATALOG, type ProviderKind } from "./catalog";
 
 /** Public boards verified live on 2026-10-07 (all returned 200 with postings). */
 export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
@@ -44,6 +51,8 @@ interface Provider {
   list: ListFn;
   /** Optional detail fetch for offers the listing only summarizes. */
   detail?: (job: NewJob) => Promise<Partial<NewJob> | null>;
+  /** Pause between detail fetches (sequential) when the site's robots.txt asks for a crawl delay. */
+  detailGapMs?: number;
 }
 
 const PROVIDERS: Record<ProviderKind, Provider> = {
@@ -56,6 +65,16 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   emploitunisie: { list: emploitunisie.scan },
   farojob: { list: farojob.scan, detail: farojob.detail },
   linkedin: { list: linkedin.scan, detail: linkedin.detail },
+  arbeitnow: { list: arbeitnow.scan },
+  englishjobs_de: { list: englishjobs.make("englishjobs_de") },
+  englishjobs_fr: { list: englishjobs.make("englishjobs_fr") },
+  englishjobs_ch: { list: englishjobs.make("englishjobs_ch") },
+  jobsch: jobcloud.make("jobsch"),
+  jobup: jobcloud.make("jobup"),
+  jobroom: { list: jobroom.scan, detail: jobroom.detail },
+  jobbank: { list: jobbank.scan, detail: jobbank.detail, detailGapMs: 5000 },
+  daijob: { list: daijob.scan },
+  wantedly: { list: wantedly.scan },
 };
 
 export interface ScanOptions {
@@ -86,6 +105,10 @@ export interface ScanResult {
 export async function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
   const provider = PROVIDERS[source.kind as ProviderKind];
   if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, error: `Unknown source kind: ${source.kind}` };
+  // A board tied to one country is not worth a request when the user applies elsewhere.
+  const chosen = (opts.places?.countries ?? []).filter((c) => c !== REMOTE_CODE);
+  const home = CATALOG.find((c) => c.kind === source.kind)?.country;
+  if (chosen.length && home && home !== "INT" && !chosen.includes(home)) return { jobs: [], total: 0, matched: 0, known: 0 };
   let listed: { jobs: NewJob[]; error?: string };
   if (source.kind === "linkedin" && !source.handle.trim() && opts.places?.countries.length) {
     // No explicit location: search each chosen country (two at most, politeness).
@@ -107,14 +130,14 @@ export async function scanSource(source: { kind: string; handle: string }, profi
   if (provider.detail && fresh.length) {
     const cap = opts.maxDetails ?? 20;
     // ponytail: detail pages are fetched 3 at a time with a 400 ms gap; raise only if boards allow it.
-    const enriched = await mapLimit(fresh.slice(0, cap), 3, async (j) => {
+    const enriched = await mapLimit(fresh.slice(0, cap), provider.detailGapMs ? 1 : 3, async (j) => {
       const d = await provider.detail!(j).catch(() => null);
       if (!d) return j;
       const n = { ...j, ...Object.fromEntries(Object.entries(d).filter(([, v]) => v !== null && v !== undefined && v !== "")) } as NewJob;
       // Reclassify with the full text; keep a listing-level internship type if the body is vague.
       const t = guessType(n.title, n.description);
       return { ...n, type: t === "emploi" ? j.type : t, tags: extractTags(n.title, n.description) };
-    }, 400);
+    }, provider.detailGapMs ?? 400);
     out = [...enriched, ...fresh.slice(cap)].filter(keep);
   }
   return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, error };

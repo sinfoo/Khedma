@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, Loader2, MoreHorizontal, RefreshCw, Rss, Sparkles } from "lucide-react";
-import { CompanyAvatar, EmptyState, Progress, Section } from "@/components/kit";
+import { CompanyAvatar, EmptyState, Section } from "@/components/kit";
 import { useToast } from "@/components/kit/toast";
 import { Dialog } from "@/components/kit/dialog";
 import { Menu, MenuItem } from "@/components/kit/menu";
@@ -95,11 +95,8 @@ export function SourcesBoard({
   const [editing, setEditing] = useState<SourceRow | null>(null);
   const [showRadar, setShowRadar] = useState(false);
   useEffect(() => {
-    if (running) {
-      setShowRadar(true);
-      return;
-    }
-    const id = setTimeout(() => setShowRadar(false), 3000);
+    // Show while running, keep 3 s after the end so the final counts are readable.
+    const id = setTimeout(() => setShowRadar(running), running ? 0 : 3000);
     return () => clearTimeout(id);
   }, [running]);
 
@@ -171,6 +168,7 @@ export function SourcesBoard({
 
       <Catalog
         existing={sources.map((s) => `${s.kind}:${s.handle}`)}
+        keywords={profileKeywords}
         onAdded={(id, name) => toast.success(s2.added, name, { label: s2.scanNow, onClick: () => void scan([id]) })}
       />
           <Clipper token={clipToken} />

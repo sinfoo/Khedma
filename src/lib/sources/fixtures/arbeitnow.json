@@ -1,0 +1,70 @@
+{
+ "data": [
+  {
+   "slug": "nebenjob-als-online-testbenutzer-studien-fur-apps-websites-digitale-produkte-leipzig-135204",
+   "company_name": "TPnet Marktforschung",
+   "title": "Nebenjob als Online-Testbenutzer (m/w/d) - Studien für Apps, Websites & digitale Produkte",
+   "description": "<p>",
+   "remote": true,
+   "url": "https://www.arbeitnow.com/jobs/companies/tpnet-marktforschung/nebenjob-als-online-testbenutzer-studien-fur-apps-websites-digitale-produkte-leipzig-135204",
+   "tags": [
+    "Remote",
+    "Marketing and Communication"
+   ],
+   "job_types": [
+    "Minijob (geringfügige beschäftigung)",
+    "side"
+   ],
+   "location": "Leipzig",
+   "created_at": 1791898259
+  },
+  {
+   "slug": "senior-network-security-engineer-d-berlin-111274",
+   "company_name": "MILES Mobility",
+   "title": "Senior Network & Security Engineer (w/m/x/d)",
+   "description": "<h2",
+   "remote": false,
+   "url": "https://www.arbeitnow.com/jobs/companies/miles-mobility/senior-network-security-engineer-d-berlin-111274",
+   "tags": [
+    "IT Security"
+   ],
+   "job_types": [
+    "Permanent employment (unbefristeter arbeitsvertrag)"
+   ],
+   "location": "Berlin",
+   "created_at": 1791898257
+  },
+  {
+   "slug": "senior-react-native-engineer-app-owner-d-berlin-421435",
+   "company_name": "MILES Mobility",
+   "title": "Senior React Native Engineer - App Owner (w/m/x/d)",
+   "description": "<h2",
+   "remote": false,
+   "url": "https://www.arbeitnow.com/jobs/companies/miles-mobility/senior-react-native-engineer-app-owner-d-berlin-421435",
+   "tags": [
+    "Software Development"
+   ],
+   "job_types": [
+    "Permanent employment (unbefristeter arbeitsvertrag)"
+   ],
+   "location": "Berlin",
+   "created_at": 1791898257
+  }
+ ],
+ "links": {
+  "first": "https://www.arbeitnow.com/api/job-board-api?search=intern&page=1",
+  "last": null,
+  "prev": null,
+  "next": "https://www.arbeitnow.com/api/job-board-api?search=intern&page=2"
+ },
+ "meta": {
+  "current_page": 1,
+  "current_page_url": "https://www.arbeitnow.com/api/job-board-api?search=intern&page=1",
+  "from": 1,
+  "path": "https://www.arbeitnow.com/api/job-board-api",
+  "per_page": 300,
+  "to": 300,
+  "terms": "This is a free public API for jobs, please do not abuse. I would appreciate linking back to the site. By using the API, you agree to the terms of service present on Arbeitnow.com",
+  "info": "Jobs are updated every hour and order by the `created_at` timestamp. Use `?page=` to paginate. Read more information here: https://www.arbeitnow.com/blog/job-board-api"
+ }
+}

@@ -1,0 +1,321 @@
+[
+ {
+  "jobAdvertisement": {
+   "id": "0b93a6bc-9fb3-434f-b3ba-85ffc4df406b",
+   "createdTime": "2026-10-13T07:02:58.541",
+   "updatedTime": "2026-10-13T07:02:58.542",
+   "status": "PUBLISHED_PUBLIC",
+   "sourceSystem": "API",
+   "externalReference": "dfa42354-187c-473b-a640-bfb0e7fe6bac",
+   "stellennummerEgov": "242817853",
+   "stellennummerAvam": null,
+   "fingerprint": null,
+   "reportingObligation": false,
+   "reportingObligationEndDate": null,
+   "reportToAvam": false,
+   "jobCenterCode": null,
+   "jobCenterUserId": null,
+   "approvalDate": null,
+   "rejectionDate": null,
+   "rejectionCode": null,
+   "rejectionReason": null,
+   "cancellationDate": null,
+   "cancellationCode": null,
+   "jobContent": {
+    "externalUrl": "www.jobs.ch/de/stellenangebote/detail/dfa42354-187c-473b-a640-bfb0e7fe6bac/?utm_source=job-room.ch&inv=ppd-p&utm_medium=affiliate&utm_campaign=wb:jobs|tg:b2c|cn:ch|lg:de|ct:targeting,nonbrand,job|cd:feedonomics-jobroom|mg:job-application|pd:n|tt:organic",
+    "numberOfJobs": null,
+    "jobDescriptions": [
+     {
+      "languageIsoCode": "de",
+      "title": "Hochschulpraktikant/-in für die Digitalisierung des Schweizer Agrar- und Ernährungssektors",
+      "description": "November 2026  \nWenn Ihr Studienabschluss nicht länger als 18 Monate zurückliegt und Sie bisher noch kein <em>Praktikum</em> in der Bundesverwaltung absolviert haben, senden Sie uns Ihre Bewerbungsunterlagen. Die Stelle ist für ein Jahr befristet."
+     }
+    ],
+    "company": {
+     "name": "Bundesamt für Landwirtschaft BLW",
+     "street": null,
+     "houseNumber": null,
+     "postalCode": "3097",
+     "city": "Liebefeld",
+     "countryIsoCode": "CH",
+     "postOfficeBoxNumber": null,
+     "postOfficeBoxPostalCode": null,
+     "postOfficeBoxCity": null,
+     "phone": null,
+     "email": null,
+     "website": null,
+     "surrogate": false
+    },
+    "employment": {
+     "startDate": null,
+     "endDate": null,
+     "shortEmployment": false,
+     "immediately": false,
+     "permanent": false,
+     "workloadPercentageMin": "80",
+     "workloadPercentageMax": "100",
+     "workForms": []
+    },
+    "location": {
+     "id": null,
+     "remarks": null,
+     "city": "Liebefeld",
+     "postalCode": "3097",
+     "communalCode": "355",
+     "regionCode": "BE01",
+     "cantonCode": "BE",
+     "countryIsoCode": "CH",
+     "coordinates": {
+      "lon": "7.416",
+      "lat": "46.93"
+     }
+    },
+    "occupations": [
+     {
+      "avamOccupationCode": "101128",
+      "workExperience": null,
+      "educationCode": null,
+      "qualificationCode": null
+     }
+    ],
+    "languageSkills": [],
+    "applyChannel": {
+     "rawPostAddress": null,
+     "postAddress": null,
+     "emailAddress": null,
+     "phoneNumber": null,
+     "formUrl": "www.jobs.ch/de/stellenangebote/detail/dfa42354-187c-473b-a640-bfb0e7fe6bac/?utm_source=job-room.ch&inv=ppd-p&utm_medium=affiliate&utm_campaign=wb:jobs|tg:b2c|cn:ch|lg:de|ct:targeting,nonbrand,job|cd:feedonomics-jobroom|mg:job-application|pd:n|tt:organic",
+     "additionalInfo": null
+    },
+    "publicContact": null
+   },
+   "publication": {
+    "startDate": "2026-10-13",
+    "endDate": "2026-11-12",
+    "euresDisplay": true,
+    "euresAnonymous": false,
+    "publicDisplay": true,
+    "restrictedDisplay": true,
+    "companyAnonymous": false
+   },
+   "owner": null
+  },
+  "favouriteItem": null
+ },
+ {
+  "jobAdvertisement": {
+   "id": "bc8ab0c9-a491-4862-b7b2-4881fbabe2d2",
+   "createdTime": "2026-10-13T06:01:39.3",
+   "updatedTime": "2026-10-13T06:01:39.302",
+   "status": "PUBLISHED_PUBLIC",
+   "sourceSystem": "API",
+   "externalReference": "b95407d5-2dc5-4422-9aba-0728455578a9",
+   "stellennummerEgov": "242817792",
+   "stellennummerAvam": null,
+   "fingerprint": null,
+   "reportingObligation": false,
+   "reportingObligationEndDate": null,
+   "reportToAvam": false,
+   "jobCenterCode": null,
+   "jobCenterUserId": null,
+   "approvalDate": null,
+   "rejectionDate": null,
+   "rejectionCode": null,
+   "rejectionReason": null,
+   "cancellationDate": null,
+   "cancellationCode": null,
+   "jobContent": {
+    "externalUrl": "https://www.jobs.ch/de/stellenangebote/detail/b95407d5-2dc5-4422-9aba-0728455578a9/?utm_source=job-room.ch&utm_medium=affiliate&utm_campaign=wb:jobs|tg:b2c|cn:ch|lg:de|ct:targeting,nonbrand,job|cd:feedonomics-jobroom|mg:job-application|pd:n|tt:organic",
+    "numberOfJobs": null,
+    "jobDescriptions": [
+     {
+      "languageIsoCode": "de",
+      "title": "WMS-Praktikant: in der Branche Dienstleistung und Administration",
+      "description": "WMS\\-Praktikant: in der Branche Dienstleistung und Administration  \nDu suchst ein <em>Praktikum</em>, bei dem du von Anfang an Verantwortung übernimmst und mit Menschen zu tun hast?"
+     }
+    ],
+    "company": {
+     "name": "IV-Stelle Basel-Stadt",
+     "street": "Aeschengraben",
+     "houseNumber": "9",
+     "postalCode": "4001",
+     "city": "Basel",
+     "countryIsoCode": "CH",
+     "postOfficeBoxNumber": null,
+     "postOfficeBoxPostalCode": null,
+     "postOfficeBoxCity": null,
+     "phone": null,
+     "email": null,
+     "website": null,
+     "surrogate": false
+    },
+    "employment": {
+     "startDate": null,
+     "endDate": null,
+     "shortEmployment": false,
+     "immediately": false,
+     "permanent": false,
+     "workloadPercentageMin": "100",
+     "workloadPercentageMax": "100",
+     "workForms": []
+    },
+    "location": {
+     "id": null,
+     "remarks": null,
+     "city": "Basel",
+     "postalCode": "4001",
+     "communalCode": "2701",
+     "regionCode": "BS01",
+     "cantonCode": "BS",
+     "countryIsoCode": "CH",
+     "coordinates": {
+      "lon": "7.589",
+      "lat": "47.556"
+     }
+    },
+    "occupations": [
+     {
+      "avamOccupationCode": "101802",
+      "workExperience": null,
+      "educationCode": null,
+      "qualificationCode": null
+     }
+    ],
+    "languageSkills": [],
+    "applyChannel": {
+     "rawPostAddress": null,
+     "postAddress": null,
+     "emailAddress": null,
+     "phoneNumber": null,
+     "formUrl": "https://www.jobs.ch/de/stellenangebote/detail/b95407d5-2dc5-4422-9aba-0728455578a9/?utm_source=job-room.ch&utm_medium=affiliate&utm_campaign=wb:jobs|tg:b2c|cn:ch|lg:de|ct:targeting,nonbrand,job|cd:feedonomics-jobroom|mg:job-application|pd:n|tt:organic",
+     "additionalInfo": null
+    },
+    "publicContact": null
+   },
+   "publication": {
+    "startDate": "2026-10-13",
+    "endDate": "2026-11-12",
+    "euresDisplay": true,
+    "euresAnonymous": false,
+    "publicDisplay": true,
+    "restrictedDisplay": true,
+    "companyAnonymous": false
+   },
+   "owner": null
+  },
+  "favouriteItem": null
+ },
+ {
+  "jobAdvertisement": {
+   "id": "e814d58f-21bf-4798-b34a-27c60d0510b1",
+   "createdTime": "2026-10-13T02:17:50.188",
+   "updatedTime": "2026-10-13T02:17:50.188",
+   "status": "PUBLISHED_PUBLIC",
+   "sourceSystem": "EXTERN",
+   "externalReference": null,
+   "stellennummerEgov": null,
+   "stellennummerAvam": null,
+   "fingerprint": "pdd0e5ff13eb3a4fa6bc94f2cb77a335d7328fa7479fa1f058046916b884442a1",
+   "reportingObligation": false,
+   "reportingObligationEndDate": null,
+   "reportToAvam": false,
+   "jobCenterCode": null,
+   "jobCenterUserId": null,
+   "approvalDate": null,
+   "rejectionDate": null,
+   "rejectionCode": null,
+   "rejectionReason": null,
+   "cancellationDate": null,
+   "cancellationCode": null,
+   "jobContent": {
+    "externalUrl": "https://www.coople.com/ch/jobs/e9bda8ea-e230-48b8-8241-563746b1debb",
+    "numberOfJobs": null,
+    "jobDescriptions": [
+     {
+      "languageIsoCode": "de",
+      "title": "Pflegehelfer/in SRK",
+      "description": "Betreuung und Begleitung der zugeteilten Gäste - Selbständige Ausführung der Grundpflege - Übernahme von Aufgaben als Bezugsperson nach Anleitung - Abgabe von mündlichem und schriftlichem Rapport - Mithilfe bei hauswirtschaftlichen Tätigkeiten Dein Profil - Abgeschlossener SRK-Pflegekurs mit absolviertem <em>Praktikum</em>"
+     }
+    ],
+    "company": {
+     "name": "Coople AG",
+     "street": null,
+     "houseNumber": null,
+     "postalCode": null,
+     "city": null,
+     "countryIsoCode": null,
+     "postOfficeBoxNumber": null,
+     "postOfficeBoxPostalCode": null,
+     "postOfficeBoxCity": null,
+     "phone": null,
+     "email": null,
+     "website": null,
+     "surrogate": false
+    },
+    "employment": {
+     "startDate": null,
+     "endDate": null,
+     "shortEmployment": false,
+     "immediately": false,
+     "permanent": false,
+     "workloadPercentageMin": "100",
+     "workloadPercentageMax": "100",
+     "workForms": []
+    },
+    "location": {
+     "id": null,
+     "remarks": null,
+     "city": "Egnach",
+     "postalCode": "9322",
+     "communalCode": "4411",
+     "regionCode": "TG01",
+     "cantonCode": "TG",
+     "countryIsoCode": "CH",
+     "coordinates": {
+      "lon": "9.383",
+      "lat": "47.548"
+     }
+    },
+    "occupations": [
+     {
+      "avamOccupationCode": "101930",
+      "workExperience": null,
+      "educationCode": null,
+      "qualificationCode": null
+     },
+     {
+      "avamOccupationCode": "101930",
+      "workExperience": null,
+      "educationCode": null,
+      "qualificationCode": null
+     }
+    ],
+    "languageSkills": [
+     {
+      "languageIsoCode": "de",
+      "spokenLevel": null,
+      "writtenLevel": null
+     },
+     {
+      "languageIsoCode": "de",
+      "spokenLevel": null,
+      "writtenLevel": null
+     }
+    ],
+    "applyChannel": null,
+    "publicContact": null
+   },
+   "publication": {
+    "startDate": "2026-10-12",
+    "endDate": "2026-12-11",
+    "euresDisplay": false,
+    "euresAnonymous": false,
+    "publicDisplay": true,
+    "restrictedDisplay": true,
+    "companyAnonymous": false
+   },
+   "owner": null
+  },
+  "favouriteItem": null
+ }
+]

@@ -14,7 +14,10 @@ export function Clipper({ token }: { token: string }) {
   const c = t.sources2.clipper;
   const [base, setBase] = useState("http://localhost:3000");
   const [copied, setCopied] = useState(false);
-  useEffect(() => setBase(window.location.origin), []);
+  useEffect(() => {
+    const id = setTimeout(() => setBase(window.location.origin), 0);
+    return () => clearTimeout(id);
+  }, []);
   const href = bookmarkletHref(base, token);
   return (
     <Section id="clipper" title={c.title} i={3}>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
+import { placeCodes, platformLinks } from "@/lib/sources/catalog";
 import type { SourceStatus } from "./use-scan";
 
 interface RadarSource {
@@ -40,14 +41,8 @@ export function ScanRadar({
   const added = Object.values(status).reduce((n, s) => n + (s.added ?? 0), 0);
   const current = sources.find((s) => status[s.id]?.state === "running");
   const kw = keywords.slice(0, 4).join(", ");
-  const q = encodeURIComponent(keywords.slice(0, 3).join(" ") || (fr ? "stage ingénieur" : "engineering internship"));
-  const loc = encodeURIComponent(location || "Tunisia");
-  const links = [
-    { name: "LinkedIn", url: `https://www.linkedin.com/jobs/search/?keywords=${q}&location=${loc}` },
-    { name: "Indeed", url: `https://tn.indeed.com/jobs?q=${q}&l=${loc}` },
-    { name: "Google Jobs", url: `https://www.google.com/search?q=${q}+${loc}&ibp=htl;jobs` },
-    { name: "Glassdoor", url: `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${q}` },
-  ];
+  // `location` is either ISO codes ("DE,FR") or free-text places; link-only boards of those countries get a search link.
+  const links = platformLinks(keywords.length ? keywords : [fr ? "stage ingénieur" : "engineering internship"], placeCodes(location));
 
   // Rotating status line: the running source, else a reassuring phrase.
   const phrases = useMemo(() => [r.phrase1, r.phrase2, r.phrase3], [r.phrase1, r.phrase2, r.phrase3]);
@@ -132,8 +127,8 @@ export function ScanRadar({
             <p className="mb-2 text-xs text-muted">{r.linksHint}</p>
             <div className="flex flex-wrap gap-1.5">
               {links.map((l) => (
-                <a key={l.name} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
-                  <ExternalLink size={13} aria-hidden="true" /> {l.name}
+                <a key={l.url} href={l.url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+                  <ExternalLink size={13} aria-hidden="true" /> <span aria-hidden="true">{l.flag}</span> {l.name}
                 </a>
               ))}
             </div>

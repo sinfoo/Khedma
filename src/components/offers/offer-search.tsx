@@ -113,7 +113,7 @@ export function OfferSearch({
         )}
         {(running || preparing) && total > 0 && (
           <div className="mt-4">
-            <ScanRadar sources={srcs} status={status} keywords={kw.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean)} location={countries.map((c) => countryByCode(c)?.[L] ?? c).join(", ")} finished={finished} total={total} running={running} />
+            <ScanRadar sources={srcs} status={status} keywords={kw.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean)} location={countries.join(",")} finished={finished} total={total} running={running} />
           </div>
         )}
         {!running && !preparing && total > 0 && finished === total && (
