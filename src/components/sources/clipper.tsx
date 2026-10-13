@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bookmark, Check, Copy, MousePointerClick } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { bookmarkletHref } from "@/lib/clip";
+import { bookmarkletHref } from "@/lib/clip-url";
 import { Section } from "@/components/kit";
 
 const SITES = ["LinkedIn", "Indeed", "Glassdoor", "JobTeaser", "Welcome to the Jungle"];

@@ -48,7 +48,7 @@ test("robots: group selection and longest-match rules", () => {
   assert.equal(robotsAllow(rules, "/admin/public/y"), true);
   assert.equal(robotsAllow(rules, "/doc.pdf"), false);
   assert.equal(robotsAllow(rules, "/private"), true, "googlebot group does not apply to us");
-  const ours = parseRobots(`User-agent: ENITJobs\nDisallow: /\n\nUser-agent: *\nAllow: /`);
+  const ours = parseRobots(`User-agent: Khedma\nDisallow: /\n\nUser-agent: *\nAllow: /`);
   assert.equal(robotsAllow(ours, "/"), false);
   assert.equal(robotsAllow([], "/anything"), true);
 });
