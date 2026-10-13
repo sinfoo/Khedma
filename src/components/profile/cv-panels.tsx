@@ -1,12 +1,18 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { AlertCircle, AlertTriangle, Bold, CheckCircle2, Circle, Heading2, Heading3, Info, List } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { AlertCircle, AlertTriangle, Bold, CheckCircle2, Circle, Copy, Heading2, Heading3, Info, List, Loader2, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { Progress } from "@/components/kit";
 import { cvHealth, type Severity } from "@/lib/cv/health";
 import type { StrengthItem } from "@/lib/cv/completeness";
+import type { CvReview } from "@/lib/ai/cv-review";
+import { applyReviewToCv, runCvReview } from "@/app/actions/profile";
+import { Dialog } from "@/components/kit/dialog";
+import { Markdown } from "@/components/markdown";
+import { EngineChip } from "@/components/ui";
+import { useToast } from "@/components/kit/toast";
 
 // ---------- Markdown editor with a small toolbar ----------
 export function MarkdownEditor({ id, value, onChange, label, describedBy }: { id: string; value: string; onChange: (v: string) => void; label: string; describedBy?: string }) {
@@ -209,6 +215,219 @@ export function HealthPanel({ text }: { text: string }) {
             );
           })}
         </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------- AI review ----------
+const SUB = { fontFamily: "var(--font-sans)" } as const;
+
+export function ReviewPanel({
+  initial,
+  cvMd,
+  onApplyRewrite,
+  onReplaceCv,
+}: {
+  initial: CvReview | null;
+  cvMd: string;
+  onApplyRewrite: (before: string, after: string) => boolean;
+  onReplaceCv: (md: string) => void;
+}) {
+  const [applying, startApply] = useTransition();
+  const [proposal, setProposal] = useState<{ md: string; engine: string } | null>(null);
+  const { t, locale } = useT();
+  const r = t.profile2.review;
+  const toast = useToast();
+  const [review, setReview] = useState<CvReview | null>(initial);
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const run = () =>
+    start(async () => {
+      setError(null);
+      const res = await runCvReview();
+      if (res.ok) setReview(res.review);
+      else setError(res.error === "empty" ? r.empty : r.error);
+    });
+  const prio = (p: 1 | 2 | 3) => (p === 1 ? "chip-danger" : p === 2 ? "chip-saffron" : "");
+  const prioLabel = (p: 1 | 2 | 3) => (p === 1 ? r.priority.p1 : p === 2 ? r.priority.p2 : r.priority.p3);
+  return (
+    <div className="space-y-5" aria-live="polite">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="max-w-xl text-sm text-ink-2">{r.lead}</p>
+        <div className="flex flex-wrap gap-2">
+          {review && (
+            <button
+              type="button"
+              className="btn btn-saffron"
+              disabled={applying || pending}
+              aria-busy={applying}
+              onClick={() =>
+                startApply(async () => {
+                  const res = await applyReviewToCv();
+                  if (res.ok) setProposal({ md: res.md, engine: res.engine });
+                  else toast.error(res.error === "empty" ? r.empty : r.error);
+                })
+              }
+            >
+              {applying ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
+              {applying ? r.applying : r.applyAll}
+            </button>
+          )}
+          <button type="button" className="btn btn-primary" onClick={run} disabled={pending} aria-busy={pending}>
+            {pending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
+            {pending ? r.running : review ? r.rerun : r.run}
+          </button>
+        </div>
+      </div>
+      <Dialog
+        open={!!proposal}
+        onClose={() => setProposal(null)}
+        title={r.previewTitle}
+        description={r.previewLead}
+        wide
+        footer={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setProposal(null)}>
+              {r.discard}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                if (!proposal) return;
+                onReplaceCv(proposal.md);
+                setProposal(null);
+              }}
+            >
+              {r.accept}
+            </button>
+          </>
+        }
+      >
+        {proposal && (
+          <div className="space-y-3">
+            <EngineChip engine={proposal.engine} t={t} />
+            <div className="rounded-xl border border-line p-4">
+              <Markdown>{proposal.md}</Markdown>
+            </div>
+          </div>
+        )}
+      </Dialog>
+      {error && (
+        <p role="alert" className="rounded-xl bg-danger-soft p-3 text-sm text-danger">
+          {error}
+        </p>
+      )}
+      {!review && !pending && !error && <p className="text-sm text-muted">{r.empty}</p>}
+      {pending && !review && (
+        <div className="space-y-3" aria-hidden="true">
+          <div className="skeleton h-10 w-40" />
+          <div className="skeleton h-24" />
+          <div className="skeleton h-40" />
+        </div>
+      )}
+      {review && (
+        <div className={`space-y-5 ${pending ? "opacity-60" : ""}`}>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="display text-3xl leading-none tabular">{fmt(r.score, { n: review.score })}</p>
+            <div className="min-w-40 flex-1">
+              <Progress value={review.score} label={r.title} tone={review.score >= 75 ? "success" : review.score >= 50 ? "accent" : "danger"} />
+            </div>
+            <EngineChip engine={review.engine} t={t} />
+          </div>
+          <p className="text-base font-medium">{review.verdict}</p>
+          {review.strengths.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={SUB}>
+                {r.strengths}
+              </h3>
+              <ul className="space-y-1.5">
+                {review.strengths.map((s) => (
+                  <li key={s} className="flex items-start gap-2 text-sm text-ink-2">
+                    <CheckCircle2 size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-success" />
+                    {s}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {review.improvements.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={SUB}>
+                {r.improvements}
+              </h3>
+              <ol className="divide-y divide-line rounded-xl border border-line">
+                {review.improvements.map((i, k) => (
+                  <li key={k} className="grid gap-1 p-3 sm:grid-cols-[auto_1fr] sm:gap-3">
+                    <span className={`chip ${prio(i.priority)} h-fit`}>
+                      {prioLabel(i.priority)} · {i.area}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">{i.issue}</p>
+                      <p className="text-sm text-muted">{i.fix}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          {review.rewrites.length > 0 && (
+            <section>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={SUB}>
+                {r.rewrites}
+              </h3>
+              <ul className="space-y-3">
+                {review.rewrites.map((w, k) => (
+                  <li key={k} className="rounded-xl border border-line p-3">
+                    <p className="text-xs font-semibold text-muted">{r.before}</p>
+                    <p className="text-sm text-ink-2 line-through decoration-danger/50">{w.before}</p>
+                    <p className="mt-2 text-xs font-semibold text-muted">{r.after}</p>
+                    <p className="text-sm font-medium">{w.after}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      <span className="font-semibold">{r.why}:</span> {w.why}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      {cvMd.trim() && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => (onApplyRewrite(w.before, w.after) ? toast.success(r.applied) : toast.info(r.notFound))}
+                        >
+                          {r.apply}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(w.after);
+                          toast.success(r.copied);
+                        }}
+                      >
+                        <Copy size={14} aria-hidden="true" /> {r.copy}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {review.missing_sections.length > 0 && (
+            <p className="text-sm text-ink-2">
+              <span className="font-semibold">{r.missing}:</span> {review.missing_sections.join(", ")}
+            </p>
+          )}
+          {review.target_fit && (
+            <section className="rounded-xl bg-accent-soft/60 p-3">
+              <h3 className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-accent-text" style={SUB}>
+                {r.targetFit}
+              </h3>
+              <p className="text-sm text-ink-2">{review.target_fit}</p>
+            </section>
+          )}
+          <p className="text-xs text-muted">{fmt(r.at, { d: new Date(review.created_at).toLocaleString(locale === "fr" ? "fr-TN" : "en-GB") })}</p>
+        </div>
       )}
     </div>
   );

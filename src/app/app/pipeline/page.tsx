@@ -38,6 +38,9 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
     overdue: !!x.next_action_at && x.next_action_at.slice(0, 10) < today,
     interviewAt: nextInterview.get(x.id) ?? null,
     contacts: contacts.get(x.id) ?? 0,
+    url: x.job.url,
+    location: x.job.location,
+    source: x.job.source,
   }));
   const s = pipelineStats(apps, interviews, now);
 

@@ -31,7 +31,8 @@ import { SaveIndicator, useAutosave } from "./autosave";
 import { ChipInput } from "./chip-input";
 import { CvUpload, type UploadMeta } from "./cv-upload";
 import { CvImporter } from "./cv-importer";
-import { HealthPanel, MarkdownEditor, StrengthMeter } from "./cv-panels";
+import { HealthPanel, MarkdownEditor, ReviewPanel, StrengthMeter } from "./cv-panels";
+import type { CvReview } from "@/lib/ai/cv-review";
 
 export type DraftState = Omit<ProfileDraft, "extra"> & { extra: Omit<ProfileExtra, "onboarding"> };
 
@@ -76,9 +77,9 @@ ${contact || (fr ? "e-mail · téléphone · ville · LinkedIn · GitHub" : "ema
 `;
 }
 
-type Mode = "write" | "preview" | "health";
+type Mode = "write" | "preview" | "health" | "review";
 
-export function ProfileEditor({ initial, upload: initialUpload, uploadText: initialUploadText }: { initial: DraftState; upload: UploadMeta | null; uploadText: string }) {
+export function ProfileEditor({ initial, upload: initialUpload, uploadText: initialUploadText, initialReview = null }: { initial: DraftState; upload: UploadMeta | null; uploadText: string; initialReview?: CvReview | null }) {
   const { t, locale } = useT();
   const p2 = t.profile2;
   const toast = useToast();
@@ -125,6 +126,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
     { key: "write", label: p2.cv.write, Icon: PencilLine },
     { key: "preview", label: p2.cv.preview, Icon: Eye },
     { key: "health", label: p2.cv.health, Icon: Stethoscope },
+    { key: "review", label: p2.review.tab, Icon: Wand2 },
   ];
 
   return (
@@ -347,6 +349,29 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
               <pre className="min-h-[40vh] whitespace-pre-wrap rounded-xl border border-line bg-surface-2 p-4 text-xs mono">{uploadText || p2.cv.emptyHintNoFile}</pre>
             ))}
           {mode === "health" && <HealthPanel text={cvText} />}
+          {mode === "review" && (
+            <ReviewPanel
+              initial={initialReview}
+              cvMd={d.cv_md}
+              onApplyRewrite={(before, after) => {
+                if (!d.cv_md.includes(before)) return false;
+                update({ cv_md: d.cv_md.replace(before, after) });
+                return true;
+              }}
+              onReplaceCv={(md) => {
+                const previous = d.cv_md;
+                update({ cv_md: md });
+                setMode("write");
+                toast.success(p2.review.acceptedToast, undefined, {
+                  label: p2.review.undo,
+                  onClick: () => {
+                    update({ cv_md: previous });
+                    toast.info(p2.review.restored);
+                  },
+                });
+              }}
+            />
+          )}
 
           <p id="cv-meta" className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted tabular">
             <span>

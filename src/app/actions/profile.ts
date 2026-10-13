@@ -82,3 +82,28 @@ export async function saveSettings(formData: FormData) {
   });
   revalidatePath("/app", "layout");
 }
+
+export async function runCvReview(): Promise<{ ok: true; review: import("@/lib/ai/cv-review").CvReview } | { ok: false; error: string }> {
+  const { reviewCv } = await import("@/lib/ai/cv-review");
+  const { getCvSource } = await import("@/lib/cv/source");
+  const { getLocale } = await import("@/lib/i18n/server");
+  const { kvSet } = await import("@/lib/db");
+  const cv = getCvSource().text;
+  if (cv.trim().length < 80) return { ok: false, error: "empty" };
+  const review = await reviewCv(cv, getProfile(), await getLocale());
+  kvSet("cv_review", review);
+  return { ok: true, review };
+}
+
+export async function applyReviewToCv(): Promise<{ ok: true; md: string; engine: string } | { ok: false; error: string }> {
+  const { applyCvReview } = await import("@/lib/ai/cv-review");
+  const { getCvSource } = await import("@/lib/cv/source");
+  const { getLocale } = await import("@/lib/i18n/server");
+  const { kvGet } = await import("@/lib/db");
+  const review = kvGet<import("@/lib/ai/cv-review").CvReview | null>("cv_review", null);
+  const cv = getCvSource().text;
+  if (!review) return { ok: false, error: "noreview" };
+  if (cv.trim().length < 80) return { ok: false, error: "empty" };
+  const r = await applyCvReview(cv, review, getProfile(), await getLocale());
+  return { ok: true, ...r };
+}

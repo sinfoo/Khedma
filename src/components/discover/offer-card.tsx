@@ -6,6 +6,7 @@ import { Bookmark, Check, Loader2, Sparkles } from "lucide-react";
 import { CompanyAvatar } from "@/components/kit";
 import { useToast } from "@/components/kit/toast";
 import { ScoreRing, scoreLabel } from "@/components/ui";
+import { PostingLink } from "@/components/posting-link";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import type { OfferReco } from "@/lib/recommend/engine";
@@ -71,6 +72,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
       )}
 
       <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
+        <PostingLink job={{ url: offer.url, title: offer.title, company: offer.company, location: offer.location }} variant="ghost" />
         {tracked ? (
           <span className="chip chip-success"><Check size={12} aria-hidden="true" /> {m.offer.tracked}</span>
         ) : (

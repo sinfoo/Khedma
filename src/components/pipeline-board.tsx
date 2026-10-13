@@ -8,6 +8,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { APP_STATES, JOB_TYPES, type AppState, type JobType } from "@/lib/types";
 import { CompanyAvatar } from "@/components/kit";
 import { ScoreRing, StateChip, scoreLabel } from "./ui";
+import { PostingLink } from "./posting-link";
 import { useStageMove } from "./pipeline/stage";
 import { shortDate } from "./pipeline/format";
 
@@ -24,6 +25,9 @@ export interface BoardItem {
   overdue: boolean;
   interviewAt: string | null;
   contacts: number;
+  url: string;
+  location: string;
+  source: string;
 }
 
 const ACTIVE: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
@@ -141,6 +145,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
             </Link>
           </div>
           {item.score !== null && <ScoreRing value={item.score} size={34} label={scoreLabel(t, item.score)} animate={false} />}
+          <PostingLink job={{ url: item.url, title: item.title, company: item.company, location: item.location, source: item.source }} variant="ghost" iconOnly />
         </div>
         <ul className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" aria-label={b.details}>
           <li className="inline-flex items-center gap-1 tabular" title={fmt(b.daysInStage, { n: item.stageDays })}>

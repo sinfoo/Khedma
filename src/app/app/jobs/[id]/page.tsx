@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PostingLink } from "@/components/posting-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Copy, ExternalLink, FileText, MapPin, Pencil, Sparkles, Wifi } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -94,11 +95,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
             <FileText size={16} aria-hidden="true" className="text-accent-text" /> {o.tailorCv}
           </ActionButton>
           <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-line sm:block" />
-          {isHttp && (
-            <a href={job.url} target="_blank" rel="noopener noreferrer" className="btn btn-ghost">
-              <ExternalLink size={16} aria-hidden="true" /> {o.openPosting}
-            </a>
-          )}
+          <PostingLink job={job} size="md" variant="secondary" />
           <Link href={`/app/jobs/${job.id}/edit`} className="btn btn-ghost">
             <Pencil size={16} aria-hidden="true" /> {o.edit}
           </Link>

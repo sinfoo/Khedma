@@ -10,6 +10,7 @@ import { useToast } from "@/components/kit/toast";
 import { Dialog } from "@/components/kit/dialog";
 import { Menu, MenuItem } from "@/components/kit/menu";
 import { CompanyAvatar, Progress } from "@/components/kit";
+import { PostingLink } from "@/components/posting-link";
 import { ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreLabel } from "@/components/ui";
 import type { AppState } from "@/lib/types";
 import type { OfferFilters, OfferRow, SavedView } from "@/lib/repo/offers";
@@ -503,6 +504,7 @@ function TableRow(p: RowProps) {
       <td>{r.status ? <StateChip state={r.status as AppState} t={t} /> : <span className="text-muted">—</span>}</td>
       <td>
         <div className="flex items-center justify-end gap-0.5">
+          <PostingLink job={r} variant="ghost" iconOnly />
           <StarButton r={r} onStar={p.onStar} />
           <RowMenu {...p} />
         </div>
@@ -529,6 +531,7 @@ function OfferCard(p: RowProps & { i: number }) {
           </Link>
         </div>
         <div className="-mr-1 -mt-1 flex">
+          <PostingLink job={r} variant="ghost" iconOnly />
           <StarButton r={r} onStar={p.onStar} />
           <RowMenu {...p} />
         </div>
