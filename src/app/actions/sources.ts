@@ -9,6 +9,7 @@ import {
   createSourceRow,
   getAutoScan,
   lastRunAt,
+  listSourceRows,
   runScan,
   setAutoScan as saveAutoScan,
   updateSourceRow,
@@ -109,4 +110,17 @@ export async function setAutoScan(enabled: boolean, hours: number) {
   const h = AUTO_HOURS.includes(hours as (typeof AUTO_HOURS)[number]) ? hours : 6;
   saveAutoScan({ enabled: !!enabled, hours: h });
   revalidatePath("/app/sources");
+}
+
+/** First search with no sources: add the Tunisian boards and LinkedIn's public search, return the enabled list. */
+export async function prepareSearchSources(): Promise<{ id: number; label: string; kind: string }[]> {
+  const before = listSourceRows().filter((s) => s.enabled);
+  if (before.length === 0) {
+    for (const s of SUGGESTED_TN_SOURCES) createSourceRow({ ...s, keywords: [], keep_all: false });
+    createSourceRow({ kind: "linkedin", label: "LinkedIn (recherche publique)", handle: "", keywords: [], keep_all: false });
+    revalidatePath("/app", "layout");
+  }
+  return listSourceRows()
+    .filter((s) => s.enabled)
+    .map((s) => ({ id: s.id, label: s.label, kind: s.kind }));
 }

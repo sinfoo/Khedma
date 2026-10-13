@@ -11,6 +11,8 @@ import { setLocale, setTheme } from "@/app/actions/prefs";
 import { aiStatus, finishOnboarding, saveProfileDraft, setOnboardingStep } from "@/app/actions/profile";
 import { CITY_SUGGESTIONS, ROLE_SUGGESTIONS, mergeSkills, suggestHeadline } from "@/lib/cv/model";
 import { ChipInput } from "./chip-input";
+import { CountryPicker } from "@/components/country-picker";
+import { placesToLocations } from "@/lib/geo";
 import { CvImporter } from "./cv-importer";
 import type { UploadMeta } from "./cv-upload";
 import { AvailabilityField, TypesField, type DraftState } from "./profile-editor";
@@ -286,15 +288,16 @@ export function OnboardingWizard({
               showSuggestions
               placeholder={p2.f.rolesPh}
             />
-            <ChipInput
-              id="w-locations"
-              label={p2.f.locations}
-              values={d.target_locations}
-              onChange={(v) => update({ target_locations: v })}
-              suggestions={CITY_SUGGESTIONS}
-              showSuggestions
-              placeholder={p2.f.locationsPh}
-            />
+<div>
+              <p className="label">{p2.f.places}</p>
+              <CountryPicker
+                value={d.extra.places}
+                onChange={(v) => {
+                  update({ extra: { ...d.extra, places: v }, target_locations: placesToLocations(v) });
+                }}
+              />
+              <p className="hint">{p2.places.hint}</p>
+            </div>
             <TypesField value={d.target_types} onChange={(v) => update({ target_types: v })} />
             <AvailabilityField value={d.extra.availability} onChange={(v) => updateExtra({ availability: v })} />
           </div>

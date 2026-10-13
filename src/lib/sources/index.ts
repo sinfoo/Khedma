@@ -11,6 +11,7 @@ import * as tanitjobs from "./tanitjobs";
 import * as emploitunisie from "./emploitunisie";
 import * as farojob from "./farojob";
 import * as linkedin from "./linkedin";
+import { countryByCode, fitsPlaces } from "../geo";
 
 export { importFromUrl } from "./url";
 export { DEMO_JOBS } from "./demo";
@@ -66,6 +67,8 @@ export interface ScanOptions {
   isKnown?: (job: NewJob) => boolean;
   /** Detail pages fetched per scan (politeness cap). */
   maxDetails?: number;
+  /** Where the user wants to apply; offers in other countries are dropped (unknown locations pass). */
+  places?: { countries: string[]; remote: "yes" | "only" | "no" };
 }
 
 export interface ScanResult {
@@ -83,9 +86,16 @@ export interface ScanResult {
 export async function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
   const provider = PROVIDERS[source.kind as ProviderKind];
   if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, error: `Unknown source kind: ${source.kind}` };
-  const { jobs, error } = await provider.list(source.handle, opts.keywords ?? []);
+  let listed: { jobs: NewJob[]; error?: string };
+  if (source.kind === "linkedin" && !source.handle.trim() && opts.places?.countries.length) {
+    // No explicit location: search each chosen country (two at most, politeness).
+    const names = opts.places.countries.map((c) => countryByCode(c)?.search).filter((x): x is string => !!x).slice(0, 2);
+    const parts = await Promise.all((names.length ? names : ["Tunisia"]).map((n) => provider.list(n, opts.keywords ?? [])));
+    listed = { jobs: parts.flatMap((p) => p.jobs), error: parts.find((p) => p.error && !p.jobs.length)?.error };
+  } else listed = await provider.list(source.handle, opts.keywords ?? []);
+  const { jobs, error } = listed;
   const seen = new Set<string>();
-  const keep = (j: NewJob) => opts.keepAll || matchesProfile(j, profile);
+  const keep = (j: NewJob) => opts.keepAll || (matchesProfile(j, profile) && (!opts.places || fitsPlaces(j, opts.places)));
   const matched = jobs.filter((j) => {
     if (seen.has(j.url) || !keep(j)) return false;
     seen.add(j.url);

@@ -9,7 +9,7 @@ import { isSameOrigin } from "@/lib/sources/http";
  */
 export async function POST(req: Request) {
   if (!isSameOrigin(req)) return Response.json({ error: "Cross-origin request refused" }, { status: 403 });
-  let body: { ids?: unknown; trigger?: unknown } = {};
+  let body: { ids?: unknown; trigger?: unknown; keywords?: unknown; countries?: unknown } = {};
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -17,6 +17,9 @@ export async function POST(req: Request) {
   }
   const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200) : undefined;
   const trigger = body.trigger === "auto" ? "auto" : "manual";
+  const strs = (v: unknown, n: number, max: number) => (Array.isArray(v) ? v : []).map((x) => String(x ?? "").trim().slice(0, max)).filter(Boolean).slice(0, n);
+  const keywords = strs(body.keywords, 6, 60);
+  const countries = strs(body.countries, 12, 8).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$|^REMOTE$/.test(c));
   if (trigger === "auto" && !autoScanDue()) return new Response(null, { status: 204 });
   if (scanBusy()) return Response.json({ error: "A scan is already running" }, { status: 409 });
 
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
         }
       };
       try {
-        const run = await runScan({ ids, trigger, onEvent: send });
+        const run = await runScan({ ids, trigger, onEvent: send, keywords: keywords.length ? keywords : undefined, countries: countries.length ? countries : undefined });
         if (!run) send({ type: "error", error: "A scan is already running" });
         else revalidatePath("/app", "layout");
       } catch (e) {

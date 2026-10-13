@@ -1,5 +1,6 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
+import { getProfileExtra } from "../cv/profile-extra";
 import { db, getProfile, kvGet, kvSet, migrate, upsertJob, type NewJob } from "../db";
 import type { Profile } from "../types";
 import { dedupeKey, isProviderKind, scanSource, type ProviderKind } from "../sources";
@@ -245,7 +246,7 @@ function knownIndex() {
  * Scan the given sources (default: all enabled), 3 boards at a time. Emits progress
  * events and records one scan_runs row. Returns null when another scan is running.
  */
-export async function runScan(opts: { ids?: number[]; trigger?: "manual" | "auto"; onEvent?: (e: ScanEvent) => void } = {}): Promise<ScanRun | null> {
+export async function runScan(opts: { ids?: number[]; trigger?: "manual" | "auto"; onEvent?: (e: ScanEvent) => void; keywords?: string[]; countries?: string[] } = {}): Promise<ScanRun | null> {
   if (globalThis.__khedmaScanBusy) return null;
   globalThis.__khedmaScanBusy = true;
   try {
@@ -272,7 +273,13 @@ export async function runScan(opts: { ids?: number[]; trigger?: "manual" | "auto
       if (!isProviderKind(s.kind)) res = { jobs: [], total: 0, matched: 0, known: 0, error: `Unknown source kind: ${s.kind}` };
       else {
         try {
-          res = await scanSource(s, profile, { keywords: s.keywords.length ? s.keywords : defaultKeywords(profile), keepAll: s.keep_all, isKnown: known.has });
+          const extra = getProfileExtra();
+          res = await scanSource(s, profile, {
+            keywords: opts.keywords?.length ? opts.keywords : s.keywords.length ? s.keywords : defaultKeywords(profile),
+            keepAll: s.keep_all && !opts.countries,
+            isKnown: known.has,
+            places: opts.countries ? { countries: opts.countries, cities: [], remote: extra.places.remote } : extra.places,
+          });
         } catch (e) {
           res = { jobs: [], total: 0, matched: 0, known: 0, error: (e as Error).message };
         }

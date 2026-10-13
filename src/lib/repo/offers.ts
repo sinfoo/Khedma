@@ -1,4 +1,5 @@
 // Offers area: filtering, duplicates, saved views, paste parsing, CSV, soft-delete snapshots.
+import { REMOTE_CODE, countryOf } from "../geo";
 import { randomUUID } from "node:crypto";
 import { db, getProfile, kvGet, kvSet, listJobs, type JobWithMeta, type NewJob } from "@/lib/db";
 import { JOB_TYPES, type Evaluation, type JobType } from "@/lib/types";
@@ -18,6 +19,7 @@ export interface OfferFilters {
   verdicts: VerdictFilter[];
   min: number; // 0 = any, else 1..5
   remote: boolean;
+  countries: string[]; // ISO codes or REMOTE
   deadline: boolean;
   starred: boolean;
   tracked: "" | "yes" | "no";
@@ -45,6 +47,7 @@ export function parseFilters(p: Params): OfferFilters {
     verdicts: list<VerdictFilter>(get(p, "verdict"), [...VERDICTS, "none"]),
     min: Number.isFinite(min) ? Math.min(5, Math.max(0, Math.round(min * 2) / 2)) : 0,
     remote: get(p, "remote") === "1",
+    countries: get(p, "country").split(",").map((c) => c.trim().toUpperCase()).filter((c) => /^[A-Z]{2}$|^REMOTE$/.test(c)).slice(0, 30),
     deadline: get(p, "deadline") === "1",
     starred: get(p, "starred") === "1",
     tracked: tracked === "yes" || tracked === "no" ? tracked : "",
@@ -63,6 +66,7 @@ export function filtersToQuery(f: OfferFilters): string {
   if (f.verdicts.length) p.set("verdict", f.verdicts.join(","));
   if (f.min) p.set("min", String(f.min));
   if (f.remote) p.set("remote", "1");
+  if (f.countries.length) p.set("country", f.countries.join(","));
   if (f.deadline) p.set("deadline", "1");
   if (f.starred) p.set("starred", "1");
   if (f.tracked) p.set("tracked", f.tracked);
@@ -125,6 +129,10 @@ export function applyFilters(rows: OfferRow[], f: OfferFilters): OfferRow[] {
     if (f.verdicts.length && !f.verdicts.includes(r.verdict ?? "none")) return false;
     if (f.min && (r.score ?? 0) < f.min) return false;
     if (f.remote && !r.remote) return false;
+    if (f.countries.length) {
+      const code = countryOf(r.location) ?? (r.remote ? REMOTE_CODE : null);
+      if (!code || !f.countries.includes(code)) return false;
+    }
     if (f.deadline && !r.deadline) return false;
     if (f.starred && !r.starred) return false;
     if (f.tracked === "yes" && !r.appId) return false;

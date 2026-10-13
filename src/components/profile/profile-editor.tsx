@@ -29,6 +29,8 @@ import { profileStrength } from "@/lib/cv/completeness";
 import { wordCount } from "@/lib/cv/sectionize";
 import { SaveIndicator, useAutosave } from "./autosave";
 import { ChipInput } from "./chip-input";
+import { CountryPicker } from "@/components/country-picker";
+import { placesToLocations } from "@/lib/geo";
 import { CvUpload, type UploadMeta } from "./cv-upload";
 import { CvImporter } from "./cv-importer";
 import { HealthPanel, MarkdownEditor, ReviewPanel, StrengthMeter } from "./cv-panels";
@@ -207,7 +209,17 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
               {p2.sections.targets}
             </h2>
             <ChipInput id="f-roles" label={p2.f.roles} values={d.target_roles} onChange={(v) => update({ target_roles: v })} suggestions={ROLE_SUGGESTIONS} placeholder={p2.f.rolesPh} />
-            <ChipInput id="f-locations" label={p2.f.locations} values={d.target_locations} onChange={(v) => update({ target_locations: v })} suggestions={CITY_SUGGESTIONS} placeholder={p2.f.locationsPh} />
+            <div>
+              <p className="label">{p2.f.places}</p>
+              <CountryPicker
+                value={d.extra.places}
+                onChange={(v) => {
+                  updateExtra({ places: v });
+                  update({ target_locations: placesToLocations(v) });
+                }}
+              />
+              <p className="hint">{p2.places.hint}</p>
+            </div>
             <TypesField value={d.target_types} onChange={(v) => update({ target_types: v })} />
             <AvailabilityField value={d.extra.availability} onChange={(v) => updateExtra({ availability: v })} />
           </section>

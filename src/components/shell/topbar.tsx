@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { Bell, Menu as MenuIcon, Plus, Search, CalendarClock, AlarmClock, Flag } from "lucide-react";
+import { Bell, Menu as MenuIcon, Search, CalendarClock, AlarmClock, Flag, Radar } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { Dialog } from "@/components/kit/dialog";
 import { LangToggle, ThemeToggle } from "@/components/prefs-toggles";
@@ -128,9 +128,9 @@ export function Topbar({
             <LangToggle />
             <ThemeToggle current={theme} />
           </span>
-          <Link href="/app/jobs/new" className="btn btn-primary btn-sm ml-0.5 shrink-0 sm:ml-1">
-            <Plus size={16} aria-hidden="true" />
-            <span className="hidden md:inline">{t.shell2.quickAdd}</span>
+          <Link href="/app/jobs?focus=search" className="btn btn-primary btn-sm ml-0.5 shrink-0 sm:ml-1">
+            <Radar size={16} aria-hidden="true" />
+            <span className="hidden md:inline">{t.shell2.quickSearch}</span>
           </Link>
         </div>
       </header>

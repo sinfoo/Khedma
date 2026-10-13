@@ -28,7 +28,7 @@ export function useScan() {
   const [total, setTotal] = useState(0);
   const busy = useRef(false);
 
-  const start = useCallback(async (opts: { ids?: number[]; trigger?: "manual" | "auto" } = {}): Promise<ScanOutcome> => {
+  const start = useCallback(async (opts: { ids?: number[]; trigger?: "manual" | "auto"; keywords?: string[]; countries?: string[] } = {}): Promise<ScanOutcome> => {
     if (busy.current) return { kind: "busy" };
     busy.current = true;
     let done: ScanDone | null = null;

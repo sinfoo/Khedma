@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { BookmarkPlus, LayoutGrid, Rows3, Search, X } from "lucide-react";
+import { BookmarkPlus, LayoutGrid, MapPin, Rows3, Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { JOB_TYPES } from "@/lib/types";
+import { REMOTE_CODE, countryByCode } from "@/lib/geo";
 import { useToast } from "@/components/kit/toast";
 import { Dialog } from "@/components/kit/dialog";
 import { deleteOfferView, saveOfferView } from "@/app/actions/jobs";
@@ -110,17 +111,22 @@ export function OffersToolbar({
   filters: f,
   setParams,
   sources,
+  countries,
+  myCountries,
   view,
   setView,
 }: {
   filters: OfferFilters;
   setParams: SetParams;
   sources: string[];
+  countries: string[];
+  myCountries: string[];
   view: "table" | "cards";
   setView: (v: "table" | "cards") => void;
 }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const o = t.offers2;
+  const mineOn = myCountries.length > 0 && f.countries.length === myCountries.length && myCountries.every((c) => f.countries.includes(c));
   // Local search text, re-synced when the URL changes from elsewhere (saved view, clear).
   const [q, setQ] = useState(f.q);
   const [seenQ, setSeenQ] = useState(f.q);
@@ -192,6 +198,31 @@ export function OffersToolbar({
             </button>
           ))}
         </fieldset>
+        <span aria-hidden="true" className="hidden h-5 w-px bg-line sm:block" />
+        {countries.length > 0 && (
+          <fieldset className="flex flex-wrap items-center gap-1.5">
+            <legend className="sr-only">{o.country}</legend>
+            {myCountries.length > 0 && (
+              <button
+                type="button"
+                aria-pressed={mineOn}
+                className={chip(mineOn)}
+                onClick={() => setParams({ country: mineOn ? null : myCountries.join(",") })}
+              >
+                <MapPin size={12} aria-hidden="true" /> {o.myCountries}
+              </button>
+            )}
+            {countries.map((code) => {
+              const c = countryByCode(code);
+              const label = code === REMOTE_CODE ? t.common.remote : (c?.[locale === "fr" ? "fr" : "en"] ?? code);
+              return (
+                <button key={code} type="button" aria-pressed={f.countries.includes(code)} className={chip(f.countries.includes(code))} onClick={() => setParams({ country: toggleIn(f.countries, code) })}>
+                  <span aria-hidden="true">{code === REMOTE_CODE ? "🌐" : c?.flag}</span> {label}
+                </button>
+              );
+            })}
+          </fieldset>
+        )}
         <span aria-hidden="true" className="hidden h-5 w-px bg-line sm:block" />
         <fieldset className="flex flex-wrap items-center gap-1.5">
           <legend className="sr-only">{o.verdict}</legend>

@@ -21,6 +21,8 @@ export interface ProfileExtra {
   langs: LangLevel[];
   links: { github: string; linkedin: string; portfolio: string };
   availability: { from: string; to: string }; // YYYY-MM-DD or ""
+  /** Where the student wants to apply: ISO country codes, Tunisian cities, remote preference. */
+  places: { countries: string[]; cities: string[]; remote: "yes" | "only" | "no" };
   onboarding: { step: number; done: boolean };
 }
 
@@ -36,6 +38,7 @@ export const EMPTY_EXTRA: ProfileExtra = {
   langs: [],
   links: { github: "", linkedin: "", portfolio: "" },
   availability: { from: "", to: "" },
+  places: { countries: ["TN"], cities: [], remote: "yes" },
   onboarding: { step: 1, done: false },
 };
 
@@ -70,6 +73,10 @@ export function normalizeExtra(raw: unknown): ProfileExtra {
   const av = obj(r.availability);
   const ob = obj(r.onboarding);
   const step = Number(ob.step);
+  const pl = obj(r.places);
+  const codes = (Array.isArray(pl.countries) ? pl.countries : []).map((c) => s(c, 8).toUpperCase()).filter((c) => /^[A-Z]{2}$|^REMOTE$/.test(c)).slice(0, 30);
+  const cities = (Array.isArray(pl.cities) ? pl.cities : []).map((c) => s(c, 40)).filter(Boolean).slice(0, 30);
+  const remote = pl.remote === "only" || pl.remote === "no" ? pl.remote : "yes";
   return {
     school: r.school === undefined ? EMPTY_EXTRA.school : s(r.school, 120),
     level: s(r.level, 80),
@@ -80,6 +87,7 @@ export function normalizeExtra(raw: unknown): ProfileExtra {
     langs,
     links: { github: url(links.github), linkedin: url(links.linkedin), portfolio: url(links.portfolio) },
     availability: { from: date(av.from), to: date(av.to) },
+    places: r.places === undefined ? EMPTY_EXTRA.places : { countries: codes, cities, remote },
     onboarding: {
       step: Number.isFinite(step) ? Math.min(ONBOARDING_STEPS, Math.max(1, Math.round(step))) : 1,
       done: ob.done === true,

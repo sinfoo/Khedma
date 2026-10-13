@@ -54,6 +54,8 @@ export function OffersBrowser({
   query,
   views,
   sources,
+  countryCodes,
+  myCountries,
   pending,
   autoEvaluate,
 }: {
@@ -63,6 +65,8 @@ export function OffersBrowser({
   query: string;
   views: SavedView[];
   sources: string[];
+  countryCodes: string[];
+  myCountries: string[];
   pending: { id: number; title: string }[];
   autoEvaluate: boolean;
 }) {
@@ -248,7 +252,7 @@ export function OffersBrowser({
   return (
     <>
       <SavedViews views={views} query={query} />
-      <OffersToolbar filters={filters} setParams={setParams} sources={sources} view={view} setView={writeView} />
+      <OffersToolbar filters={filters} setParams={setParams} sources={sources} countries={countryCodes} myCountries={myCountries} view={view} setView={writeView} />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
         <p aria-live="polite" className="tabular">{fmt(o.count, { shown: shown.length, total })}</p>
