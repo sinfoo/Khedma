@@ -206,6 +206,23 @@ h1, h2, h3, .display {
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: none; } }
 
+/* Page enter (template.tsx re-mounts per navigation) + cross-fade via View Transitions. */
+@keyframes page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.page-enter { animation: page-enter 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+::view-transition-old(.vt-page) { animation: 140ms ease-out both fade-out; }
+::view-transition-new(.vt-page) { animation: 220ms ease-in both fade; }
+@keyframes fade-out { to { opacity: 0; } }
+/* Shared-element morphs (e.g. a company avatar between list and detail). */
+::view-transition-group(*) { animation-duration: 260ms; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+/* Hover lift for interactive cards and list rows. */
+.lift { transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.18s; }
+.lift:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+/* Number tick-up (set --n in JS or via counter) and subtle pulse for live badges. */
+@keyframes pulse-soft { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 45%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } }
+.pulse-soft { animation: pulse-soft 1.8s ease-out infinite; }
+
 /* Staggered entrance: set --i on the element. */
 .rise { animation: var(--animate-rise); animation-delay: calc(var(--i, 0) * 50ms); }
 .fade { animation: var(--animate-fade); animation-delay: calc(var(--i, 0) * 50ms); }
@@ -218,9 +235,11 @@ h1, h2, h3, .display {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
 
 /* ---------- primitives (class API, used everywhere) ---------- */
+@layer components {
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -396,6 +415,7 @@ dialog::backdrop { background: rgb(5 8 12 / 0.55); backdrop-filter: blur(3px); }
 .table td { padding: 0.7rem 0.75rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .table tbody tr { transition: background 0.12s; }
 .table tbody tr:hover { background: var(--surface-2); }
+}
 
 /* Markdown documents */
 .prose-doc { line-height: 1.65; max-width: 74ch; color: var(--ink-2); }

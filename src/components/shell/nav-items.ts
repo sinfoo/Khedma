@@ -10,12 +10,18 @@ import {
   BarChart3,
   Rss,
   Settings,
+  Compass,
+  Building2,
+  FileBarChart,
   type LucideIcon,
 } from "lucide-react";
 
 export type NavKey =
   | "today"
+  | "discover"
   | "offers"
+  | "companies"
+  | "reports"
   | "pipeline"
   | "calendar"
   | "coach"
@@ -40,7 +46,9 @@ export const NAV_GROUPS: { key: "work" | "prepare" | "you" | "system"; items: Na
     key: "work",
     items: [
       { key: "today", href: "/app", Icon: Sun, exact: true, g: "t" },
+      { key: "discover", href: "/app/discover", Icon: Compass, g: "d" },
       { key: "offers", href: "/app/jobs", Icon: Briefcase, g: "o" },
+      { key: "companies", href: "/app/companies", Icon: Building2 },
       { key: "pipeline", href: "/app/pipeline", Icon: KanbanSquare, g: "p" },
       { key: "calendar", href: "/app/calendar", Icon: CalendarDays, g: "c" },
     ],
@@ -58,6 +66,7 @@ export const NAV_GROUPS: { key: "work" | "prepare" | "you" | "system"; items: Na
     items: [
       { key: "profile", href: "/app/profile", Icon: UserRound, g: "u" },
       { key: "insights", href: "/app/insights", Icon: BarChart3, g: "s" },
+      { key: "reports", href: "/app/reports", Icon: FileBarChart },
     ],
   },
   {

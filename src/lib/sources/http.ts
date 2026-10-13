@@ -37,3 +37,36 @@ export function prettySlug(slug: string): string {
     .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(" ");
 }
+
+export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/** Run `fn` over items with at most `limit` in flight, waiting `gapMs` before each start. Order is kept. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>, gapMs = 0): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      if (gapMs) await sleep(gapMs);
+      out[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * Local route handlers have no auth, so refuse cross-site requests: a page on another
+ * origin must not be able to trigger scans or overwrite the database from the browser.
+ */
+export function isSameOrigin(req: Request): boolean {
+  const site = req.headers.get("sec-fetch-site");
+  if (site && site !== "same-origin" && site !== "none") return false;
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === (req.headers.get("x-forwarded-host") ?? req.headers.get("host"));
+  } catch {
+    return false;
+  }
+}

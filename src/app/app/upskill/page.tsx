@@ -1,109 +1,99 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { getProfile, kvGet, listJobs } from "@/lib/db";
-import { computeSkillGaps } from "@/lib/ai";
+import { getUpskillProgress, skillMatrix } from "@/lib/repo/insights";
 import type { UpskillPlan } from "@/lib/types";
-import { fmt } from "@/lib/i18n/dict";
-import { Empty, EngineChip, PageHeader } from "@/components/ui";
-import { ActionButton } from "@/components/action-button";
-import { generateUpskillPlan } from "@/app/actions/upskill";
+import { EmptyState, PageHeader } from "@/components/kit";
+import { UpskillBoard, type PlanView } from "@/components/insights/upskill-board";
 
-export const metadata: Metadata = { title: "Upskill" };
+export const metadata: Metadata = { title: "Skills" };
+
+// Hosts we trust to stay up. Model-suggested links outside this list are dropped.
+const TRUSTED = [
+  "developer.mozilla.org", "freecodecamp.org", "roadmap.sh", "openclassrooms.com", "coursera.org", "edx.org", "youtube.com",
+  "docs.python.org", "typescriptlang.org", "react.dev", "nextjs.org", "vuejs.org", "angular.dev", "nodejs.org", "dev.java", "spring.io",
+  "cppreference.com", "learn.microsoft.com", "go.dev", "rust-lang.org", "kotlinlang.org", "flutter.dev", "developer.android.com",
+  "postgresql.org", "mysql.com", "mongodb.com", "redis.io", "docker.com", "kubernetes.io", "hashicorp.com", "ansible.com", "git-scm.com",
+  "scikit-learn.org", "pytorch.org", "tensorflow.org", "pandas.pydata.org", "numpy.org", "apache.org", "djangoproject.com",
+  "palletsprojects.com", "tiangolo.com", "graphql.org", "arduino.cc", "raspberrypi.com", "scrumguides.org", "gitlab.com",
+];
+const trusted = (url: string) => {
+  try {
+    const h = new URL(url).hostname;
+    return url.startsWith("https://") && TRUSTED.some((t) => h === t || h.endsWith(`.${t}`));
+  } catch {
+    return false;
+  }
+};
+
+// roadmap.sh guides that exist for these skills.
+const ROADMAPS: Record<string, string> = {
+  javascript: "javascript", typescript: "typescript", react: "react", "next.js": "nextjs", vue: "vue", angular: "angular", "node.js": "nodejs",
+  python: "python", java: "java", "spring boot": "spring-boot", "c++": "cpp", golang: "golang", rust: "rust", kotlin: "kotlin", flutter: "flutter",
+  android: "android", sql: "sql", postgresql: "postgresql-dba", mongodb: "mongodb", redis: "redis", docker: "docker", kubernetes: "kubernetes",
+  terraform: "terraform", linux: "linux", git: "git-github", aws: "aws", devops: "devops", "machine learning": "machine-learning",
+  cybersecurity: "cyber-security", graphql: "graphql", html: "frontend", css: "frontend",
+};
+const MDN: Record<string, string> = {
+  html: "https://developer.mozilla.org/docs/Learn_web_development/Core/Structuring_content",
+  css: "https://developer.mozilla.org/docs/Learn_web_development/Core/Styling_basics",
+  javascript: "https://developer.mozilla.org/docs/Learn_web_development/Core/Scripting",
+};
+
+function curated(skill: string, fr: boolean) {
+  const k = skill.toLowerCase();
+  const q = encodeURIComponent(skill);
+  return [
+    ...(ROADMAPS[k] ? [{ title: `roadmap.sh — ${skill}`, url: `https://roadmap.sh/${ROADMAPS[k]}` }] : []),
+    ...(MDN[k] ? [{ title: "MDN", url: MDN[k] }] : []),
+    { title: "freeCodeCamp", url: `https://www.freecodecamp.org/news/search/?query=${q}` },
+    { title: fr ? "OpenClassrooms (catalogue)" : "OpenClassrooms (catalog)", url: "https://openclassrooms.com/fr/courses" },
+    { title: "Coursera", url: `https://www.coursera.org/search?query=${q}` },
+    { title: "YouTube", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${skill} tutorial`)}` },
+  ];
+}
 
 export default async function UpskillPage() {
-  const { t } = await getDict();
+  const { t, locale } = await getDict();
+  const m = t.insights2.skills;
   const profile = getProfile();
   const jobs = listJobs().filter((j) => !j.evaluation || j.evaluation.verdict !== "skip");
-  const gaps = computeSkillGaps(jobs, profile).slice(0, 30);
-  const plan = kvGet<UpskillPlan | null>("upskill_plan", null);
-  const max = Math.max(1, ...gaps.map((g) => g.demand));
+  const matrix = skillMatrix(jobs);
+  const stored = kvGet<UpskillPlan | null>("upskill_plan", null);
+  const progress = getUpskillProgress();
+  const have = new Set(profile.skills.map((s) => s.toLowerCase()));
+
+  const plan: PlanView | null = stored
+    ? {
+        engine: stored.engine,
+        items: stored.plan.map((p) => {
+          const seen = new Set<string>();
+          const resources = [...p.resources.filter((r) => trusted(r.url)), ...curated(p.skill, locale === "fr")].filter((r) => !seen.has(r.url) && !!seen.add(r.url)).slice(0, 6);
+          return {
+            skill: p.skill,
+            priority: p.priority,
+            why: p.why,
+            steps: p.steps,
+            done: progress[p.skill.toLowerCase()] ?? [],
+            acquired: have.has(p.skill.toLowerCase()) || matrix.rows.some((r) => r.skill === p.skill && r.have),
+            resources,
+          };
+        }),
+      }
+    : null;
 
   return (
     <>
-      <PageHeader
-        title={t.upskill.title}
-        lead={t.upskill.intro}
-        actions={
-          gaps.length > 0 && (
-            <ActionButton action={generateUpskillPlan} pendingLabel={t.common.generating} className="btn btn-primary">
-              <Sparkles size={16} aria-hidden="true" /> {plan ? t.common.regenerate : t.upskill.generatePlan}
-            </ActionButton>
-          )
-        }
-      />
-
-      {gaps.length === 0 ? (
-        <Empty title={t.upskill.empty}>
+      <PageHeader title={m.title} lead={m.lead} />
+      {matrix.rows.length === 0 ? (
+        <EmptyState icon={<GraduationCap size={22} aria-hidden="true" />} title={m.emptyTitle} hint={m.emptyHint}>
           <Link href="/app/jobs" className="btn btn-primary">{t.nav.jobs}</Link>
           <Link href="/app/profile" className="btn btn-secondary">{t.nav.profile}</Link>
-        </Empty>
+        </EmptyState>
       ) : (
-        <div className="grid lg:grid-cols-[420px_1fr] gap-6 items-start">
-          <section className="card p-5 rise" aria-labelledby="heat-h" style={{ ["--i" as string]: 1 }}>
-            <h2 id="heat-h" className="text-xl mb-1">{t.upskill.heatmap}</h2>
-            <p className="hint mb-4">
-              <span className="inline-block size-2.5 rounded-sm bg-accent align-middle mr-1" aria-hidden="true" /> {t.upskill.have}
-              <span className="inline-block size-2.5 rounded-sm bg-saffron align-middle ml-3 mr-1" aria-hidden="true" /> {t.upskill.missing}
-            </p>
-            <ul className="space-y-1.5">
-              {gaps.map((g) => (
-                <li key={g.skill} className="grid grid-cols-[7.5rem_1fr_auto] items-center gap-2 text-sm">
-                  <span className="truncate" title={g.skill}>{g.skill}</span>
-                  <span className="h-4 rounded-sm bg-surface-2 overflow-hidden" aria-hidden="true">
-                    <span className="block h-full rounded-sm" style={{ width: `${(g.demand / max) * 100}%`, background: g.have ? "var(--accent)" : "var(--saffron)", opacity: 0.4 + 0.6 * (g.demand / max) }} />
-                  </span>
-                  <span className="mono text-xs text-muted">
-                    <span aria-hidden="true">{g.demand}</span>
-                    <span className="sr-only">{fmt(t.upskill.offersMention, { n: g.demand })}</span>
-                  </span>
-                  <span className="sr-only">{g.have ? t.upskill.have : t.upskill.missing}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section aria-labelledby="plan-h" className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 id="plan-h" className="text-xl">{t.upskill.plan}</h2>
-              {plan && <EngineChip engine={plan.engine} t={t} />}
-            </div>
-            {!plan ? (
-              <p className="text-muted">{t.upskill.generatePlan} →</p>
-            ) : (
-              <ol className="space-y-4">
-                {plan.plan.map((p, i) => (
-                  <li key={p.skill} className="card p-5 rise" style={{ ["--i" as string]: i + 1 }}>
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold">{p.skill}</h3>
-                      <span className={`chip ${p.priority === 1 ? "chip-danger" : p.priority === 2 ? "chip-saffron" : ""}`}>
-                        {t.upskill.priority} {p.priority}
-                      </span>
-                    </div>
-                    <p className="text-sm text-ink-2 mt-1">{p.why}</p>
-                    <div className="grid sm:grid-cols-2 gap-4 mt-4">
-                      <div>
-                        <h4 className="text-xs uppercase tracking-wide font-semibold text-muted mb-1">{t.upskill.steps}</h4>
-                        <ol className="list-decimal pl-5 text-sm space-y-1">{p.steps.map((s, k) => <li key={k}>{s}</li>)}</ol>
-                      </div>
-                      <div>
-                        <h4 className="text-xs uppercase tracking-wide font-semibold text-muted mb-1">{t.upskill.resources}</h4>
-                        <ul className="text-sm space-y-1">
-                          {p.resources.map((r) => (
-                            <li key={r.url}>
-                              <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-accent underline underline-offset-2">{r.title}</a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
+        <UpskillBoard matrix={matrix} plan={plan} />
       )}
     </>
   );

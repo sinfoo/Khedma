@@ -6,7 +6,10 @@ export default defineMessages({
     groups: { work: "Workspace", prepare: "Prepare", you: "You", system: "System" },
     nav: {
       today: "Today",
+      discover: "For you",
       offers: "Offers",
+      companies: "Companies",
+      reports: "Reports",
       pipeline: "Pipeline",
       calendar: "Calendar",
       coach: "Interview coach",
@@ -68,7 +71,10 @@ export default defineMessages({
     groups: { work: "Espace de travail", prepare: "Se préparer", you: "Vous", system: "Système" },
     nav: {
       today: "Aujourd'hui",
+      discover: "Pour toi",
       offers: "Offres",
+      companies: "Entreprises",
+      reports: "Rapports",
       pipeline: "Pipeline",
       calendar: "Calendrier",
       coach: "Coach d'entretien",

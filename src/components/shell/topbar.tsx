@@ -10,6 +10,7 @@ import { Wordmark } from "@/components/logo";
 import type { Notice } from "@/lib/notices";
 import { CommandPalette } from "./command-palette";
 import { NavList } from "./sidebar";
+import { NavProgress } from "./nav-progress";
 
 export function Topbar({
   theme,
@@ -35,18 +36,19 @@ export function Topbar({
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-line bg-bg/85 px-4 backdrop-blur-md sm:px-6 no-print">
-        <button type="button" className="btn btn-ghost btn-icon lg:hidden" aria-label={t.shell2.openMenu} aria-expanded={navOpen} onClick={() => setNavOpen(true)}>
+      <header className="sticky top-0 z-30 flex h-16 min-w-0 items-center gap-1.5 overflow-x-clip border-b border-line bg-bg/85 px-3 backdrop-blur-md sm:gap-2 sm:px-6 no-print">
+        <NavProgress />
+        <button type="button" className="btn btn-ghost btn-icon shrink-0 lg:hidden" aria-label={t.shell2.openMenu} aria-expanded={navOpen} onClick={() => setNavOpen(true)}>
           <MenuIcon size={18} aria-hidden="true" />
         </button>
-        <Link href="/app" className="lg:hidden rounded-md" aria-label="Khedma">
+        <Link href="/app" className="shrink-0 rounded-md lg:hidden" aria-label="Khedma">
           <Wordmark size={26} className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
         </Link>
 
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event("khedma:palette"))}
-          className="ml-auto flex h-10 min-w-0 flex-1 max-w-md items-center gap-2.5 rounded-xl border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-line-strong lg:ml-0"
+          className="ml-auto flex h-10 min-w-[2.5rem] flex-1 max-w-md items-center gap-2.5 rounded-xl border border-line bg-surface px-3 text-sm text-muted transition-colors hover:border-line-strong lg:ml-0"
           aria-label={t.shell2.search}
         >
           <Search size={16} aria-hidden="true" />
@@ -57,7 +59,7 @@ export function Topbar({
           </span>
         </button>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
           <Link
             href="/app/settings"
             className={`chip hidden xl:inline-flex ${ai.online ? "chip-success" : "chip-saffron"}`}
@@ -126,7 +128,7 @@ export function Topbar({
             <LangToggle />
             <ThemeToggle current={theme} />
           </span>
-          <Link href="/app/jobs/new" className="btn btn-primary btn-sm ml-1">
+          <Link href="/app/jobs/new" className="btn btn-primary btn-sm ml-0.5 shrink-0 sm:ml-1">
             <Plus size={16} aria-hidden="true" />
             <span className="hidden md:inline">{t.shell2.quickAdd}</span>
           </Link>

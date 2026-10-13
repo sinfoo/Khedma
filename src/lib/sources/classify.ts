@@ -70,6 +70,9 @@ export function extractTags(title: string, description = ""): string[] {
 /** Any date-ish input (ISO, RFC 2822, epoch ms) -> yyyy-mm-dd or null. */
 export function normalizeDate(s?: string | number | null): string | null {
   if (s === undefined || s === null || s === "") return null;
+  // ISO strings keep their written calendar date ("2026-11-12T00:00:00+01:00" is the 12th, not UTC's 11th).
+  const iso = typeof s === "string" ? /^(\d{4}-\d{2}-\d{2})(?:[T ]|$)/.exec(s.trim()) : null;
+  if (iso) return Number.isNaN(new Date(iso[1]).getTime()) ? null : iso[1];
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 }
@@ -79,12 +82,54 @@ export function matchesProfile(job: NewJob, profile: Profile): boolean {
   const roles = profile.target_roles.map((r) => r.trim()).filter(Boolean);
   if (!roles.length) return true;
   const title = fold(job.title);
-  // "Sales/Business Development" is not a developer role.
-  if (/(sales|business)\s+develop/.test(title) && !/(developer|developpeur|engineer|ingenieur)/.test(title)) return false;
+  // "Sales/Business Developer" is a sales role. Checked on the raw title: `fold` rewrites develop* to "dev".
+  const raw = job.title.toLowerCase();
+  if (/(sales|business)\s+d[ée]velop/.test(raw) && !/(engineer|ing[ée]nieur|software|logiciel|web|full\s?stack)/.test(raw)) return false;
   return roles.some((role) =>
     fold(role)
       .split(/[^a-z0-9#+.]+/)
       .filter((tok) => tok.length >= 4 || tok === "dev" || tok === "data")
       .some((tok) => title.includes(tok)),
   );
+}
+
+/**
+ * Boards list several contracts per offer ("CDI, SIVP, Stage/PFE"). Only let the
+ * contract drive the type when every listed contract is an internship kind.
+ */
+export function guessTypeWithContract(title: string, contract: string, description = ""): JobType {
+  const parts = fold(contract).split(/[,&|/]+|\bet\b/).map((p) => p.trim()).filter(Boolean);
+  const internOnly = parts.length > 0 && parts.every((p) => /\b(stage|stagiaire|pfe|intern|internship|alternance)\b/.test(p));
+  return guessType(internOnly ? `${title} ${contract}` : title, description);
+}
+
+// Keyword search uses a lighter fold than `fold`: "développeur" must not match "développement".
+const SYNONYMS: Record<string, string[]> = {
+  stage: ["stage", "stagiaire", "intern"],
+  pfe: ["pfe", "fin d etude", "final year project"],
+  developpeur: ["developpeur", "developer", "developper"],
+  developer: ["developpeur", "developer"],
+  ingenieur: ["ingenieur", "engineer"],
+  engineer: ["ingenieur", "engineer"],
+};
+
+/** True when any keyword appears in the text (accent/case-insensitive). Empty keyword list keeps everything. */
+export function matchesKeywords(text: string, keywords: string[]): boolean {
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9#+.]+/g, " ").trim();
+  const kws = keywords.map(norm).filter(Boolean).flatMap((k) => SYNONYMS[k] ?? [k]);
+  if (!kws.length) return true;
+  const hay = ` ${norm(text)} `;
+  return kws.some((k) => hay.includes(` ${k}`));
+}
+
+/** Cross-source duplicate key: same company + same title, ignoring accents, case, (H/F) and punctuation. */
+export function dedupeKey(company: string, title: string): string {
+  const clean = (s: string) =>
+    fold(s)
+      .replace(/\(?\b[hf]\s*\/\s*[hf]\b\)?/g, " ")
+      .replace(/[^a-z0-9#+]+/g, " ")
+      .replace(/\b(sarl|suarl|sa|sas|sasu|ltd|llc|inc|gmbh|srl|spa)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  return `${clean(company)}|${clean(title)}`;
 }

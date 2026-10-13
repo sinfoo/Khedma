@@ -114,7 +114,7 @@ export interface InterviewPrep {
 export interface AppEvent {
   id: number;
   application_id: number;
-  kind: "status" | "note" | "followup" | "doc";
+  kind: "status" | "note" | "followup" | "doc" | "interview" | "message" | "outcome";
   payload: string;
   created_at: string;
 }

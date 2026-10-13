@@ -12,7 +12,6 @@ const mono = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"], 
 export const metadata: Metadata = {
   title: { default: "Khedma", template: "%s · Khedma" },
   description: "Khedma — local-first, AI-assisted internship and job search companion for engineering students.",
-  icons: { icon: "/icon.svg" },
   applicationName: "Khedma",
 };
 

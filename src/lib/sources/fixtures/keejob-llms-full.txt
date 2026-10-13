@@ -1,0 +1,10 @@
+# Keejob : offres d'emploi actives en Tunisie
+
+> 777 offres actives au 2026-10-13, des plus récentes aux plus anciennes. Chaque lien pointe vers le détail de l'offre en Markdown. Les offres en télétravail ou en mode hybride sont signalées.
+
+- [Ingénieur en Génie industriel](https://www.keejob.com/offres-emploi/248441/ing%C3%A9nieur-en-g%C3%A9nie-industriel.md): SOQUIBAT · Bir Mcherga, Zaghouan, Tunisie · CDI, SIVP · publiée le 2026-10-13
+- [Ingénieur en Génie industriel](https://www.keejob.com/offres-emploi/248275/ing%C3%A9nieur-en-g%C3%A9nie-industriel.md): SOQUIBAT · Bir Mcherga, Zaghouan, Tunisie · CDI, SIVP · publiée le 2026-10-09
+- [Développeur(se) FullStack & Mobile (H/F)](https://www.keejob.com/offres-emploi/248044/d%C3%A9veloppeurse-fullstack-mobile-hf.md): MOMSOFT · Tunisie · CDI · Hybride · publiée le 2026-10-05
+- [Stage Technicien (H/F)](https://www.keejob.com/offres-emploi/247238/stage-technicien-hf.md): DELICE DANONE STIAL · Soliman, Nabeul, Tunisie · Stage/PFE, Saisonnier · publiée le 2026-10-03
+- [Customer Service Expert - Allemand](https://www.keejob.com/offres-emploi/248468/customer-service-expert-allemand.md): GEVEKOM · Tunis, Tunisie · CDI · publiée le 2026-10-13
+- [Assistante Cabinet Orthodontie](https://www.keejob.com/offres-emploi/248466/assistante-cabinet-orthodontie.md): Entreprise Anonyme · Tunis, Tunisie · SIVP · Sur site · publiée le 2026-10-13
