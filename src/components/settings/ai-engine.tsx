@@ -123,13 +123,16 @@ export function AiEngine({
           <label className="label mt-4" htmlFor="claude-model">
             {a.claudeModel}
           </label>
-          <select id="claude-model" className="input" value={form.claude_model} onChange={(e) => set("claude_model", e.target.value)}>
+          <select id="claude-model" className="input" value={form.claude_model} aria-describedby="claude-model-hint" onChange={(e) => set("claude_model", e.target.value)}>
             {CLAUDE_MODELS.map((m) => (
               <option key={m} value={m}>
-                {a.claudeModels[m]}
+                {a.claudeModels[m].split(" — ")[0]}
               </option>
             ))}
           </select>
+          <p id="claude-model-hint" className="hint">
+            {a.claudeModels[form.claude_model as (typeof CLAUDE_MODELS)[number]]?.split(" — ")[1]}
+          </p>
         </section>
 
         {/* Ollama */}

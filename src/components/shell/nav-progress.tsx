@@ -30,11 +30,14 @@ export function NavProgress() {
     return () => document.removeEventListener("click", onClick, true);
   }, []);
 
-  // URL changed: finish the bar.
+  // URL changed: finish the bar (deferred so the effect itself doesn't set state).
   useEffect(() => {
-    setState((s) => (s === "loading" ? "done" : s));
-    const id = setTimeout(() => setState("idle"), 350);
-    return () => clearTimeout(id);
+    const done = setTimeout(() => setState((s) => (s === "loading" ? "done" : s)), 0);
+    const idle = setTimeout(() => setState("idle"), 350);
+    return () => {
+      clearTimeout(done);
+      clearTimeout(idle);
+    };
   }, [pathname, search]);
 
   return (

@@ -6,16 +6,28 @@ import { useEffect, useState } from "react";
 export function SettingsNav({ label, items }: { label: string; items: { id: string; label: string }[] }) {
   const [active, setActive] = useState(items[0]?.id);
   useEffect(() => {
-    const els = items.map((i) => document.getElementById(i.id)).filter((e): e is HTMLElement => !!e);
-    const io = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(top.target.id);
-      },
-      { rootMargin: "-15% 0px -65% 0px" },
-    );
-    els.forEach((e) => io.observe(e));
-    return () => io.disconnect();
+    // Last section whose top has passed 30% of the viewport is the current one.
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = window.innerHeight * 0.3;
+      let cur = items[0]?.id;
+      for (const i of items) {
+        const el = document.getElementById(i.id);
+        if (el && el.getBoundingClientRect().top <= line) cur = i.id;
+      }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) cur = items[items.length - 1]?.id;
+      setActive(cur);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, [items]);
   return (
     <nav aria-label={label} className="lg:sticky lg:top-24">

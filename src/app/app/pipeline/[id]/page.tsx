@@ -312,6 +312,8 @@ const EV: Record<EvKind, { icon: React.ReactNode; cls: string }> = {
   followup: { icon: <MessageSquare size={14} aria-hidden="true" />, cls: "bg-success-soft text-success" },
   doc: { icon: <FileText size={14} aria-hidden="true" />, cls: "bg-saffron-soft text-saffron" },
   interview: { icon: <Mic size={14} aria-hidden="true" />, cls: "bg-saffron-soft text-saffron" },
+  message: { icon: <MessageSquare size={14} aria-hidden="true" />, cls: "bg-accent-soft text-accent-text" },
+  outcome: { icon: <NotebookPen size={14} aria-hidden="true" />, cls: "bg-surface-3 text-ink-2" },
 };
 function EventIcon({ kind }: { kind: EvKind }) {
   const e = EV[kind] ?? { icon: <UserRound size={14} aria-hidden="true" />, cls: "bg-surface-3 text-muted" };

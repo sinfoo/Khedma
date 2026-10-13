@@ -20,6 +20,10 @@ import { useAutoScan, useScan, type ScanDone, type SourceStatus } from "./use-sc
 
 const HOURS = [1, 3, 6, 12, 24];
 
+/** "{n} new" with the locale's plural rule (FR: 0 and 1 are singular). */
+const plural = (locale: string, n: number, one: string, many: string) => fmt(new Intl.PluralRules(locale).select(n) === "one" ? one : many, { n });
+
+// Relative times depend on the clock: elements showing them use suppressHydrationWarning.
 export function ago(iso: string | null, locale: string, never: string): string {
   if (!iso) return never;
   const s = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
@@ -162,7 +166,7 @@ function SummaryTile({ label, value, sub, small, i }: { label: string; value: st
   return (
     <div className="card rise p-4" style={{ ["--i" as string]: i }}>
       <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={`mt-1 display leading-none ${small ? "text-xl" : "text-3xl tabular"}`}>
+      <p className={`mt-1 display leading-none ${small ? "text-xl" : "text-3xl tabular"}`} suppressHydrationWarning>
         {value}
         {sub && <span className="ml-1 text-base text-muted">{sub}</span>}
       </p>
@@ -231,7 +235,7 @@ function SourceItem({
             )}
           </p>
         )}
-        <p className="mt-1.5 text-xs text-muted tabular" aria-live="polite">
+        <p className="mt-1.5 text-xs text-muted tabular" aria-live="polite" suppressHydrationWarning>
           <StatusLine source={s} status={status} locale={locale} />
         </p>
         {error && (
@@ -289,14 +293,15 @@ function StatusLine({ source: s, status, locale }: { source: SourceRow; status?:
   if (status?.state === "done")
     return (
       <span className="inline-flex items-center gap-1 text-success">
-        <CheckCircle2 size={12} aria-hidden="true" /> {fmt(s2.statusDone, { n: status.added ?? 0, listed: status.listed ?? 0 })}
+        <CheckCircle2 size={12} aria-hidden="true" /> +{plural(locale, status.added ?? 0, s2.newCountOne, s2.newCount)} · {plural(locale, status.listed ?? 0, s2.listedCountOne, s2.listedCount)}
       </span>
     );
   if (!s.last_scan) return <>{s2.neverScanned}</>;
   return (
     <>
-      {fmt(s2.lastScanAgo, { when: ago(s.last_scan, locale, s2.stats.never) })} · <span className={s.last_count ? "font-semibold text-success" : ""}>{fmt(s2.newCount, { n: s.last_count })}</span> ·{" "}
-      {fmt(s2.listedCount, { n: s.last_total })}
+      {fmt(s2.lastScanAgo, { when: ago(s.last_scan, locale, s2.stats.never) })} ·{" "}
+      <span className={s.last_count ? "font-semibold text-success" : ""}>{plural(locale, s.last_count, s2.newCountOne, s2.newCount)}</span>
+      {s.last_total > 0 && <> · {plural(locale, s.last_total, s2.listedCountOne, s2.listedCount)}</>}
     </>
   );
 }
@@ -384,7 +389,7 @@ function AutoScanCard({ auto, lastRunAt }: { auto: { enabled: boolean; hours: nu
           ))}
         </select>
       </div>
-      <p id="autoscan-hint" className="hint">
+      <p id="autoscan-hint" className="hint" suppressHydrationWarning>
         {s2.auto.hint} {s2.stats.lastScan}: {ago(lastRunAt, locale, s2.stats.never)}.
       </p>
     </Section>
@@ -413,7 +418,7 @@ function History({ runs }: { runs: ScanRun[] }) {
           <tbody>
             {runs.map((r) => (
               <tr key={r.id}>
-                <td title={new Date(r.started_at).toLocaleString(locale)}>{ago(r.started_at, locale, "—")}</td>
+                <td className="whitespace-nowrap" title={new Date(r.started_at).toLocaleString(locale)} suppressHydrationWarning>{ago(r.started_at, locale, "—")}</td>
                 <td>
                   <span className={`chip !py-0 text-[0.72rem] ${r.trigger === "auto" ? "chip-accent" : ""}`}>{s2.trigger[r.trigger]}</span>
                 </td>

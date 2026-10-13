@@ -1,14 +1,9 @@
-import { ViewTransition } from "react";
-
 /**
- * Re-mounts on every navigation inside /app, so the page content plays an
- * enter animation; <ViewTransition> adds a cross-fade between the old and new
- * page in browsers that support the View Transitions API.
+ * Re-mounts on every navigation inside /app, so the page content plays a
+ * short enter animation (CSS only; honours prefers-reduced-motion).
+ * ponytail: React <ViewTransition> was tried and dropped — it throws
+ * "Transition was aborted" on overlapping navigations; revisit when stable.
  */
 export default function AppTemplate({ children }: { children: React.ReactNode }) {
-  return (
-    <ViewTransition default="vt-page">
-      <div className="page-enter">{children}</div>
-    </ViewTransition>
-  );
+  return <div className="page-enter">{children}</div>;
 }

@@ -147,7 +147,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 export function LinkTabs({ label, tabs, current }: { label: string; tabs: { key: string; href: string; label: string; count?: number }[]; current: string }) {
   return (
     <nav aria-label={label} className="mb-6 no-print">
-      <ul className="flex gap-1 overflow-x-auto border-b border-line">
+      <ul className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line">
         {tabs.map((t) => (
           <li key={t.key}>
             <Link
