@@ -10,6 +10,8 @@ export interface SweepResult {
   urgent: { id: number; title: string; company: string; deadline: string }[];
   /** Mass postings folded: one row kept per company + title, the city variants archived. */
   merged: { keptId: number; archived: number[]; locations: string[] }[];
+  /** Offers archived because their deadline passed (never starred or tracked ones). */
+  expired: number[];
 }
 
 export const URGENT_DAYS = 7;
@@ -20,6 +22,13 @@ export function urgentDeadline(deadline: string | null, now = Date.now()): boole
   if (Number.isNaN(d)) return false;
   const days = (d - now) / 86_400_000;
   return days >= -0.5 && days <= URGENT_DAYS;
+}
+
+/** Deadline more than a day in the past (a day of grace for time zones and same-day applications). */
+export function expiredDeadline(deadline: string | null, now = Date.now()): boolean {
+  if (!deadline) return false;
+  const d = new Date(deadline).getTime();
+  return !Number.isNaN(d) && now - d > 86_400_000;
 }
 
 /**
@@ -60,5 +69,20 @@ export function sweep(now = Date.now()): SweepResult {
     for (const r of rest) arch.run(why(keep.id as number, r.match_why), r.id as number);
     merged.push({ keptId: keep.id as number, archived: rest.map((r) => r.id as number), locations: locs });
   }
-  return { urgent, merged };
+  // Expired offers leave the list; starred ones and those with an application stay where the user put them.
+  const keep = new Set((d.prepare("SELECT job_id FROM applications").all() as Row[]).map((r) => r.job_id as number));
+  const expiredRows = (d.prepare("SELECT id, deadline, match_why FROM jobs WHERE archived = 0 AND starred = 0 AND deadline IS NOT NULL").all() as Row[]).filter(
+    (r) => !keep.has(r.id as number) && expiredDeadline(r.deadline as string, now),
+  );
+  const tag = (prev: unknown) => {
+    let list: string[] = [];
+    try {
+      list = JSON.parse(String(prev || "[]")) as string[];
+    } catch {
+      list = [];
+    }
+    return JSON.stringify([...list.filter((w) => w !== "expired"), "expired"]);
+  };
+  for (const r of expiredRows) arch.run(tag(r.match_why), r.id as number);
+  return { urgent, merged, expired: expiredRows.map((r) => r.id as number) };
 }

@@ -49,6 +49,7 @@ const PLATFORMS: [RegExp, string][] = [
   [/himalayas\.app/, "Himalayas"],
   [/remotive\.com/, "Remotive"],
   [/weworkremotely\.com/, "We Work Remotely"],
+  [/(^|\.)europa\.eu$/, "EURES"],
   [/artificialintelligencejobs\.co/, "AI Jobs"],
   [/adzuna\./, "Adzuna"],
   [/jooble\.org/, "Jooble"],

@@ -4,7 +4,7 @@ import { countryByCode, countryOf, REMOTE_CODE } from "../geo";
 export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
-  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely",
+  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures",
   "greenhouse", "lever", "ashby", "rss", "careers",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
@@ -16,6 +16,9 @@ export const LINK_KINDS = [
   "francetravail", "hellowork", "apec", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
+
+/** Khedma countries covered by EURES (EU/EEA public employment services + Switzerland). */
+export const EURES_COUNTRIES: ReadonlySet<string> = new Set(["FR", "DE", "BE", "CH", "NL", "IT", "ES", "LU", "SE", "IE", "PT"]);
 
 /** ISO country code of the board, or "INT" for worldwide boards. */
 export type CatalogCountry = "TN" | "DE" | "CH" | "US" | "FR" | "CA" | "JP" | "GB" | "INT";
@@ -146,6 +149,7 @@ export const CATALOG: CatalogEntry[] = [
   },
   { kind: "himalayas", name: "Himalayas", country: "INT", method: "api", site: "https://himalayas.app", handle: none, keywords: true },
   { kind: "remotive", name: "Remotive", country: "INT", method: "api", site: "https://remotive.com", handle: none, keywords: true },
+  { kind: "eures", name: "EURES (European Commission)", country: "INT", method: "api", site: "https://europa.eu/eures", handle: { type: "slug", placeholder: "fr,de" }, keywords: true },
   { kind: "weworkremotely", name: "We Work Remotely", country: "INT", method: "rss", site: "https://weworkremotely.com", handle: none, keywords: false },
   { kind: "aijobs", name: "Artificial Intelligence Jobs", country: "INT", method: "api", site: "https://artificialintelligencejobs.co", handle: none, keywords: true },
   {

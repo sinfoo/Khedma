@@ -22,6 +22,7 @@ import * as remote from "./remote";
 import * as keyed from "./keyed";
 import * as ats from "./ats";
 import * as arbeitsagentur from "./arbeitsagentur";
+import * as eures from "./eures";
 import { fitsPlaces } from "../geo";
 import { dropBucket, type Decision } from "../search/filter";
 
@@ -87,6 +88,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   remotive: { list: remote.scan.remotive },
   aijobs: { list: remote.scan.aijobs },
   weworkremotely: { list: remote.scan.weworkremotely },
+  eures: { list: eures.scan },
   arbeitsagentur: { list: arbeitsagentur.scan, detail: arbeitsagentur.detail, detailGapMs: 1000 },
   adzuna: { list: keyed.scan.adzuna },
   jooble: { list: keyed.scan.jooble },

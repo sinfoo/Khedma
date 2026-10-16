@@ -263,7 +263,7 @@ export type ScanEvent =
   | ({ type: "source"; status: "done" | "error" } & RunSourceDetail)
   | { type: "job"; job: FoundJob }
   | { type: "liveness"; checked: number; closed: number[] }
-  | { type: "sweep"; urgent: number; merged: number }
+  | { type: "sweep"; urgent: number; merged: number; expired: number }
   | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[] };
 
 export interface ScanRequest {
@@ -418,7 +418,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     }
     try {
       const sw = sweep();
-      emit({ type: "sweep", urgent: sw.urgent.length, merged: sw.merged.length });
+      emit({ type: "sweep", urgent: sw.urgent.length, merged: sw.merged.length, expired: sw.expired.length });
     } catch (e) {
       console.warn("[search] sweep failed:", (e as Error).message);
     }

@@ -2,7 +2,7 @@
 // every catalog board of a chosen country runs, worldwide boards run once, LinkedIn once per country,
 // and the user's saved sources (tracked companies included) join when they fit. Pure: client-safe.
 import { countryByCode, REMOTE_CODE } from "../geo";
-import { CATALOG, isProviderKind, type CatalogEntry, type ProviderKind } from "../sources/catalog";
+import { CATALOG, EURES_COUNTRIES, isProviderKind, type CatalogEntry, type ProviderKind } from "../sources/catalog";
 
 export type Remote = "yes" | "only" | "no";
 
@@ -127,6 +127,12 @@ export function planSearch(input: {
     const c = countryByCode(code);
     const location = code === "TN" && input.cities?.length ? `${input.cities[0]}, Tunisia` : (c?.search ?? code);
     add({ key: `linkedin:${location}`, kind: "linkedin", handle: location, label: `LinkedIn · ${c?.fr ?? code}`, country: code, keywords: kw() });
+  }
+
+  // EURES covers every chosen EU/EEA country in one request.
+  const eu = targets.filter((c) => EURES_COUNTRIES.has(c));
+  if (eu.length && !runs.has(`eures:${eu.join(",").toLowerCase()}`)) {
+    add({ key: `eures:${eu.join(",").toLowerCase()}`, kind: "eures", handle: eu.join(",").toLowerCase(), label: `EURES · ${eu.join(", ")}`, country: eu[0], keywords: kw() });
   }
 
   return {

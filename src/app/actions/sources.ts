@@ -138,10 +138,10 @@ export async function saveSearchPrefs(prefs: Partial<SearchPrefs>): Promise<Sear
 }
 
 /** Deadline sweep + mass-posting consolidation on demand. */
-export async function runSweep(): Promise<{ urgent: number; merged: number }> {
+export async function runSweep(): Promise<{ urgent: number; merged: number; expired: number }> {
   const r = sweep();
   revalidatePath("/app", "layout");
-  return { urgent: r.urgent.length, merged: r.merged.length };
+  return { urgent: r.urgent.length, merged: r.merged.length, expired: r.expired.length };
 }
 
 /** First search with no sources: add the Tunisian boards and LinkedIn's public search, return the enabled list. */

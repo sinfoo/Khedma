@@ -21,7 +21,7 @@ export const TERMINAL_STATES: AppState[] = ["offer", "hired", "rejected", "disca
 export type SourceKind =
   | "greenhouse" | "lever" | "ashby" | "rss" | "keejob" | "tanitjobs" | "emploitunisie" | "farojob" | "linkedin"
   | "arbeitnow" | "englishjobs_de" | "englishjobs_fr" | "englishjobs_ch" | "jobsch" | "jobup" | "jobroom" | "jobbank" | "daijob" | "wantedly"
-  | "remoteok" | "jobicy" | "himalayas" | "remotive" | "aijobs" | "adzuna" | "jooble" | "reed" | "findwork" | "arbeitsagentur" | "weworkremotely"
+  | "remoteok" | "jobicy" | "himalayas" | "remotive" | "aijobs" | "adzuna" | "jooble" | "reed" | "findwork" | "arbeitsagentur" | "weworkremotely" | "eures"
   | "url" | "manual" | "demo";
 
 export interface Profile {

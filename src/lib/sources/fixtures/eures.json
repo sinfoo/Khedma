@@ -1,0 +1,122 @@
+{
+ "numberRecords": 12746,
+ "jvs": [
+  {
+   "title": "Backend Developer (Web Developer)",
+   "description": "Backend Developer<br><br>Standort: Frankfurt am Main<br>Anstellungsart(en): Vollzeit<br><br>Beschreibung:<br>Seit vielen Jahren sind wir gelisteter und wertgeschätzter Partner der Deutschen Bahn. Wir bieten für die Deutsche Bahn, projektbezogen, ausgewähltes Fachpersonal mit umfassenden Qualifikationen in den unterschiedlichen Regionen an. Dabei setzen wir vorrangig auf Mitarbeiter, die heimatnah arbeiten.<br>Mit uns bewerben Sie sich nicht auf Jobs der Deutschen Bahn, mit unserer Expertise bieten wir Ihnen ihren Job bei unserem Kunden der Deutschen Bahn an.<br><br>Entwicklungspotential / Pers",
+   "id": "MTU5ODAtT0RJMThNWFJCUEhJUVlGSS1TIDE",
+   "creationDate": 1789592530190,
+   "lastModificationDate": 1792097198815,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "DE": [
+     "DE712"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1",
+    "http://data.europa.eu/esco/occupation/c40a2919-48a9-40ea-b506-1f34f693496d",
+    "http://data.europa.eu/esco/occupation/d5a43cd3-230e-46d0-ba05-d67d61e5cfbb"
+   ],
+   "positionScheduleCodes": [
+    "fulltime"
+   ],
+   "positionOfferingCode": "directhire",
+   "employer": {
+    "name": "activjob GmbH",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": "http://www.activ-job.com",
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "de"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE"
+  },
+  {
+   "title": "Web Developer (all genders) (Web Developer)",
+   "description": "Your creative fieldWe are looking for a full-time , permanent Web Developer (all genders) to start as soon as possible . We live remote-first within Germany , but you have the freedom to choose whether you want to work hybrid or completely on-site due to your proximity to one of our locations.<br><br>What makes a good web developer? Not just that they code beautifully – but that they also know everything is still running at 3 a.m. Here, you work according to the \"you build it, you run it\" principle: full ownership, a modern tech stack, and AI-assisted development that lets you actively shape t",
+   "id": "MTM2MzUtMjc2OWNhNWNfSkI1MjY3MDE2LVMgMQ",
+   "creationDate": 1791404672124,
+   "lastModificationDate": 1791404672124,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "DE": [
+     "DE212"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/occupation/c40a2919-48a9-40ea-b506-1f34f693496d",
+    "http://data.europa.eu/esco/occupation/d5a43cd3-230e-46d0-ba05-d67d61e5cfbb",
+    "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1"
+   ],
+   "positionScheduleCodes": [
+    "fulltime"
+   ],
+   "positionOfferingCode": "directhire",
+   "employer": {
+    "name": "Contabo GmbH",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": null,
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "de"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE"
+  },
+  {
+   "title": "Webapplication - Developer (m/w/d) (Web Developer)",
+   "description": "Weitere Berufsbezeichnung:<br>Software-Entwickler<br><br>Stellenbeschreibung:<br>Du möchtest unsere Produkte und internen Systeme weiterentwickeln sowie unsere modernen Webanwendungen und Backend-Services entwickeln und langfristig betreuen, dann bewirb dich jetzt als: <br><br>Webapplication - Developer (m/w/d)<br><br>mit Schwerpunkt auf HTML, CSS, JavaScript, Node.js und PHP<br><br>Vor-Ort-Tätigkeit in Waldbüttelbrunn mit Möglichkeit zum Homeoffice<br><br>Das ist dein Daily Business:<br><br>Du entwickelst komplexe Webanwendungen, Services und Applikationen und begleitest deren kontinuierliche",
+   "id": "MTAwMDEtMTAwMzgwMzcyNC1TIDE",
+   "creationDate": 1791232487601,
+   "lastModificationDate": 1791922952246,
+   "numberOfPosts": 1,
+   "locationMap": {
+    "DE": [
+     "DE26C"
+    ]
+   },
+   "euresFlag": false,
+   "jobCategoriesCodes": [
+    "http://data.europa.eu/esco/occupation/866c7813-2c03-47d7-9bdc-192cfbace57c",
+    "http://data.europa.eu/esco/occupation/b11e1742-5e28-4270-b081-b0193d85ee7d",
+    "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1",
+    "http://data.europa.eu/esco/occupation/bd272aee-adc9-4a06-a15c-a73b4b4a46a7",
+    "http://data.europa.eu/esco/occupation/dc8ef7da-d2c0-4474-96a0-6d0385eeec1e",
+    "http://data.europa.eu/esco/occupation/d5a43cd3-230e-46d0-ba05-d67d61e5cfbb",
+    "http://data.europa.eu/esco/occupation/c40a2919-48a9-40ea-b506-1f34f693496d",
+    "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1"
+   ],
+   "positionScheduleCodes": [
+    "parttime",
+    "fulltime"
+   ],
+   "positionOfferingCode": "directhire",
+   "employer": {
+    "name": "MA Lighting Technology GmbH",
+    "legalID": null,
+    "organisationSizeCode": null,
+    "organisationOwnershipTypeCode": null,
+    "website": "http://www.malighting.com",
+    "sectorCodes": [],
+    "description": null
+   },
+   "availableLanguages": [
+    "de"
+   ],
+   "score": null,
+   "translationType": "FIRST_LANGUAGE"
+  }
+ ]
+}

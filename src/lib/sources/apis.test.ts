@@ -154,3 +154,19 @@ test("weworkremotely: RSS items become remote offers split into company and titl
     assert.match(j.url, /^https:\/\/weworkremotely\.com\//);
   }
 });
+
+test("eures: public search maps to European offers with posting links", async () => {
+  const { mapEures, euresBody, euresPostingUrl } = await import("./eures");
+  const jobs = mapEures(fx("eures.json"));
+  assert.ok(jobs.length >= 1);
+  for (const j of jobs) {
+    assert.equal(j.source, "eures");
+    assert.match(j.url, /^https:\/\/europa\.eu\/eures\/portal\/jv-se\/jv-details\/.+\?lang=en$/);
+    assert.ok(plain(j.description), "html stripped");
+    assert.ok(j.location.length > 0);
+  }
+  const body = JSON.parse(euresBody("stage", ["FR", "DE"], 10));
+  assert.deepEqual(body.locationCodes, ["fr", "de"]);
+  assert.deepEqual(body.keywords, [{ keyword: "stage", specificSearchCode: "EVERYWHERE" }]);
+  assert.equal(euresPostingUrl("a b"), "https://europa.eu/eures/portal/jv-se/jv-details/a%20b?lang=en");
+});

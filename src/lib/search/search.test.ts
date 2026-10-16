@@ -9,7 +9,7 @@ import { buildFilter, compileKeyword, compilePositives, compileLocation, locatio
 import { companyKey, scoreJob } from "./rank";
 import { buildTiers } from "./tiers";
 import { normalizePrefs } from "./prefs";
-import { urgentDeadline } from "./sweep";
+import { expiredDeadline, urgentDeadline } from "./sweep";
 
 const job = (over: Partial<NewJob>): NewJob => ({
   title: "Développeur Java", company: "Acme", location: "Tunis", remote: false, url: "https://e.x/1", source: "manual",
@@ -225,4 +225,22 @@ test("sweep: urgent deadline window", () => {
   assert.equal(urgentDeadline("2026-10-30", now), false);
   assert.equal(urgentDeadline(null, now), false);
   assert.equal(urgentDeadline("2026-10-01", now), false);
+});
+
+test("sweep: expired deadline needs a full day of grace", () => {
+  const now = Date.parse("2026-10-13T12:00:00Z");
+  assert.equal(expiredDeadline("2026-10-11", now), true);
+  assert.equal(expiredDeadline("2026-10-13", now), false);
+  assert.equal(expiredDeadline("2026-10-20", now), false);
+  assert.equal(expiredDeadline(null, now), false);
+  assert.equal(expiredDeadline("not a date", now), false);
+});
+
+test("plan: EURES runs once for the chosen EU countries, never for non-EU ones", () => {
+  const p = planSearch({ keywords: ["developer"], countries: ["FR", "DE", "CA"], remote: "no" });
+  const eu = p.runs.filter((r) => r.kind === "eures");
+  assert.equal(eu.length, 1);
+  assert.equal(eu[0].handle, "fr,de");
+  assert.ok(p.runs.some((r) => r.kind === "arbeitsagentur"), "German federal board runs for DE");
+  assert.equal(planSearch({ keywords: ["x"], countries: ["TN", "CA"], remote: "no" }).runs.filter((r) => r.kind === "eures").length, 0);
 });

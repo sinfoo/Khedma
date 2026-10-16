@@ -103,7 +103,7 @@ export function SearchPrefsForm({ prefs, compact = false, onSaved }: { prefs: Se
             onClick={() =>
               startSweep(async () => {
                 const r = await runSweep();
-                toast.info(fmt(p.swept, { urgent: r.urgent, merged: r.merged }));
+                toast.info(fmt(p.swept, { urgent: r.urgent, merged: r.merged, expired: r.expired }));
               })
             }
           >
