@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -7,6 +8,7 @@ import { getUpskillProgress, skillMatrix } from "@/lib/repo/insights";
 import type { UpskillPlan } from "@/lib/types";
 import { EmptyState, PageHeader } from "@/components/kit";
 import { UpskillBoard, type PlanView } from "@/components/insights/upskill-board";
+import { EscoCard } from "@/components/insights/esco-card";
 
 export const metadata: Metadata = { title: "Skills" };
 
@@ -95,6 +97,10 @@ export default async function UpskillPage() {
       ) : (
         <UpskillBoard matrix={matrix} plan={plan} />
       )}
+      <Suspense fallback={<div className="skeleton mt-6 h-40 rounded-2xl" aria-hidden="true" />}>
+        <EscoCard t={t} lang={locale === "fr" ? "fr" : "en"} roles={profile.target_roles} cvText={`${profile.cv_md}
+${profile.skills.join(", ")}`} />
+      </Suspense>
     </>
   );
 }
