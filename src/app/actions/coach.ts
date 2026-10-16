@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getApplication, getJob, getProfile } from "@/lib/db";
+import { addEvent, getApplication, getJob, getProfile } from "@/lib/db";
 import { getLocale } from "@/lib/i18n/server";
 import { BANK, BANK_BY_ID, type Lang, type Level, type Track } from "@/lib/coach/bank";
-import { aggregate, inferTrack, isTrack, KINDS, LENGTHS, nextDrillState, selectQuestions, toSessionQuestion, type DrillGrade, type Kind, type StoryInput } from "@/lib/coach/logic";
+import { aggregate, inferTrack, isTrack, KINDS, LENGTHS, nextDrillState, selectQuestions, stems, toSessionQuestion, type DrillGrade, type Kind, type StoryInput } from "@/lib/coach/logic";
 import { generateJobQuestions, polishStory } from "@/lib/ai/coach";
+import { DEBRIEF_ROUNDS, debriefFeedback, RATINGS, type DebriefRound, type Rating } from "@/lib/ai/debrief";
 import * as repo from "@/lib/repo/coach";
 
 const int = (x: unknown) => {
@@ -127,6 +128,76 @@ export async function deleteStory(id: number): Promise<void> {
 export async function polishStoryDraft(input: StoryInput) {
   const s = cleanStory(input);
   return polishStory(getProfile().settings, s, await getLocale());
+}
+
+// ---------- debrief (real interview) ----------
+export interface DebriefForm {
+  application: number | null;
+  interview: number | null;
+  round: string;
+  interviewer: string;
+  outcome: string;
+  competencies: string[];
+  questions: { question: string; rating: string; notes: string; competency: string }[];
+  retracted: string[];
+}
+
+/** Save a debrief, generate feedback, and push weak questions into the drill deck (matched bank cards come due now). */
+export async function saveDebrief(f: DebriefForm): Promise<{ id?: number; drilled?: number; error?: string }> {
+  const round = DEBRIEF_ROUNDS.includes(f?.round as DebriefRound) ? (f.round as DebriefRound) : null;
+  const questions = (Array.isArray(f?.questions) ? f.questions : [])
+    .map((q) => ({ question: clip(q?.question, 400), rating: (RATINGS.includes(q?.rating as Rating) ? q.rating : "yellow") as Rating, notes: clip(q?.notes, 1500), competency: clip(q?.competency, 40) }))
+    .filter((q) => q.question)
+    .slice(0, 20);
+  if (!round || !questions.length) return { error: "invalid" };
+  const app = int(f.application) ? getApplication(int(f.application)!) : null;
+  const job = app ? getJob(app.job_id) : null;
+  const locale = await getLocale();
+  const input = { company: job?.company ?? "", role: job?.title ?? "", round, questions, retracted: list(f.retracted).map((r) => r.slice(0, 40)), locale };
+  const retracted = (Array.isArray(f.retracted) ? f.retracted : []).map((r) => clip(r, 200)).filter(Boolean).slice(0, 10);
+  const fb = await debriefFeedback(getProfile().settings, { ...input, retracted });
+  const id = repo.createDebrief({
+    application_id: app?.id ?? null,
+    interview_id: int(f.interview),
+    company: input.company,
+    role: input.role,
+    round,
+    interviewer: clip(f.interviewer, 120),
+    outcome: (["pending", "forward", "rejected"] as const).find((o) => o === f.outcome) ?? "pending",
+    competencies: list(f.competencies),
+    questions,
+    retracted,
+    feedback: fb.text,
+    engine: fb.engine,
+  });
+  // Weak questions → drill: the closest bank card (keyword overlap) is reset to box 1, due now.
+  // ponytail: bank match only; questions with no bank twin stay in the debrief, add custom cards when the drill reads them.
+  const states = repo.drillStates();
+  const now = new Date();
+  let drilled = 0;
+  for (const q of questions.filter((x) => x.rating !== "green")) {
+    const qs = new Set(stems(q.question));
+    let best: { id: string; hits: number } | null = null;
+    for (const b of BANK) {
+      if (b.type !== "technical") continue;
+      const hits = [...new Set(stems(`${b.fr} ${b.en}`))].filter((w) => qs.has(w)).length;
+      if (hits >= 2 && (!best || hits > best.hits)) best = { id: b.id, hits };
+    }
+    if (best) {
+      repo.saveDrillState(nextDrillState(states.get(best.id) ?? null, best.id, q.rating === "red" ? "no" : "partial", now));
+      drilled++;
+    }
+  }
+  if (app) addEvent(app.id, "note", `${locale === "fr" ? "Débrief d'entretien" : "Interview debrief"} (${round}) → /app/coach/debrief/${id}`);
+  revalidatePath("/app/coach");
+  revalidatePath("/app/coach/debrief");
+  return { id, drilled };
+}
+
+export async function deleteDebriefAction(id: number): Promise<void> {
+  repo.deleteDebrief(Number(id));
+  revalidatePath("/app/coach/debrief");
+  redirect("/app/coach/debrief");
 }
 
 // ---------- drill ----------

@@ -6,13 +6,19 @@ import {
   ensureApplication,
   getJob,
   getProfile,
-  insertEvaluation,
+  latestEvaluation,
   updateJob,
   upsertJob,
   type NewJob,
 } from "@/lib/db";
-import { JOB_TYPES, type Evaluation, type JobType } from "@/lib/types";
+import { JOB_TYPES, type Evaluation, type Job, type JobType, type Profile, type Triage } from "@/lib/types";
 import { evaluateJob } from "@/lib/ai";
+import { heuristicEvaluateV2 } from "@/lib/ai/eval-v2";
+import { eligibilityGates } from "@/lib/ai/gates";
+import { triageScore } from "@/lib/ai/triage";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
+import { isBlacklisted } from "@/lib/company";
+import { getTriageMarginals, insertEvaluationV2, isPriorityCompany, setTriageMarginals as setMarginals } from "@/lib/repo/evaluations";
 import { DEMO_JOBS, extractTags, guessType, importFromUrl } from "@/lib/sources";
 import * as repo from "@/lib/repo/offers";
 
@@ -88,20 +94,53 @@ export async function parsePasted(text: string): Promise<repo.PastedOffer> {
   return repo.parsePastedOffer(String(text ?? "").slice(0, 20_000));
 }
 
+/** Full evaluation (single-offer "Evaluate": never gated by triage). The triage line is stored for information. */
+async function fullEvaluation(job: Job, profile: Profile): Promise<Evaluation> {
+  const gates = eligibilityGates(job, profile, getProfileExtra().langs);
+  const triage = triageScore(job, profile, { gates });
+  return insertEvaluationV2({ ...(await evaluateJob(job, profile)), triage });
+}
+
 export async function runEvaluation(jobId: number) {
   const job = getJob(Number(jobId));
   if (!job) return;
-  insertEvaluation(await evaluateJob(job, getProfile()));
+  await fullEvaluation(job, getProfile());
   refresh();
 }
 
-/** One offer at a time so the client can show progress. No revalidation: the caller refreshes once at the end. */
-export async function evaluateOffer(jobId: number): Promise<{ ok: boolean; global?: number; verdict?: Evaluation["verdict"]; engine?: string }> {
+export async function setTriageMarginals(on: boolean) {
+  setMarginals(!!on);
+  refresh();
+}
+
+export type BulkEvalResult = { ok: boolean; global?: number; verdict?: Evaluation["verdict"]; engine?: string; triaged?: Triage };
+
+/**
+ * Bulk path ("Evaluate new", selections): one offer at a time so the client can show progress; no revalidation.
+ * Rules first: an offer with no evaluation yet goes through the zero-LLM triage gate. FAIL (or a MARGINAL when
+ * "also evaluate marginals" is off) stores a heuristic evaluation tagged with the triage reason instead of
+ * calling the model. Starred offers and companies already tracked/rated always pass. Re-evaluations are never gated.
+ */
+export async function evaluateOffer(jobId: number): Promise<BulkEvalResult> {
   const job = getJob(Number(jobId));
   if (!job) return { ok: false };
+  const profile = getProfile();
   try {
-    const ev = insertEvaluation(await evaluateJob(job, getProfile()));
-    return { ok: true, global: ev.global, verdict: ev.verdict, engine: ev.engine };
+    if (!latestEvaluation(job.id) && !isPriorityCompany(job)) {
+      const gates = eligibilityGates(job, profile, getProfileExtra().langs);
+      const triage = triageScore(job, profile, { gates });
+      if (isBlacklisted(job.company)) {
+        triage.verdict = "fail";
+        triage.reason = `${profile.settings.locale === "fr" ? "entreprise sur votre liste noire" : "company on your blacklist"} · ${triage.reason}`;
+      }
+      const skip = triage.verdict === "fail" || (triage.verdict === "marginal" && !getTriageMarginals());
+      if (skip) {
+        const ev = insertEvaluationV2({ job_id: job.id, ...heuristicEvaluateV2(job, profile), triage: { ...triage, skipped: true } });
+        return { ok: true, global: ev.global, verdict: ev.verdict, engine: ev.engine, triaged: ev.triage };
+      }
+    }
+    const ev = await fullEvaluation(job, profile);
+    return { ok: true, global: ev.global, verdict: ev.verdict, engine: ev.engine, triaged: ev.triage };
   } catch (e) {
     console.warn("[offers] evaluation failed:", (e as Error).message);
     return { ok: false };

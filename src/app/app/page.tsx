@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlarmClock, ArrowRight, BellRing, CalendarClock, Check, Hourglass, MessagesSquare, Plus, Sparkles } from "lucide-react";
+import { AlarmClock, ArrowRight, BellRing, CalendarClock, Check, Hourglass, MessageSquareReply, MessagesSquare, Plus, Snowflake, Sparkles, Zap } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { getProfile } from "@/lib/db";
@@ -181,7 +181,7 @@ export default async function TodayPage() {
 type T = Awaited<ReturnType<typeof getDict>>["t"];
 
 const focusKey = (f: FocusItem) =>
-  f.kind === "reminder" || f.kind === "interview" ? `${f.kind}${f.id}` : f.kind === "deadline" ? `d${f.jobId}` : f.kind === "waiting" ? `w${f.appId}` : "u";
+  f.kind === "reminder" || f.kind === "interview" ? `${f.kind}${f.id}` : f.kind === "deadline" ? `d${f.jobId}` : f.kind === "waiting" ? `w${f.appId}` : f.kind === "cadence" ? `c${f.appId}` : "u";
 
 function FocusRow({ f, t, locale, today }: { f: FocusItem; t: T; locale: string; today: string }) {
   const m = t.insights2.today;
@@ -190,10 +190,19 @@ function FocusRow({ f, t, locale, today }: { f: FocusItem; t: T; locale: string;
     interview: <MessagesSquare size={16} aria-hidden="true" />,
     deadline: <AlarmClock size={16} aria-hidden="true" />,
     waiting: <Hourglass size={16} aria-hidden="true" />,
+    cadence: f.kind === "cadence" && f.urgency === "cold" ? <Snowflake size={16} aria-hidden="true" /> : f.kind === "cadence" && f.urgency === "urgent" ? <Zap size={16} aria-hidden="true" /> : <MessageSquareReply size={16} aria-hidden="true" />,
     unevaluated: <Sparkles size={16} aria-hidden="true" />,
   }[f.kind];
   const tone =
-    f.kind === "reminder" && f.overdue ? "bg-danger-soft text-danger" : f.kind === "interview" ? "bg-saffron-soft text-saffron" : f.kind === "deadline" ? "bg-danger-soft text-danger" : "bg-accent-soft text-accent-text";
+    (f.kind === "reminder" && f.overdue) || (f.kind === "cadence" && f.urgency === "urgent")
+      ? "bg-danger-soft text-danger"
+      : f.kind === "interview" || (f.kind === "cadence" && f.urgency === "overdue")
+        ? "bg-saffron-soft text-saffron"
+        : f.kind === "deadline"
+          ? "bg-danger-soft text-danger"
+          : f.kind === "cadence"
+            ? "bg-surface-3 text-muted"
+            : "bg-accent-soft text-accent-text";
 
   let title: React.ReactNode, meta: string, action: React.ReactNode;
   switch (f.kind) {
@@ -219,6 +228,22 @@ function FocusRow({ f, t, locale, today }: { f: FocusItem; t: T; locale: string;
       meta = `${fmt(m.waiting, { n: f.days })} · ${f.sub}`;
       action = <RunButton action={logFollowup.bind(null, f.appId)} success={m.followupLogged} successBody={m.followupBody}>{m.logFollowup}</RunButton>;
       break;
+    case "cadence": {
+      const c = t.apps2.cadence;
+      const head = f.urgency === "cold" ? fmt(c.todayCold, { company: f.company }) : f.urgency === "urgent" ? fmt(c.todayUrgent, { company: f.company }) : f.angle === "thankyou" ? fmt(c.todayThanks, { company: f.company }) : fmt(c.todayTitle, { company: f.company });
+      title = <Link href={f.href} className="hover:text-accent-text">{head}{f.urgency !== "cold" && f.angle !== "none" ? ` — ${c.angle[f.angle].toLowerCase()}` : ""}</Link>;
+      meta = [f.title, fmt(m.waiting, { n: f.days }), f.followups ? fmt(c.sent, { n: f.followups }) : ""].filter(Boolean).join(" · ");
+      action =
+        f.urgency === "cold" ? (
+          <Link href={f.href} className="btn btn-secondary btn-sm">{m.openApp}</Link>
+        ) : (
+          <span className="flex gap-1.5">
+            <Link href={f.href} className={`btn btn-sm ${f.urgency === "urgent" ? "btn-primary" : "btn-saffron"}`}>{c.angle[f.angle] || m.openApp}</Link>
+            <RunButton action={logFollowup.bind(null, f.appId)} success={m.followupLogged} successBody={m.followupBody} className="btn btn-ghost btn-sm">{m.logFollowup}</RunButton>
+          </span>
+        );
+      break;
+    }
     case "unevaluated":
       title = fmt(m.unevaluated, { n: f.count });
       meta = "";

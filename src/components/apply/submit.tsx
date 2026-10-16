@@ -2,17 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2, Mail, Send } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Lightbulb, Loader2, Mail, Send } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { fmtDate } from "@/components/ui";
 import { useRun } from "@/components/pipeline/use-run";
-import { CHANNELS, type Channel, type Pack } from "@/lib/apply/types";
+import { CHANNELS, type ApplySafety, type Channel, type Pack } from "@/lib/apply/types";
 import type { JobType } from "@/lib/types";
 import { submitApplication } from "@/app/actions/apply";
 
+const ATS_NAME = { ashby: "Ashby", lever: "Lever", workday: "Workday", successfactors: "SuccessFactors", greenhouse: "Greenhouse", workable: "Workable", smartrecruiters: "SmartRecruiters" } as const;
+
 export function SubmitStep({
-  id, job, pack, answersCount, profile, contactEmail, hasLetter,
+  id, job, pack, answersCount, profile, contactEmail, hasLetter, safety,
 }: {
   id: number;
   job: { title: string; company: string; type: JobType };
@@ -21,9 +23,11 @@ export function SubmitStep({
   profile: { name: string };
   contactEmail: string;
   hasLetter: boolean;
+  safety: ApplySafety;
 }) {
   const { t, locale } = useT();
   const s = t.apply2.submit;
+  const sf = t.apply2.safety;
   const [channel, setChannel] = useState<Channel>(pack.channel ?? "site");
   const [reference, setReference] = useState(pack.reference);
   const [done, setDone] = useState<{ at: string; channel: Channel; due: string | null } | null>(pack.submitted_at ? { at: pack.submitted_at, channel: pack.channel ?? "site", due: null } : null);
@@ -36,6 +40,12 @@ export function SubmitStep({
       <section className="card p-5 rise" aria-labelledby="sub-h">
         <h2 id="sub-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{s.title}</h2>
         <p className="mb-4 text-sm text-muted">{s.lead}</p>
+        {safety.repeat.n > 0 && (
+          <p className="mb-4 flex items-start gap-2 rounded-xl bg-saffron-soft p-3 text-sm" role="note">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
+            {fmt(sf.repeat, { company: job.company, n: safety.repeat.n, d: fmtDate(safety.repeat.last, locale) })}
+          </p>
+        )}
         {done && (
           <div className="mb-4 flex items-start gap-3 rounded-xl bg-success-soft p-3 text-sm" role="status">
             <CheckCircle2 size={18} className="mt-0.5 shrink-0 text-success" aria-hidden="true" />
@@ -74,8 +84,17 @@ export function SubmitStep({
         </form>
       </section>
 
+      {safety.ats && (
+        <aside className="card p-5 rise" style={{ ["--i" as string]: 1 }} aria-labelledby="tips-h">
+          <h2 id="tips-h" className="flex items-center gap-2 text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
+            <Lightbulb size={16} className="text-saffron" aria-hidden="true" /> {sf.tips}
+          </h2>
+          <p className="mt-1 text-xs text-muted">{fmt(sf.tipsFor, { ats: ATS_NAME[safety.ats] })}</p>
+          <p className="mt-3 text-sm leading-relaxed text-ink-2">{sf.tip[safety.ats]}</p>
+        </aside>
+      )}
       {channel === "email" && (
-        <aside className="card p-5 rise" style={{ ["--i" as string]: 1 }} aria-labelledby="att-h">
+        <aside className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="att-h">
           <h2 id="att-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{s.attachments}</h2>
           <ul className="mt-3 space-y-2 text-sm">
             <li className="flex gap-2"><span aria-hidden="true">📎</span>{s.attachCv}</li>

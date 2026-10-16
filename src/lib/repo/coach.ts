@@ -2,6 +2,7 @@
 import { db, migrate } from "@/lib/db";
 import type { Lang, Level, Track } from "@/lib/coach/bank";
 import type { DrillState, Kind, Scores, SessionQuestion, StoryInput, Tip } from "@/lib/coach/logic";
+import type { DebriefQuestion, DebriefRound } from "@/lib/ai/debrief";
 
 function ensure() {
   migrate(
@@ -247,4 +248,92 @@ export function saveDrillState(s: DrillState): void {
       "INSERT INTO coach_drill (question_id, box, due_at, reviews) VALUES (?,?,?,?) ON CONFLICT(question_id) DO UPDATE SET box=excluded.box, due_at=excluded.due_at, reviews=excluded.reviews",
     )
     .run(s.question_id, s.box, s.due_at, s.reviews);
+}
+
+// ---------- debriefs (real interviews) ----------
+function ensureDebrief() {
+  const d = ensure();
+  migrate(
+    "coach:002-debrief",
+    `CREATE TABLE IF NOT EXISTS coach_debriefs (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       application_id INTEGER REFERENCES applications(id) ON DELETE SET NULL,
+       interview_id INTEGER,
+       company TEXT NOT NULL DEFAULT '',
+       role TEXT NOT NULL DEFAULT '',
+       round TEXT NOT NULL,
+       interviewer TEXT NOT NULL DEFAULT '',
+       outcome TEXT NOT NULL DEFAULT 'pending',
+       competencies TEXT NOT NULL DEFAULT '[]',
+       questions TEXT NOT NULL DEFAULT '[]',
+       retracted TEXT NOT NULL DEFAULT '[]',
+       feedback TEXT NOT NULL DEFAULT '',
+       engine TEXT NOT NULL DEFAULT 'heuristic',
+       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     );`,
+  );
+  return d;
+}
+
+export type DebriefOutcome = "pending" | "forward" | "rejected";
+export interface Debrief {
+  id: number;
+  application_id: number | null;
+  interview_id: number | null;
+  company: string;
+  role: string;
+  round: DebriefRound;
+  interviewer: string;
+  outcome: DebriefOutcome;
+  competencies: string[];
+  questions: DebriefQuestion[];
+  retracted: string[];
+  feedback: string;
+  engine: string;
+  created_at: string;
+}
+
+const rowToDebrief = (r: Row): Debrief => ({
+  id: r.id as number,
+  application_id: (r.application_id as number) ?? null,
+  interview_id: (r.interview_id as number) ?? null,
+  company: r.company as string,
+  role: r.role as string,
+  round: r.round as DebriefRound,
+  interviewer: r.interviewer as string,
+  outcome: (r.outcome as DebriefOutcome) ?? "pending",
+  competencies: json<string[]>(r.competencies, []),
+  questions: json<DebriefQuestion[]>(r.questions, []),
+  retracted: json<string[]>(r.retracted, []),
+  feedback: r.feedback as string,
+  engine: r.engine as string,
+  created_at: r.created_at as string,
+});
+
+export function createDebrief(d: Omit<Debrief, "id" | "created_at">): number {
+  const res = ensureDebrief()
+    .prepare(
+      `INSERT INTO coach_debriefs (application_id, interview_id, company, role, round, interviewer, outcome, competencies, questions, retracted, feedback, engine)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    )
+    .run(d.application_id, d.interview_id, d.company, d.role, d.round, d.interviewer, d.outcome, JSON.stringify(d.competencies), JSON.stringify(d.questions), JSON.stringify(d.retracted), d.feedback, d.engine);
+  return Number(res.lastInsertRowid);
+}
+
+export function getDebrief(id: number): Debrief | null {
+  const r = ensureDebrief().prepare("SELECT * FROM coach_debriefs WHERE id = ?").get(id) as Row | undefined;
+  return r ? rowToDebrief(r) : null;
+}
+
+export function listDebriefs(limit = 50): Debrief[] {
+  return (ensureDebrief().prepare("SELECT * FROM coach_debriefs ORDER BY created_at DESC, id DESC LIMIT ?").all(limit) as Row[]).map(rowToDebrief);
+}
+
+export function deleteDebrief(id: number): void {
+  ensureDebrief().prepare("DELETE FROM coach_debriefs WHERE id = ?").run(id);
+}
+
+/** Every claim the candidate retracted, across debriefs: a hard gate for suggested answers. */
+export function allRetracted(): string[] {
+  return [...new Set(listDebriefs(500).flatMap((d) => d.retracted))];
 }

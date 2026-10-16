@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, CircleDashed, Download, Globe, Loader2 } from "lucide-react";
+import { AlertTriangle, Check, CircleDashed, Download, Globe, Loader2, ShieldAlert } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { daysUntil, fmtDate } from "@/components/ui";
+import type { ApplySafety } from "@/lib/apply/types";
 import { checkPostingAlive } from "@/app/actions/apply";
 
 export interface Ready {
@@ -19,9 +20,11 @@ export interface Ready {
   savedAnswers: number;
 }
 
-export function Readiness({ id, jobId, ready }: { id: number; jobId: number; ready: Ready }) {
+export function Readiness({ id, jobId, ready, safety, company }: { id: number; jobId: number; ready: Ready; safety: ApplySafety; company: string }) {
   const { t, locale } = useT();
   const r = t.apply2.ready;
+  const sf = t.apply2.safety;
+  const gateLabel = t.offers2.v2.gateKeys;
   const [live, setLive] = useState<{ alive: boolean | null; status: number } | null>(null);
   const [pending, start] = useTransition();
   const days = daysUntil(ready.deadline);
@@ -43,8 +46,39 @@ export function Readiness({ id, jobId, ready }: { id: number; jobId: number; rea
   ];
   const done = items.filter((i) => i.ok).length;
 
+  const koText = (k: ApplySafety["knockouts"][number]) =>
+    k.key === "gate" && k.gate ? fmt(sf.gate, { label: fmt(gateLabel[k.gate.key], { lang: k.gate.lang ?? "" }) }) : fmt(sf[k.key === "gate" ? "visa" : k.key], k.vars);
+
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="space-y-5">
+      <section className={`card p-5 rise ${safety.knockouts.some((k) => k.level === "danger") ? "border-danger/40" : ""}`} aria-labelledby="ko-h">
+        <h2 id="ko-h" className="flex items-center gap-2 text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
+          <ShieldAlert size={16} className={safety.knockouts.length ? "text-danger" : "text-muted"} aria-hidden="true" /> {sf.knockouts}
+        </h2>
+        <p className="text-sm text-muted">{sf.knockoutsHint}</p>
+        {safety.knockouts.length === 0 && safety.repeat.n === 0 ? (
+          <p className="mt-3 text-sm text-success">{sf.none}</p>
+        ) : (
+          <ul className="mt-3 space-y-2.5" aria-live="polite">
+            {safety.knockouts.map((k, i) => (
+              <li key={`${k.key}-${i}`} className="flex items-start gap-3 rise" style={{ ["--i" as string]: i }}>
+                <AlertTriangle size={16} className={`mt-0.5 shrink-0 ${k.level === "danger" ? "text-danger" : "text-saffron"}`} aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{koText(k)}</p>
+                  <q className="text-xs text-muted">{k.quote}</q>
+                </div>
+              </li>
+            ))}
+            {safety.repeat.n > 0 && (
+              <li className="flex items-start gap-3">
+                <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
+                <p className="text-sm">{fmt(sf.repeat, { company, n: safety.repeat.n, d: fmtDate(safety.repeat.last, locale) })}</p>
+              </li>
+            )}
+          </ul>
+        )}
+      </section>
       <section className="card p-5 rise" aria-labelledby="ready-h">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -78,6 +112,7 @@ export function Readiness({ id, jobId, ready }: { id: number; jobId: number; rea
           ))}
         </ul>
       </section>
+      </div>
 
       <aside className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="pack-h">
         <h2 id="pack-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{r.pack}</h2>

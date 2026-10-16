@@ -3,7 +3,13 @@
 // from tokens present in the CV, the profile and the posting.
 import type { Job, Locale, Profile } from "../types";
 import { extractSkills } from "../ai/heuristic";
-import { clampChars } from "../ai/apps";
+
+/** Cut at a word boundary so an answer fits a form's limit. Lives here (not in ai/apps) to keep this module client-safe. */
+export function clampChars(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max - 1);
+  return cut.slice(0, Math.max(cut.lastIndexOf(" "), max - 40)).trimEnd() + "…";
+}
 
 export const QUESTION_IDS = [
   "why_company",
@@ -52,6 +58,19 @@ export const QUESTION_LABEL: Record<Locale, Record<QuestionId, string>> = {
 /** Always pre-selected: nearly every form asks them. */
 const DEFAULT_ON: QuestionId[] = ["why_company", "why_role", "why_you"];
 
+/**
+ * Sensitive questions are never answered for the candidate: salary, dates, visa/legal, demographic,
+ * disability, relocation. The assistant only proposes a neutral template built from profile facts
+ * and the answer is flagged `needs_candidate_confirmation`.
+ */
+export const SENSITIVE_IDS: QuestionId[] = ["salary", "availability", "mobility"];
+const SENSITIVE_TEXT =
+  /\b(salaire|salary|r[ée]mun[ée]ration|gratification|pr[ée]tention|compensation|stipend|visa|sponsor|nationalit|citizen|citoyen|permis de (travail|s[ée]jour)|work (permit|authori)|autorisation de travail|disponib|availab|date de (d[ée]but|d[ée]marrage)|start date|handicap|disabilit|rqth|[âa]ge\b|date de naissance|birth|sexe|gender|genre|situation (familiale|matrimoniale)|marital|religion|ethni|origine|veteran|v[ée]t[ée]ran|casier|criminal|background check|relocat|d[ée]m[ée]nag|service militaire|military)\b/i;
+
+export function isSensitiveQuestion(qid: string, question = ""): boolean {
+  return isQuestionId(qid) ? SENSITIVE_IDS.includes(qid) : SENSITIVE_TEXT.test(question);
+}
+
 const DETECT: Record<QuestionId, RegExp> = {
   why_company: /pourquoi (notre|nous)|why (us|our company)|motivation/i,
   why_role: /pourquoi ce (stage|poste)|why this (role|internship|position)|lettre de motivation|cover letter|motivation/i,
@@ -68,6 +87,7 @@ export interface DetectedQuestion {
   id: QuestionId;
   detected: boolean;
   selected: boolean;
+  sensitive: boolean;
 }
 
 /** Every bank question, flagged when the posting hints at it; defaults are pre-selected. */
@@ -75,7 +95,7 @@ export function detectQuestions(posting: string): DetectedQuestion[] {
   const text = posting || "";
   return QUESTION_IDS.map((id) => {
     const detected = DETECT[id].test(text);
-    return { id, detected, selected: detected || DEFAULT_ON.includes(id) };
+    return { id, detected, selected: detected || DEFAULT_ON.includes(id), sensitive: SENSITIVE_IDS.includes(id) };
   });
 }
 

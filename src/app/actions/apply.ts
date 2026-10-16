@@ -6,9 +6,12 @@ import { getCvSource } from "@/lib/cv/source";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { generateMessage, type MessageType } from "@/lib/ai/apps";
-import { generateAnswers, type AskedQuestion, type GeneratedAnswer } from "@/lib/ai/apply";
-import { QUESTION_LABEL, clampLimit, isQuestionId } from "@/lib/apply/questions";
-import { deleteAnswer as repoDeleteAnswer, getPack, isChannel, isOutcome, listAnswers, saveAnswer as repoSaveAnswer, setPack, type Pack } from "@/lib/apply/repo";
+import { fallbackAnswers, generateAnswers, generateFields, type AskedQuestion, type GeneratedAnswer } from "@/lib/ai/apply";
+import { QUESTION_LABEL, clampChars, clampLimit, isQuestionId, isSensitiveQuestion } from "@/lib/apply/questions";
+import { deleteAnswer as repoDeleteAnswer, getPack, isChannel, isOutcome, listAnswers, saveAnswer as repoSaveAnswer, setFields, setPack, type Pack } from "@/lib/apply/repo";
+import { bumpBankUse, deleteBankAnswer, findBankAnswer, listBank, profileFactAnswer, updateBankAnswer, upsertBankAnswer, type BankAnswer } from "@/lib/apply/bank";
+import type { FormFields } from "@/lib/apply/fields";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { addReminder, completeFollowups, listContacts, logEvent, openFollowup } from "@/lib/repo/apps";
 import { addDays, localDate } from "@/lib/reports/digest";
 import type { Result } from "@/lib/repo/apps";
@@ -50,6 +53,10 @@ function askedList(qids: unknown, custom: unknown, locale: "fr" | "en"): AskedQu
 }
 
 // ---------- answers ----------
+/**
+ * Rules first: sensitive questions get a profile-fact template (never the model, flagged to confirm),
+ * questions already answered on another application are reused from the bank, the rest go to the model.
+ */
 export async function generateFormAnswers(id: number, qids: string[], custom: string[], maxChars: number): Promise<Result<{ answers: GeneratedAnswer[] }>> {
   const ctx = load(id);
   if (!ctx) return fail("notFound");
@@ -57,10 +64,30 @@ export async function generateFormAnswers(id: number, qids: string[], custom: st
   const asked = askedList(qids, custom, locale);
   if (!asked.length) return fail("invalid");
   const profile = getProfile();
+  const extra = getProfileExtra();
   const limit = clampLimit(maxChars);
   try {
     const cvText = ctx.app.cv_md?.trim() || getCvSource().text || profile.cv_md;
-    const answers = await generateAnswers(asked, { job: ctx.job, profile, cvText, locale, maxChars: limit });
+    const c = { job: ctx.job, profile, cvText, locale, maxChars: limit };
+    const done = new Map<string, GeneratedAnswer>();
+    const toModel: AskedQuestion[] = [];
+    for (const q of asked) {
+      if (isSensitiveQuestion(q.qid, q.question)) {
+        const fact = q.qid === "availability" || q.qid === "english" || q.qid === "mobility" || q.qid === "salary" ? profileFactAnswer(q.qid, profile, extra, locale) : null;
+        const answer = fact ? clampChars(fact.answer, limit) : fallbackAnswers([q], c)[0].answer;
+        done.set(q.qid, { ...q, answer, engine: fact && !fact.confirm ? "profile" : "heuristic", confirm: true });
+        continue;
+      }
+      const hit = findBankAnswer(q.question);
+      if (hit) {
+        bumpBankUse(hit.id);
+        done.set(q.qid, { ...q, answer: clampChars(hit.answer, limit), engine: "bank" });
+        continue;
+      }
+      toModel.push(q);
+    }
+    for (const a of await generateAnswers(toModel, c)) done.set(a.qid, a);
+    const answers = asked.map((q) => done.get(q.qid)!);
     for (const a of answers) repoSaveAnswer({ application_id: id, qid: a.qid, question: a.question, answer: a.answer, max_chars: limit, engine: a.engine });
     refresh();
     return { ok: true, answers };
@@ -74,9 +101,48 @@ export async function saveFormAnswer(id: number, qid: string, answer: string, ma
   const q = clamp(qid, 60);
   const existing = listAnswers(id).find((a) => a.qid === q);
   if (!existing) return fail("invalid");
-  repoSaveAnswer({ ...existing, answer: clamp(answer, 4000), max_chars: clampLimit(maxChars), engine: "edited" });
+  const text = clamp(answer, 4000);
+  repoSaveAnswer({ ...existing, answer: text, max_chars: clampLimit(maxChars), engine: "edited" });
+  // An accepted answer joins the global bank, unless placeholders are still unfilled.
+  if (text && !/\[[^\]]+\]/.test(text)) upsertBankAnswer({ question: existing.question, answer: text, source_app: id });
   refresh();
   return { ok: true };
+}
+
+// ---------- answer bank ----------
+export async function listBankAnswers(): Promise<BankAnswer[]> {
+  return listBank().map((r) => ({ ...r }));
+}
+
+export async function updateBankEntry(bankId: number, answer: string): Promise<Result> {
+  if (!okId(bankId)) return fail("invalid");
+  const text = clamp(answer, 4000);
+  if (!text) return fail("invalid");
+  updateBankAnswer(bankId, text);
+  return { ok: true };
+}
+
+export async function deleteBankEntry(bankId: number): Promise<Result> {
+  if (!okId(bankId)) return fail("invalid");
+  deleteBankAnswer(bankId);
+  return { ok: true };
+}
+
+// ---------- form-field artifacts ----------
+export async function generateFormFields(id: number): Promise<Result<{ fields: FormFields }>> {
+  const ctx = load(id);
+  if (!ctx) return fail("notFound");
+  const { locale } = await getDict();
+  const profile = getProfile();
+  try {
+    const cvText = ctx.app.cv_md?.trim() || getCvSource().text || profile.cv_md;
+    const fields = await generateFields({ job: ctx.job, profile, cvText, locale });
+    setFields(id, fields);
+    refresh();
+    return { ok: true, fields };
+  } catch {
+    return fail("generic");
+  }
 }
 
 export async function removeFormAnswer(id: number, qid: string): Promise<Result> {

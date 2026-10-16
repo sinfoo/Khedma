@@ -3,7 +3,7 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { filterApps, loadReportsData, ownerName, parseRange, weeklyDigest } from "@/lib/reports/repo";
 import { reportHtml, reportMarkdown, type ReportData } from "@/lib/reports/html";
-import { localDate, toLocalDay } from "@/lib/reports/digest";
+import { localDate, toLocalDay, CALIBRATION_MIN_N } from "@/lib/reports/digest";
 import type { AppState, JobType } from "@/lib/types";
 
 const FUNNEL: AppState[] = ["applied", "responded", "interview", "offer", "hired"];
@@ -64,7 +64,11 @@ export async function GET(req: NextRequest) {
     })),
     interviews,
     lessons: apps.filter((a) => a.lesson.trim()).map((a) => ({ title: a.job.title, company: a.job.company, outcome: a.outcome ? o[a.outcome] : "", lesson: a.lesson })),
-    focus: digest.focus.map((f) => fmt(r.focusKeys[f.key], f.vars)),
+    focus: [
+      ...digest.focus.map((f) => fmt(r.focusKeys[f.key], f.vars)),
+      ...digest.silent.map((s) => `${t.insights2.calib.silent}: ${s.company} — ${s.title} (${fmt(t.insights2.calib.silentDays, { n: s.days })})`),
+      ...(digest.calibration.n ? [`${t.insights2.calib.title}: ${fmt(t.insights2.calib.verdicts[digest.calibration.verdict], { min: CALIBRATION_MIN_N })} · ${fmt(t.insights2.calib.basedOn, { n: digest.calibration.n })}`] : []),
+    ],
     labels: {
       kpis: r.report.kpis,
       funnel: r.report.funnel,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useOptimistic, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, ChevronDown, ChevronRight, Clock, GripVertical, Kanban, Mic, Search, Table2, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, ChevronDown, ChevronRight, Clock, GitCompareArrows, GripVertical, Kanban, Mic, Search, Table2, Users } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { APP_STATES, JOB_TYPES, type AppState, type JobType } from "@/lib/types";
@@ -11,6 +11,7 @@ import { ScoreRing, StateChip, scoreLabel } from "./ui";
 import { PostingLink } from "./posting-link";
 import { useStageMove } from "./pipeline/stage";
 import { shortDate } from "./pipeline/format";
+import { CadenceChip, type CadenceView } from "./pipeline/cadence";
 
 export interface BoardItem {
   id: number;
@@ -28,6 +29,7 @@ export interface BoardItem {
   url: string;
   location: string;
   source: string;
+  cadence: CadenceView | null;
 }
 
 const ACTIVE: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
@@ -50,6 +52,8 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
   const [grab, setGrab] = useState<{ id: number; target: AppState } | null>(null);
   const [dragOver, setDragOver] = useState<AppState | null>(null);
   const [focusId, setFocusId] = useState<number | null>(null);
+  const [sel, setSel] = useState<number[]>([]);
+  const toggleSel = (id: number, on: boolean) => setSel((s) => (on ? (s.includes(id) ? s : [...s, id]) : s.filter((x) => x !== id)));
 
   // A moved card re-mounts in its new column: give focus back to its handle.
   useEffect(() => {
@@ -163,6 +167,11 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           {item.interviewAt && (
             <li className="chip chip-saffron !py-0 text-[0.7rem]">
               <Mic size={11} aria-hidden="true" /> {fmt(b.interviewOn, { date: shortDate(item.interviewAt, locale) })}
+            </li>
+          )}
+          {item.cadence && (
+            <li>
+              <CadenceChip c={item.cadence} t={t} locale={locale} />
             </li>
           )}
           {item.contacts > 0 && (
@@ -319,10 +328,24 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
         </div>
       ) : (
         <div className="card overflow-x-auto rise" style={{ ["--i" as string]: 3 }}>
+          <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm" aria-live="polite">
+            <span className="text-muted">{fmt(t.apps2.compare.selected, { n: sel.length })}</span>
+            {sel.length > 4 && <span className="text-xs text-danger">{t.apps2.compare.tooMany}</span>}
+            {sel.length >= 2 && sel.length <= 4 ? (
+              <Link href={`/app/pipeline/compare?ids=${sel.join(",")}`} className="btn btn-primary btn-sm ml-auto">
+                <GitCompareArrows size={14} aria-hidden="true" /> {t.apps2.compare.compareCta}
+              </Link>
+            ) : (
+              <span className="btn btn-primary btn-sm ml-auto opacity-50" aria-disabled="true" title={t.apps2.compare.needTwo}>
+                <GitCompareArrows size={14} aria-hidden="true" /> {t.apps2.compare.compareCta}
+              </span>
+            )}
+          </div>
           <table className="table min-w-[720px]">
             <caption className="sr-only">{t.pipeline.title}</caption>
             <thead>
               <tr>
+                <th scope="col"><span className="sr-only">{t.apps2.compare.compareCta}</span></th>
                 <th scope="col">{b.colOffer}</th>
                 {th("stage", b.colStage)}
                 {th("score", b.colScore)}
@@ -334,6 +357,15 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
               {sorted.map((x) => (
                 <tr key={x.id}>
                   <td>
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-[var(--accent)]"
+                      aria-label={fmt(t.apps2.compare.select, { title: `${x.company} — ${x.title}` })}
+                      checked={sel.includes(x.id)}
+                      onChange={(e) => toggleSel(x.id, e.target.checked)}
+                    />
+                  </td>
+                  <td>
                     <div className="flex items-center gap-2.5">
                       <CompanyAvatar name={x.company} size={28} />
                       <div className="min-w-0">
@@ -343,7 +375,10 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
                     </div>
                   </td>
                   <td>
-                    <StateChip state={x.status} t={t} />
+                    <span className="inline-flex flex-wrap items-center gap-1.5">
+                      <StateChip state={x.status} t={t} />
+                      <CadenceChip c={x.cadence} t={t} locale={locale} />
+                    </span>
                   </td>
                   <td className="tabular">{x.score !== null ? x.score.toFixed(1) : "—"}</td>
                   <td className="tabular text-muted">{shortDate(x.updated_at, locale)}</td>

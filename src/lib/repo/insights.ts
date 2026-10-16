@@ -2,7 +2,13 @@
 // Pure helpers (dates, buckets, funnel math) are exported for tests; DB readers sit below them.
 import { db, getProfile, kvGet, kvSet, listApplications, listJobs, type ApplicationWithJob, type JobWithMeta } from "@/lib/db";
 import { computeSkillGaps } from "@/lib/ai";
+import { detectField } from "@/lib/recommend/profile-model";
+import { BENCHMARKS, calibrationBands, silentApps } from "@/lib/reports/digest";
+import { cadenceFor } from "@/lib/repo/apps";
+import { URGENCY_ORDER, type FollowupAngle, type Urgency } from "@/lib/apps/cadence";
 import type { AppState, Evaluation, JobType, SkillGap } from "@/lib/types";
+
+export { BENCHMARKS };
 
 // ---------- dates ----------
 const DAY = 86_400_000;
@@ -168,6 +174,60 @@ export function scoreHistogram(scores: number[]): number[] {
 
 const isStrong = (e: Evaluation | null) => !!e && (e.verdict === "apply_now" || e.verdict === "apply" || e.global >= 3.5);
 
+// ---------- calibration & patterns (pure) ----------
+const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}+#. ]/gu, " ").replace(/\s+/g, " ").trim();
+
+/** Most frequent gaps and red flags across evaluations (one count per evaluation, folded text). */
+export function blockerPatterns(evals: Pick<Evaluation, "gaps" | "flags">[], top = 8): { text: string; n: number; kind: "gap" | "flag" }[] {
+  const count = new Map<string, { text: string; n: number; kind: "gap" | "flag" }>();
+  for (const e of evals) {
+    for (const kind of ["gap", "flag"] as const) {
+      const seen = new Set<string>();
+      for (const raw of kind === "gap" ? e.gaps : e.flags) {
+        const key = `${kind}:${fold(raw).slice(0, 60)}`;
+        if (!fold(raw) || seen.has(key)) continue;
+        seen.add(key);
+        const c = count.get(key);
+        count.set(key, { text: c?.text ?? raw.trim(), n: (c?.n ?? 0) + 1, kind });
+      }
+    }
+  }
+  return [...count.values()].filter((x) => x.n >= 2).sort((a, b) => b.n - a.n).slice(0, top);
+}
+
+export interface OutcomeRow {
+  key: string;
+  applied: number;
+  responded: number;
+  interviews: number;
+  responseRate: number | null;
+  interviewRate: number | null;
+}
+
+/** Sent applications grouped by a key: response and interview rates (null under n=2). */
+export function outcomesBy(hist: { key: string; h: AppHistory }[]): OutcomeRow[] {
+  const m = new Map<string, AppHistory[]>();
+  for (const x of hist) if (reachedStage(x.h) >= 1) m.set(x.key, [...(m.get(x.key) ?? []), x.h]);
+  return [...m.entries()]
+    .map(([key, hs]) => {
+      const r = responseStats(hs);
+      const interviews = hs.filter((h) => reachedStage(h) >= 3).length;
+      return { key, applied: hs.length, responded: r.responded, interviews, responseRate: hs.length >= 2 ? r.rate : null, interviewRate: hs.length >= 2 ? Math.round((interviews / hs.length) * 100) : null };
+    })
+    .sort((a, b) => b.applied - a.applied);
+}
+
+/** Median days from the first interview event to the offer event. */
+export function interviewToOfferDays(apps: AppHistory[]): number | null {
+  const xs: number[] = [];
+  for (const a of apps) {
+    const iv = parseTs(a.events.find((e) => e.status === "interview")?.at);
+    const of = parseTs(a.events.find((e) => e.status === "offer" || e.status === "hired")?.at);
+    if (iv && of && of >= iv) xs.push(Math.round((of.getTime() - iv.getTime()) / DAY));
+  }
+  return median(xs);
+}
+
 // ---------- shared loaders ----------
 type Row = Record<string, unknown>;
 
@@ -182,11 +242,6 @@ function statusEvents(): Map<number, { status: string; at: string }[]> {
     m.set(id, [...(m.get(id) ?? []), { status: r.payload as string, at: r.created_at as string }]);
   }
   return m;
-}
-
-function lastFollowups(): Map<number, string> {
-  const rows = db().prepare("SELECT application_id, MAX(created_at) AS at FROM events WHERE kind = 'followup' GROUP BY application_id").all() as Row[];
-  return new Map(rows.map((r) => [r.application_id as number, r.at as string]));
 }
 
 export function listInterviews(): InterviewItem[] {
@@ -248,6 +303,7 @@ export type FocusItem =
   | { kind: "interview"; id: number; title: string; sub: string; day: string; time: string; href: string }
   | { kind: "deadline"; jobId: number; title: string; sub: string; day: string; score: number; href: string }
   | { kind: "waiting"; appId: number; title: string; sub: string; days: number; href: string }
+  | { kind: "cadence"; appId: number; title: string; company: string; urgency: Urgency; angle: FollowupAngle; days: number; followups: number; href: string }
   | { kind: "unevaluated"; count: number };
 
 export function getToday(now = new Date()) {
@@ -256,7 +312,6 @@ export function getToday(now = new Date()) {
   const jobs = listJobs();
   const apps = listApplications();
   const ev = statusEvents();
-  const followups = lastFollowups();
   const interviews = listInterviews();
   const reminders = listReminders().filter((r) => !r.done);
 
@@ -284,12 +339,15 @@ export function getToday(now = new Date()) {
     if (!j.application && day && day >= today && daysBetween(today, day) <= 3 && isStrong(j.evaluation))
       focus.push({ kind: "deadline", jobId: j.id, title: j.title, sub: j.company, day, score: j.evaluation!.global, href: `/app/jobs/${j.id}` });
   }
+  // Follow-up cadence replaces the plain "waiting" rule: urgent replies, overdue follow-ups, cold applications.
+  const cad = cadenceFor(apps.map((a) => ({ id: a.id, status: a.status, applied_at: a.applied_at, company: a.job.company })), now);
   for (const a of apps) {
-    if (a.status !== "applied" || !a.applied_at) continue;
-    const since = parseTs(followups.get(a.id) ?? a.applied_at);
-    const days = since ? Math.floor((now.getTime() - since.getTime()) / DAY) : 0;
-    if (days > 7) focus.push({ kind: "waiting", appId: a.id, title: a.job.title, sub: a.job.company, days, href: `/app/pipeline/${a.id}` });
+    const c = cad.get(a.id);
+    if (!c || c.urgency === "waiting" || c.urgency === "none") continue;
+    const draft = c.urgency === "cold" ? "" : `&draft=${c.angle}`;
+    focus.push({ kind: "cadence", appId: a.id, title: a.job.title, company: a.job.company, urgency: c.urgency, angle: c.angle, days: c.daysSince, followups: c.followupCount, href: `/app/pipeline/${a.id}?tab=messages${draft}` });
   }
+  focus.sort((x, y) => (x.kind === "cadence" && y.kind === "cadence" ? URGENCY_ORDER[x.urgency] - URGENCY_ORDER[y.urgency] : 0));
   const unevaluated = jobs.filter((j) => !j.evaluation).length;
   if (unevaluated) focus.push({ kind: "unevaluated", count: unevaluated });
 
@@ -481,7 +539,34 @@ export function getInsights(rangeDays: number | null, now = new Date()) {
   if (untracked >= 2) takeaways.push({ key: "untracked", vars: { n: untracked } });
   if (!takeaways.length) takeaways.push({ key: "needData", vars: {} });
 
-  return { funnel, response, perWeek, weekLabels, histogram, bySource, byType, verdicts, skills, buckets, takeaways, totals: { jobs: jobs.length, evaluated: evaluated.length, apps: apps.length } };
+  // Calibration, patterns, benchmarks: over every sent application (not range-limited, n is small enough already).
+  const allHist = allApps.map((a) => ({ a, h: history(a, ev) }));
+  const calibration = calibrationBands(
+    allHist.map((x) => ({ score: x.a.evaluation?.global ?? null, sent: reachedStage(x.h) >= 1, interviewed: reachedStage(x.h) >= 3, offered: reachedStage(x.h) >= 4 })),
+  );
+  const blockers = blockerPatterns(jobs.filter((j) => j.evaluation).map((j) => j.evaluation!));
+  const bySourceOutcome = outcomesBy(allHist.map((x) => ({ key: x.a.job.source, h: x.h })));
+  const byFieldOutcome = outcomesBy(allHist.map((x) => ({ key: detectField(`${x.a.job.title}\n${x.a.job.description}`)?.field ?? "other", h: x.h })));
+  const allResponse = responseStats(allHist.map((x) => x.h));
+  const sentAll = allHist.filter((x) => reachedStage(x.h) >= 1);
+  const you = {
+    responseRate: allResponse.rate,
+    interviewRate: sentAll.length ? Math.round((sentAll.filter((x) => reachedStage(x.h) >= 3).length / sentAll.length) * 100) : null,
+    firstResponseDays: allResponse.medianDays,
+    interviewToOfferDays: interviewToOfferDays(allHist.map((x) => x.h)),
+    n: sentAll.length,
+  };
+  const silent = silentApps(
+    allApps.map((a) => ({ id: a.id, status: a.status, applied_at: a.applied_at, job: { id: a.job.id, title: a.job.title, company: a.job.company, deadline: a.job.deadline, created_at: a.job.created_at, archived: a.job.archived } })),
+    [...ev.entries()].flatMap(([id, es]) => es.map((e) => ({ application_id: id, payload: e.status, created_at: e.at }))),
+    dayKey(now),
+  ).slice(0, 8);
+
+  return {
+    funnel, response, perWeek, weekLabels, histogram, bySource, byType, verdicts, skills, buckets, takeaways,
+    calibration, blockers, bySourceOutcome, byFieldOutcome, you, silent,
+    totals: { jobs: jobs.length, evaluated: evaluated.length, apps: apps.length },
+  };
 }
 
 // ---------- Skills (upskill) ----------

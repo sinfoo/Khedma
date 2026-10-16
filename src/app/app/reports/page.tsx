@@ -8,6 +8,7 @@ import { addDays, localDate, weekStart } from "@/lib/reports/digest";
 import { CompanyAvatar, EmptyState, PageHeader, Stat } from "@/components/kit";
 import { ScoreRing, StateChip, fmtDate, scoreLabel } from "@/components/ui";
 import { PolishFocus } from "@/components/reports/polish";
+import { CalibrationCard, SilentCard } from "@/components/insights/calibration";
 import type { JobType } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -137,9 +138,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </ul>
           ) : <p className="mt-3 text-sm text-muted">{r.noneLessons}</p>}
         </section>
+
+        <SilentCard t={t} silent={d.silent} i={5} />
+        <CalibrationCard t={t} bands={d.calibration.bands} verdict={d.calibration.verdict} n={d.calibration.n} i={6} />
       </div>
 
-      <section className="card mt-6 p-5 rise" style={{ ["--i" as string]: 5 }} aria-labelledby="hist-h">
+      <section className="card mt-6 p-5 rise" style={{ ["--i" as string]: 7 }} aria-labelledby="hist-h">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="hist-h" className={h2} style={h2s}>{r.history} <span className="chip tabular">{data.apps.length}</span></h2>
           <a href="/api/reports/csv" className="btn btn-ghost btn-sm no-print"><Download size={14} aria-hidden="true" />{r.exportCsv}</a>

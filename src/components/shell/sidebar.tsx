@@ -54,7 +54,9 @@ export function Sidebar() {
       <nav aria-label={t.a11y.navMain} className="flex-1 overflow-y-auto px-3 pb-4">
         <NavList />
       </nav>
-      <p className="border-t border-line px-5 py-3 text-[0.72rem] leading-snug text-muted">{t.shell2.footer}</p>
+      <p className="border-t border-line px-5 py-3 text-[0.72rem] leading-snug text-muted">
+        {t.shell2.footer} · <Link href="/about" className="underline underline-offset-2 hover:text-ink">{t.about2.nav}</Link>
+      </p>
     </aside>
   );
 }

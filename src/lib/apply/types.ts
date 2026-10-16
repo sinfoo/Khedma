@@ -20,6 +20,13 @@ export interface SavedAnswer {
   updated_at: string;
 }
 
+/** Apply-safety facts computed server-side for the wizard (knock-outs, repeat application, ATS kind). */
+export interface ApplySafety {
+  knockouts: import("./knockout").Knockout[];
+  repeat: { n: number; last: string | null };
+  ats: import("./knockout").AtsKind | null;
+}
+
 export interface Pack {
   application_id: number;
   channel: Channel | null;

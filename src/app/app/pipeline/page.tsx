@@ -4,10 +4,11 @@ import { CalendarPlus, KanbanSquare } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { listApplications } from "@/lib/db";
-import { allInterviewStarts, contactCounts, localDate, pipelineStats, stageEnteredAt } from "@/lib/repo/apps";
+import { allInterviewStarts, cadenceFor, contactCounts, localDate, pipelineStats, stageEnteredAt } from "@/lib/repo/apps";
 import { EmptyState, PageHeader, Stat } from "@/components/kit";
 import { PipelineBoard, type BoardItem } from "@/components/pipeline-board";
 import { daysSince } from "@/components/pipeline/format";
+import { toView } from "@/components/pipeline/cadence";
 
 export const metadata: Metadata = { title: "Pipeline" };
 
@@ -24,6 +25,7 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
   const interviews = allInterviewStarts();
   const nextInterview = new Map<number, string>();
   for (const iv of interviews) if (iv.starts_at.slice(0, 10) >= today && !nextInterview.has(iv.application_id)) nextInterview.set(iv.application_id, iv.starts_at);
+  const cadence = cadenceFor(apps.map((x) => ({ id: x.id, status: x.status, applied_at: x.applied_at, company: x.job.company })), now);
 
   const items: BoardItem[] = apps.map((x) => ({
     id: x.id,
@@ -41,6 +43,7 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
     url: x.job.url,
     location: x.job.location,
     source: x.job.source,
+    cadence: toView(cadence.get(x.id)),
   }));
   const s = pipelineStats(apps, interviews, now);
 

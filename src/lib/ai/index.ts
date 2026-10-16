@@ -1,5 +1,6 @@
 // Public AI API: try Claude (if a key is configured), then Ollama, validate the output, fall back to heuristics.
-import type { Evaluation, InterviewPrep, Job, Locale, Profile, Settings, UpskillPlan } from "../types";
+import { COMPANY_TYPES, type CompanyType, type Evaluation, type InterviewPrep, type Job, type Locale, type Profile, type Settings, type UpskillPlan } from "../types";
+import { heuristicV2Fields, shapeRequirements } from "./eval-v2";
 import {
   computeSkillGaps,
   detectLanguage,
@@ -84,12 +85,16 @@ const stripFences = (md: string) => md.replace(/^\s*```[\w-]*\s*\n([\s\S]*?)\n\s
 // ---------- public API ----------
 export async function evaluateJob(job: Job, profile: Profile): Promise<Omit<Evaluation, "id" | "created_at">> {
   const locale = profile.settings.locale;
+  // Legitimacy, comp reliability and the deterministic defaults never come from the model.
+  const v2 = heuristicV2Fields(job, profile);
   const fromOllama = await tryOllama(profile.settings, evaluatePrompt(job, profile, locale), (raw, label) => {
     const r = obj(raw);
     if (r.global === undefined && r.match === undefined) throw new Error("missing scores");
     const global = score(r.global);
     const verdicts: Evaluation["verdict"][] = ["apply_now", "apply", "maybe", "skip"];
     const verdict = verdicts.includes(r.verdict as Evaluation["verdict"]) ? (r.verdict as Evaluation["verdict"]) : verdictFor(global);
+    const requirements = shapeRequirements(r.requirements, `${profile.skills.join(", ")}\n${profile.cv_md}`);
+    const cvChanges = strs(r.cv_changes, 5).map((s) => s.slice(0, 160));
     return {
       job_id: job.id,
       global,
@@ -104,9 +109,15 @@ export async function evaluateJob(job: Job, profile: Profile): Promise<Omit<Eval
       verdict,
       summary: text(r.summary).slice(0, 600),
       engine: label,
+      ...v2,
+      requirements: requirements.length ? requirements : v2.requirements,
+      archetype: text(r.archetype).slice(0, 40) || v2.archetype,
+      level_plan: text(r.level_plan).slice(0, 600) || v2.level_plan,
+      cv_changes: cvChanges.length ? cvChanges : v2.cv_changes,
+      company_type: (COMPANY_TYPES as readonly string[]).includes(String(r.company_type)) ? (r.company_type as CompanyType) : v2.company_type,
     };
   });
-  return fromOllama ?? { job_id: job.id, ...heuristicEvaluate(job, profile) };
+  return fromOllama ?? { job_id: job.id, ...heuristicEvaluate(job, profile), ...v2 };
 }
 
 async function markdownTask(settings: Settings, prompt: Prompt, fallback: () => string): Promise<{ md: string; engine: string }> {

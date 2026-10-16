@@ -1,7 +1,9 @@
 // Apply-assistant data access: saved form answers and the per-application
 // "pack" row (submission details + outcome + lesson).
-import { db, migrate } from "../db";
+import { db, kvGet, kvSet, migrate } from "../db";
+import { normalizeCompany } from "../company/normalize";
 import { isChannel, isOutcome, type Pack, type SavedAnswer } from "./types";
+import type { FormFields } from "./fields";
 
 export { CHANNELS, OUTCOMES, isChannel, isOutcome, type Channel, type Outcome, type Pack, type SavedAnswer } from "./types";
 
@@ -85,6 +87,23 @@ export function listPacks(): Map<number, Pack> {
   const rows = db().prepare("SELECT * FROM apply_packs").all() as Row[];
   return new Map(rows.map((r) => [r.application_id as number, rowToPack(r, r.application_id as number)]));
 }
+
+// ---------- repeat applications & form-field artifacts ----------
+/** Other applications to the same company submitted in the last `months` (repeat-application warning). */
+export function priorApplications(company: string, excludeAppId: number, months = 6): { n: number; last: string | null } {
+  const key = normalizeCompany(company);
+  if (!key) return { n: 0, last: null };
+  const since = new Date(Date.now() - months * 30 * 86_400_000).toISOString();
+  const rows = db()
+    .prepare("SELECT a.id, j.company, a.applied_at FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.applied_at IS NOT NULL AND a.applied_at >= ? AND a.id != ?")
+    .all(since, excludeAppId) as Row[];
+  const mine = rows.filter((r) => normalizeCompany(String(r.company)) === key).map((r) => String(r.applied_at)).sort();
+  return { n: mine.length, last: mine.at(-1) ?? null };
+}
+
+const fieldsKey = (appId: number) => `apply:fields:${appId}`;
+export const getFields = (appId: number) => kvGet<FormFields | null>(fieldsKey(appId), null);
+export const setFields = (appId: number, f: FormFields) => kvSet(fieldsKey(appId), f);
 
 export function setPack(appId: number, patch: Partial<Omit<Pack, "application_id">>): void {
   const n = { ...getPack(appId), ...patch };

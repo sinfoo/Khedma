@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import type { JobType } from "@/lib/types";
 import type { DetectedQuestion } from "@/lib/apply/questions";
-import { STEPS, type Pack, type SavedAnswer, type Step } from "@/lib/apply/types";
+import { STEPS, type ApplySafety, type Pack, type SavedAnswer, type Step } from "@/lib/apply/types";
+import type { FormFields } from "@/lib/apply/fields";
 import { Readiness, type Ready } from "./readiness";
 import { AnswersStep } from "./answers";
 import { OutreachStep } from "./outreach";
@@ -22,6 +23,8 @@ export interface WizardProps {
   pack: Pack;
   profile: { name: string };
   initialStep: Step;
+  safety: ApplySafety;
+  fields: FormFields | null;
 }
 
 export function ApplyWizard(p: WizardProps) {
@@ -60,12 +63,12 @@ export function ApplyWizard(p: WizardProps) {
       </nav>
 
       <div key={step} className="fade">
-        {step === "ready" && <Readiness id={p.id} jobId={p.job.id} ready={p.ready} />}
-        {step === "answers" && <AnswersStep id={p.id} questions={p.questions} saved={p.saved} />}
+        {step === "ready" && <Readiness id={p.id} jobId={p.job.id} ready={p.ready} safety={p.safety} company={p.job.company} />}
+        {step === "answers" && <AnswersStep id={p.id} questions={p.questions} saved={p.saved} fields={p.fields} hasCv={p.ready.cv || p.ready.hasProfileCv} />}
         {step === "outreach" && <OutreachStep id={p.id} contacts={p.contacts} />}
         {step === "submit" && (
           <SubmitStep id={p.id} job={p.job} pack={p.pack} answersCount={p.saved.filter((a) => a.answer.trim()).length} profile={p.profile}
-            contactEmail={p.contacts.find((c) => c.email)?.email ?? ""} hasLetter={p.ready.letter} />
+            contactEmail={p.contacts.find((c) => c.email)?.email ?? ""} hasLetter={p.ready.letter} safety={p.safety} />
         )}
       </div>
 

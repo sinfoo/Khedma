@@ -314,11 +314,12 @@ import shell from "./messages/shell";
 import discover from "./messages/discover";
 import company from "./messages/company";
 import apply from "./messages/apply";
+import about from "./messages/about";
 
 type CoreDict = DeepString<typeof en>;
 
 // Feature message modules, each owned by one area of the app and namespaced under its key.
-const MODULES = { landing2: landing, offers2: offers, apps2: apps, coach2: coach, profile2: profileMsgs, insights2: insights, sources2: sourcesMsgs, shell2: shell, discover2: discover, company2: company, apply2: apply };
+const MODULES = { landing2: landing, offers2: offers, apps2: apps, coach2: coach, profile2: profileMsgs, insights2: insights, sources2: sourcesMsgs, shell2: shell, discover2: discover, company2: company, apply2: apply, about2: about };
 type Modules = typeof MODULES;
 export type Dict = CoreDict & { [K in keyof Modules]: DeepString<Modules[K]["en"]> };
 

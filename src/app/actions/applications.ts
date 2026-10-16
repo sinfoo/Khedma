@@ -6,10 +6,19 @@ import { prepareInterview } from "@/lib/ai";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict, getLocale } from "@/lib/i18n/server";
+import { classifyReplyAI } from "@/lib/ai/reply";
+import { draftFollowup, isDraftVariant, type FollowupDraft } from "@/lib/ai/cadence";
+import { isReplyKind, MAX_REPLY_CHARS, type ReplyResult } from "@/lib/apps/reply";
 import {
   addReminder as repoAddReminder,
   applyStageChange,
+  cadenceFor,
+  COMPARE_DIMS,
   completeFollowups,
+  getCompareWeights,
+  setCompareWeights,
+  setRating,
+  type CompareDim,
   deleteContact as repoDeleteContact,
   deleteInterview as repoDeleteInterview,
   deleteReminder as repoDeleteReminder,
@@ -201,12 +210,112 @@ export async function draftMessage(
 
 export async function markMessageSent(id: number, type: string, subject: string): Promise<Result> {
   if (!exists(id)) return fail("notFound");
-  if (!isMessageType(type)) return fail("invalid");
+  if (!isMessageType(type) && !isDraftVariant(type)) return fail("invalid");
   const { t } = await getDict();
-  const label = t.apps2.messages.types[type as MessageType];
+  const label = isMessageType(type) ? t.apps2.messages.types[type as MessageType] : t.apps2.cadence.variants[type];
   logEvent(id, "followup", `${label}${subject.trim() ? ` · ${clamp(subject, 200)}` : ""}`);
-  if (type === "followup") completeFollowups(id);
+  if (type === "followup" || isDraftVariant(type)) completeFollowups(id);
   refresh();
+  return { ok: true };
+}
+
+/** Cadence-aware follow-up draft: first / second (new angle) / thank-you / reply / no-show. */
+export async function draftCadenceMessage(id: number, variant: string, opts: { contactId?: number | null; missedAt?: string | null }): Promise<Result<FollowupDraft>> {
+  if (!exists(id)) return fail("notFound");
+  if (!isDraftVariant(variant)) return fail("invalid");
+  const app = getApplication(id)!;
+  const job = getJob(app.job_id);
+  if (!job) return fail("notFound");
+  const contact = okId(opts?.contactId) ? listContacts(id).find((c) => c.id === opts.contactId) : undefined;
+  const cad = cadenceFor([{ id, status: app.status, applied_at: app.applied_at, company: job.company }]).get(id);
+  try {
+    const r = await draftFollowup(variant, {
+      job,
+      profile: getProfile(),
+      locale: await getLocale(),
+      contactName: contact?.name,
+      days: cad?.daysSince ?? 7,
+      appliedOn: app.applied_at?.slice(0, 10) ?? null,
+      missedAt: isDateTime(opts?.missedAt) ? opts.missedAt!.replace("T", " ") : null,
+    });
+    return { ok: true, ...r };
+  } catch {
+    return fail("generic");
+  }
+}
+
+// ---------- reply classifier ----------
+export async function classifyReply(id: number, text: string): Promise<Result<{ result: ReplyResult & { engine: string } }>> {
+  if (!exists(id)) return fail("notFound");
+  const body = clamp(text, 8000);
+  if (body.length < 10) return fail("invalid");
+  try {
+    return { ok: true, result: await classifyReplyAI(getProfile().settings, body) };
+  } catch {
+    return fail("generic");
+  }
+}
+
+export interface ApplyReplyForm {
+  kind: string;
+  stage: string | null;
+  date: string | null;
+  time: string | null;
+  link: string | null;
+  interviewer: string | null;
+  round: string | null;
+  text: string;
+}
+
+/** Apply a classified reply: log it, move the stage, create the interview when a date is known. */
+export async function applyReply(id: number, f: ApplyReplyForm): Promise<Result<{ moved: boolean; interview: boolean }>> {
+  if (!exists(id)) return fail("notFound");
+  if (!f || !isReplyKind(f.kind)) return fail("invalid");
+  const stage = f.stage ? (isState(f.stage) ? f.stage : null) : null;
+  if (f.stage && !stage) return fail("invalid");
+  const { t } = await getDict();
+  const kindLabel = t.apps2.reply.kinds[f.kind];
+  logEvent(id, "message", `${kindLabel}\n${clamp(f.text, MAX_REPLY_CHARS)}`);
+  let moved = false;
+  let interview = false;
+  const app = getApplication(id)!;
+  if (stage && stage !== app.status) {
+    const r = applyStageChange(id, stage, t.apps2.reminders.autoFollowup);
+    moved = !!r;
+  }
+  if (isDate(f.date) && (f.kind === "interview" || stage === "interview")) {
+    const starts = `${f.date}T${/^\d{2}:\d{2}$/.test(f.time ?? "") ? f.time : "10:00"}`;
+    const kind = isKind(f.round) ? f.round : "technical";
+    const link = f.link && /^https?:\/\//.test(f.link) ? clamp(f.link, 300) : "";
+    const notes = f.interviewer ? clamp(f.interviewer, 120) : "";
+    repoSaveInterview(id, { starts_at: starts, duration_min: 45, kind, location: link, notes, outcome: "" });
+    logEvent(id, "interview", `${t.apps2.interviews.kinds[kind]} · ${starts.replace("T", " ")}`);
+    const cur = getApplication(id)!;
+    if (!cur.next_action_at || cur.next_action_at > f.date) updateApplication(id, { next_action_at: f.date });
+    interview = true;
+  }
+  refresh();
+  return { ok: true, moved, interview };
+}
+
+// ---------- compare ----------
+export async function saveCompareWeights(w: Record<string, number>): Promise<Result> {
+  const out = { ...getCompareWeights() };
+  for (const k of COMPARE_DIMS) {
+    const v = Number(w?.[k]);
+    if (Number.isFinite(v)) out[k as CompareDim] = Math.min(100, Math.max(0, Math.round(v)));
+  }
+  setCompareWeights(out);
+  revalidatePath("/app/pipeline/compare");
+  return { ok: true };
+}
+
+export async function savePersonalRating(id: number, n: number): Promise<Result> {
+  if (!exists(id)) return fail("notFound");
+  const v = Math.round(Number(n));
+  if (!Number.isFinite(v) || v < 0 || v > 5) return fail("invalid");
+  setRating(id, v);
+  revalidatePath("/app/pipeline/compare");
   return { ok: true };
 }
 

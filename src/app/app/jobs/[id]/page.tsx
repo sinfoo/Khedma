@@ -5,7 +5,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Copy, ExternalLink, FileText, MapPin, Pencil, Sparkles, Wifi } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
-import { getJob, listJobs, withMeta } from "@/lib/db";
+import { getJob, getProfile, listJobs, withMeta } from "@/lib/db";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
+import { eligibilityGates, type Gate } from "@/lib/ai/gates";
+import { getTriageMarginals, latestEvaluationV2 } from "@/lib/repo/evaluations";
+import { EvaluationV2 } from "@/components/offers/evaluation-v2";
 import type { Evaluation, Locale } from "@/lib/types";
 import { CompanyAvatar, LinkTabs, Progress } from "@/components/kit";
 import { EngineChip, ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreLabel } from "@/components/ui";
@@ -165,7 +169,17 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
         </div>
       )}
 
-      {tab === "fit" && <FitTab jobId={job.id} ev={ev} t={t} locale={locale} />}
+      {tab === "fit" && (
+        <FitTab
+          jobId={job.id}
+          ev={latestEvaluationV2(job.id)}
+          appId={job.application?.id ?? null}
+          marginals={getTriageMarginals()}
+          gates={eligibilityGates(job, getProfile(), getProfileExtra().langs)}
+          t={t}
+          locale={locale}
+        />
+      )}
 
       {tab === "keywords" && (
         <section className="card p-6 rise" aria-labelledby="kw-h">
@@ -243,7 +257,7 @@ function KeywordReport({ ats, t }: { ats: ReturnType<typeof atsKeywords>; t: Dic
   );
 }
 
-function FitTab({ jobId, ev, t, locale }: { jobId: number; ev: Evaluation | null; t: Dict; locale: Locale }) {
+function FitTab({ jobId, ev, appId, marginals, gates, t, locale }: { jobId: number; ev: Evaluation | null; appId: number | null; marginals: boolean; gates: Gate[]; t: Dict; locale: Locale }) {
   const o = t.offers2;
   if (!ev)
     return (
@@ -290,6 +304,7 @@ function FitTab({ jobId, ev, t, locale }: { jobId: number; ev: Evaluation | null
           <Points title={o.gaps} items={ev.gaps} color="var(--saffron)" i={2} />
           <Points title={o.flags} items={ev.flags} color="var(--danger)" i={3} />
         </div>
+        <EvaluationV2 ev={ev} jobId={jobId} appId={appId} marginals={marginals} gates={gates} />
       </div>
       <section className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="hist-h">
         <h2 id="hist-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)" }}>{o.history}</h2>

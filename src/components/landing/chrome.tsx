@@ -9,13 +9,14 @@ export const GITHUB_URL = "https://github.com/sinfoo/Khedma";
 
 type Theme = "light" | "dark" | "system";
 
-export function LandingNav({ t, theme, current }: { t: Dict; theme: Theme; current?: "guide" }) {
+export function LandingNav({ t, theme, current }: { t: Dict; theme: Theme; current?: "guide" | "about" }) {
   const L = t.landing2.nav;
   const links = [
     { href: "/#how", label: L.how },
     { href: "/#features", label: L.features },
     { href: "/#privacy", label: L.privacy },
     { href: "/guide", label: L.guide, current: current === "guide" },
+    { href: "/about", label: t.about2.nav, current: current === "about" },
   ];
   const linkCls =
     "inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink aria-[current=page]:text-ink aria-[current=page]:bg-surface-2";
@@ -75,6 +76,11 @@ export function LandingFooter({ t }: { t: Dict }) {
             <li>
               <Link href="/guide" className="inline-flex min-h-10 items-center rounded-lg px-3 text-ink-2 hover:bg-surface-2 hover:text-ink">
                 {F.guide}
+              </Link>
+            </li>
+            <li>
+              <Link href="/about" className="inline-flex min-h-10 items-center rounded-lg px-3 text-ink-2 hover:bg-surface-2 hover:text-ink">
+                {t.about2.nav}
               </Link>
             </li>
             <li>

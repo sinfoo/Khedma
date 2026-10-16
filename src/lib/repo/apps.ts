@@ -1,6 +1,8 @@
 // Pipeline / application workspace data access. Pure helpers (stage effects,
 // checklist, stats, ICS) are exported separately so they can be unit-tested.
-import { db, getApplication, migrate } from "../db";
+import { db, getApplication, kvGet, kvSet, migrate } from "../db";
+import { companyLatency, computeCadence, type Cadence } from "../apps/cadence";
+import { COMPARE_DIMS, DEFAULT_WEIGHTS, type CompareDim } from "../apps/compare";
 import {
   APP_STATES,
   INTERVIEW_KINDS,
@@ -226,7 +228,7 @@ export function setExtras(appId: number, patch: Partial<Extras>): void {
 }
 
 // ---------- events ----------
-export type EventKind = "status" | "note" | "followup" | "doc" | "interview";
+export type EventKind = "status" | "note" | "followup" | "doc" | "interview" | "message";
 export function logEvent(appId: number, kind: EventKind, payload: string): number {
   const r = db().prepare("INSERT INTO events (application_id, kind, payload) VALUES (?,?,?)").run(appId, kind, payload);
   return Number(r.lastInsertRowid);
@@ -240,6 +242,73 @@ export function stageEnteredAt(): Map<number, string> {
 
 export function hasFollowupSent(appId: number): boolean {
   return !!db().prepare("SELECT 1 FROM events WHERE application_id = ? AND kind = 'followup' LIMIT 1").get(appId);
+}
+
+// ---------- follow-up cadence ----------
+const RESPONSE_STATES = new Set(["responded", "interview", "offer", "hired", "rejected"]);
+
+/**
+ * Cadence for many applications in three queries: follow-up events, last past interview,
+ * and the company's median days-to-first-answer ("this company usually answers in N days").
+ */
+export function cadenceFor(apps: { id: number; status: AppState; applied_at: string | null; company: string }[], now = new Date()): Map<number, Cadence> {
+  const d = db();
+  const entered = stageEnteredAt();
+  const followups = new Map<number, string[]>();
+  for (const r of d.prepare("SELECT application_id AS id, created_at AS at FROM events WHERE kind = 'followup'").all() as Row[])
+    followups.set(r.id as number, [...(followups.get(r.id as number) ?? []), r.at as string]);
+  const lastIv = new Map<number, string>();
+  for (const r of d.prepare("SELECT application_id AS id, MAX(starts_at) AS at FROM interviews WHERE starts_at <= ? GROUP BY application_id").all(now.toISOString().slice(0, 16)) as Row[])
+    lastIv.set(r.id as number, r.at as string);
+  // First response per application (status event in a response state, after applying).
+  const rows = d
+    .prepare(
+      `SELECT a.id, j.company, a.applied_at, (SELECT MIN(e.created_at) FROM events e WHERE e.application_id = a.id AND e.kind = 'status' AND e.payload IN ('responded','interview','offer','hired','rejected')) AS first
+       FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.applied_at IS NOT NULL`,
+    )
+    .all() as Row[];
+  const latency = companyLatency(rows.map((r) => ({ company: r.company as string, applied_at: r.applied_at as string, firstResponseAt: (r.first as string) ?? null })));
+  const out = new Map<number, Cadence>();
+  for (const a of apps)
+    out.set(
+      a.id,
+      computeCadence(
+        {
+          status: a.status,
+          applied_at: a.applied_at,
+          stageEnteredAt: entered.get(a.id) ?? null,
+          followups: followups.get(a.id) ?? [],
+          lastInterviewAt: lastIv.get(a.id) ?? null,
+          companyLatencyDays: RESPONSE_STATES.has(a.status) ? null : (latency.get(a.company.trim().toLowerCase()) ?? null),
+        },
+        now,
+      ),
+    );
+  return out;
+}
+
+// ---------- compare (kv) ----------
+export { COMPARE_DIMS, DEFAULT_WEIGHTS, type CompareDim };
+const WEIGHTS_KEY = "compare:weights";
+const RATINGS_KEY = "compare:ratings";
+
+export function getCompareWeights(): Record<CompareDim, number> {
+  const w = kvGet<Partial<Record<CompareDim, number>>>(WEIGHTS_KEY, {});
+  const out = { ...DEFAULT_WEIGHTS };
+  for (const k of COMPARE_DIMS) if (Number.isFinite(w[k])) out[k] = Math.min(100, Math.max(0, Math.round(Number(w[k]))));
+  return out;
+}
+export const setCompareWeights = (w: Record<CompareDim, number>) => kvSet(WEIGHTS_KEY, w);
+
+/** Personal 1–5 rating per application, 0 = unrated. */
+export function getRatings(): Record<number, number> {
+  return kvGet<Record<number, number>>(RATINGS_KEY, {});
+}
+export function setRating(appId: number, n: number): void {
+  const r = getRatings();
+  if (n) r[appId] = n;
+  else delete r[appId];
+  kvSet(RATINGS_KEY, r);
 }
 
 // ---------- stage changes ----------

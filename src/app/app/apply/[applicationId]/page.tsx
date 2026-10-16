@@ -6,7 +6,9 @@ import { getApplication, getJob, getProfile, latestEvaluation } from "@/lib/db";
 import { getCvSource } from "@/lib/cv/source";
 import { listContacts } from "@/lib/repo/apps";
 import { detectQuestions } from "@/lib/apply/questions";
-import { getPack, listAnswers } from "@/lib/apply/repo";
+import { getFields, getPack, listAnswers, priorApplications } from "@/lib/apply/repo";
+import { atsKind, knockouts } from "@/lib/apply/knockout";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { CompanyAvatar, PageHeader } from "@/components/kit";
 import { ScoreRing, StateChip, fmtDate, scoreLabel } from "@/components/ui";
 import { ApplyWizard } from "@/components/apply/wizard";
@@ -35,6 +37,12 @@ export default async function ApplyPage({ params, searchParams }: Props) {
   const saved = listAnswers(id);
   const pack = getPack(id);
   const step: Step = STEPS.includes(sp.step as Step) ? (sp.step as Step) : "ready";
+  const cvSource = getCvSource();
+  const safety = {
+    knockouts: knockouts(job, profile, getProfileExtra(), app.cv_md?.trim() || cvSource.text || profile.cv_md),
+    repeat: priorApplications(job.company, id),
+    ats: atsKind(job.url),
+  };
 
   return (
     <>
@@ -69,7 +77,7 @@ export default async function ApplyPage({ params, searchParams }: Props) {
           contact: contacts[0]?.name ?? null,
           deadline: job.deadline,
           manual: !/^https?:\/\//i.test(job.url),
-          hasProfileCv: getCvSource().text.trim().length >= 50,
+          hasProfileCv: cvSource.text.trim().length >= 50,
           savedAnswers: saved.filter((a) => a.answer.trim()).length,
         }}
         contacts={contacts}
@@ -78,6 +86,8 @@ export default async function ApplyPage({ params, searchParams }: Props) {
         pack={pack}
         profile={{ name: profile.name }}
         initialStep={step}
+        safety={safety}
+        fields={getFields(id)}
       />
     </>
   );

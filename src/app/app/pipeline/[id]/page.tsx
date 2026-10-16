@@ -9,6 +9,7 @@ import type { AppEvent, AppState, InterviewPrep, Locale } from "@/lib/types";
 import { getCvSource } from "@/lib/cv/source";
 import { atsCheck, cvBase, type MessageType } from "@/lib/ai/apps";
 import {
+  cadenceFor,
   computeChecklist,
   getExtras,
   listContacts,
@@ -26,6 +27,8 @@ import { Checklist, NotesCard } from "@/components/pipeline/overview";
 import { SourceBar } from "@/components/pipeline/documents";
 import { CvDropzone } from "@/components/pipeline/dropzone";
 import { MessagesPanel } from "@/components/pipeline/messages";
+import { ReplyClassifier } from "@/components/pipeline/reply-classifier";
+import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
 import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
@@ -97,6 +100,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
   const suggested: MessageType =
     app.status === "evaluated" ? "recruiter" : app.status === "interview" ? "thanks" : app.status === "offer" ? "negotiate" : app.status === "hired" ? "accept" : "followup";
+  const cadence = toView(cadenceFor([{ id: app.id, status: app.status, applied_at: app.applied_at, company: job.company }], now).get(app.id));
 
   return (
     <>
@@ -109,6 +113,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         jobId={job.id}
         postingUrl={/^https?:\/\//.test(job.url) ? job.url : null}
       />
+      <CadenceBanner id={app.id} c={cadence} t={t} locale={locale} />
 
       <LinkTabs
         label={a.ws.tabsLabel}
@@ -233,13 +238,16 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       )}
 
       {tab === "messages" && (
-        <div className="rise" style={{ ["--i" as string]: 1 }}>
+        <div className="space-y-5 rise" style={{ ["--i" as string]: 1 }}>
           <MessagesPanel
             id={app.id}
             contacts={contacts.map((c) => ({ id: c.id, name: c.name, email: c.email }))}
             defaultDays={app.applied_at ? Math.max(1, daysSince(app.applied_at, nowMs)) : 7}
             suggested={suggested}
+            cadence={cadence}
+            initialDraft={typeof sp.draft === "string" ? sp.draft : undefined}
           />
+          <ReplyClassifier id={app.id} currentStatus={app.status} />
         </div>
       )}
 
@@ -326,6 +334,7 @@ function eventText(e: AppEvent, t: Dict): string {
   if (e.kind === "doc") return l.docs[e.payload as keyof typeof l.docs] ?? e.payload;
   if (e.kind === "followup") return fmt(l.sent, { x: e.payload });
   if ((e.kind as string) === "interview") return fmt(l.interview, { x: e.payload });
+  if (e.kind === "message") return e.payload.split("\n")[0] + (e.payload.includes("\n") ? ` · ${e.payload.slice(e.payload.indexOf("\n") + 1, e.payload.indexOf("\n") + 161).replace(/\s+/g, " ")}${e.payload.length > 160 ? "…" : ""}` : "");
   return e.payload;
 }
 

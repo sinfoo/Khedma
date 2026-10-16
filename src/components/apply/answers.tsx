@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Loader2, Minus, Plus, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import { Check, Copy, Loader2, Minus, Plus, RefreshCw, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { EngineChip } from "@/components/ui";
 import { useRun } from "@/components/pipeline/use-run";
-import { DEFAULT_MAX, MAX_LIMIT, MIN_LIMIT, QUESTION_LABEL, isQuestionId, type DetectedQuestion } from "@/lib/apply/questions";
+import { DEFAULT_MAX, MAX_LIMIT, MIN_LIMIT, QUESTION_LABEL, isQuestionId, isSensitiveQuestion, type DetectedQuestion } from "@/lib/apply/questions";
 import type { SavedAnswer } from "@/lib/apply/types";
+import type { FormFields } from "@/lib/apply/fields";
 import { generateFormAnswers, removeFormAnswer, saveFormAnswer } from "@/app/actions/apply";
+import { BankPanel } from "./bank";
+import { FieldsSection } from "./fields";
 
 type Draft = Pick<SavedAnswer, "qid" | "question" | "answer" | "max_chars" | "engine">;
 
-export function AnswersStep({ id, questions, saved }: { id: number; questions: DetectedQuestion[]; saved: SavedAnswer[] }) {
+export function AnswersStep({ id, questions, saved, fields, hasCv }: { id: number; questions: DetectedQuestion[]; saved: SavedAnswer[]; fields: FormFields | null; hasCv: boolean }) {
   const { t, locale } = useT();
   const a = t.apply2.answers;
+  const sf = t.apply2.safety;
   const [selected, setSelected] = useState<Set<string>>(() => new Set([...questions.filter((q) => q.selected).map((q) => q.id), ...saved.filter((s) => isQuestionId(s.qid)).map((s) => s.qid)]));
   const [custom, setCustom] = useState<string[]>(() => saved.filter((s) => !isQuestionId(s.qid)).map((s) => s.question));
   const [customInput, setCustomInput] = useState("");
@@ -40,8 +44,13 @@ export function AnswersStep({ id, questions, saved }: { id: number; questions: D
   return (
     <div className="space-y-5">
       <section className="card p-5 rise" aria-labelledby="qs-h">
-        <h2 id="qs-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{a.title}</h2>
-        <p className="mb-4 text-sm text-muted">{a.lead}</p>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 id="qs-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{a.title}</h2>
+            <p className="text-sm text-muted">{a.lead}</p>
+          </div>
+          <BankPanel />
+        </div>
         <fieldset>
           <legend className="sr-only">{a.title}</legend>
           <ul className="grid gap-1.5 sm:grid-cols-2">
@@ -52,6 +61,7 @@ export function AnswersStep({ id, questions, saved }: { id: number; questions: D
                   <span className="min-w-0">
                     <span className="block text-sm font-medium">{QUESTION_LABEL[locale][q.id]}</span>
                     {q.detected && <span className="chip chip-saffron mt-1 !py-0 text-[0.7rem]">{a.detected}</span>}
+                    {q.sensitive && <span className="chip mt-1 !py-0 text-[0.7rem]"><ShieldAlert size={10} aria-hidden="true" /> {sf.sensitive}</span>}
                   </span>
                 </label>
               </li>
@@ -109,6 +119,8 @@ export function AnswersStep({ id, questions, saved }: { id: number; questions: D
             busy={gen} />
         ))}
       </div>
+
+      <FieldsSection id={id} initial={fields} hasCv={hasCv} />
     </div>
   );
 }
@@ -124,14 +136,24 @@ function AnswerCard({ id, draft, i, onRegen, onRemove, busy }: { id: number; dra
   if (!dirty && text !== draft.answer) setText(draft.answer); // regenerated upstream
   const over = text.length > draft.max_chars;
   const tid = `ans-${draft.qid.replace(/[^\w-]/g, "")}`;
+  const sensitive = isSensitiveQuestion(draft.qid, draft.question);
+  const unfilled = sensitive && /\[[^\]]+\]/.test(text);
+  const sf = t.apply2.safety;
   return (
-    <article className="card p-4 rise" style={{ ["--i" as string]: i }} aria-labelledby={`${tid}-h`}>
+    <article className={`card p-4 rise ${sensitive ? "border-saffron/50" : ""}`} style={{ ["--i" as string]: i }} aria-labelledby={`${tid}-h`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${tid}-h`} className="text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{draft.question}</h3>
-        <EngineChip engine={draft.engine === "edited" ? "heuristic" : draft.engine} t={t} />
+        <span className="flex flex-wrap items-center gap-1.5">
+          {draft.engine === "bank" && <span className="chip chip-accent">{sf.reused}</span>}
+          {draft.engine === "profile" && <span className="chip chip-success">{sf.fromProfile}</span>}
+          {sensitive && <span className={`chip ${unfilled ? "chip-saffron" : ""}`}><ShieldAlert size={12} aria-hidden="true" /> {unfilled ? sf.confirm : sf.sensitive}</span>}
+          {!["bank", "profile"].includes(draft.engine) && <EngineChip engine={draft.engine === "edited" ? "heuristic" : draft.engine} t={t} />}
+        </span>
       </div>
+      {sensitive && <p id={`${tid}-s`} className="mb-2 rounded-lg bg-saffron-soft px-3 py-2 text-xs text-ink-2">{sf.sensitiveHint}</p>}
       <label className="sr-only" htmlFor={tid}>{draft.question}</label>
-      <textarea id={tid} className="input min-h-28 w-full resize-y text-sm leading-relaxed" value={text} aria-invalid={over || undefined} aria-describedby={`${tid}-c`}
+      <textarea id={tid} className="input min-h-28 w-full resize-y text-sm leading-relaxed" value={text} aria-invalid={over || unfilled || undefined} aria-required={sensitive || undefined}
+        aria-describedby={sensitive ? `${tid}-s ${tid}-c` : `${tid}-c`}
         onChange={(e) => { setText(e.target.value); setDirty(true); }} />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span id={`${tid}-c`} className={`text-xs tabular ${over ? "text-danger" : "text-muted"}`}>

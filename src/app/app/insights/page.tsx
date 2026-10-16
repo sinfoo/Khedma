@@ -6,6 +6,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { getInsights } from "@/lib/repo/insights";
 import { EmptyState, LinkTabs, PageHeader, Stat } from "@/components/kit";
 import { Bars, ChartCard, HBars } from "@/components/insights/charts";
+import { BenchmarksCard, BlockersCard, CalibrationCard, OutcomesCard, SilentCard } from "@/components/insights/calibration";
 import { scoreColor } from "@/components/ui";
 import type { JobType, SourceKind } from "@/lib/types";
 
@@ -240,6 +241,13 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             <p className="text-sm text-muted">{m.noData}</p>
           )}
         </ChartCard>
+
+        <CalibrationCard t={t} bands={d.calibration.bands} verdict={d.calibration.verdict} n={d.calibration.n} i={14} />
+        <BenchmarksCard t={t} you={d.you} dayUnit={locale === "fr" ? "j" : "d"} i={15} />
+        <SilentCard t={t} silent={d.silent} i={16} />
+        <BlockersCard t={t} blockers={d.blockers} i={17} />
+        <OutcomesCard t={t} id="out-source" title={t.insights2.calib.bySource} rows={d.bySourceOutcome} name={srcName} i={18} />
+        <OutcomesCard t={t} id="out-field" title={t.insights2.calib.byField} rows={d.byFieldOutcome} name={(k) => t.insights2.calib.fields[k as keyof typeof t.insights2.calib.fields] ?? k} i={19} />
       </div>
     </>
   );

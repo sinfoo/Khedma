@@ -4,7 +4,7 @@ import { scoreColor } from "@/components/ui";
 import type { Dict } from "@/lib/i18n/dict";
 import { DIMS, type Scores } from "@/lib/coach/logic";
 
-export function CoachTabs({ t, current }: { t: Dict; current: "practice" | "stories" | "drill" }) {
+export function CoachTabs({ t, current }: { t: Dict; current: "practice" | "stories" | "drill" | "debrief" }) {
   const c = t.coach2.tabs;
   return (
     <LinkTabs
@@ -14,6 +14,7 @@ export function CoachTabs({ t, current }: { t: Dict; current: "practice" | "stor
         { key: "practice", href: "/app/coach", label: c.practice },
         { key: "stories", href: "/app/coach/stories", label: c.stories },
         { key: "drill", href: "/app/coach/drill", label: c.drill },
+        { key: "debrief", href: "/app/coach/debrief", label: c.debrief },
       ]}
     />
   );
