@@ -6,6 +6,7 @@ import { prepareInterview } from "@/lib/ai";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict, getLocale } from "@/lib/i18n/server";
+import { listDebriefs } from "@/lib/repo/coach";
 import { classifyReplyAI } from "@/lib/ai/reply";
 import { draftFollowup, isDraftVariant, type FollowupDraft } from "@/lib/ai/cadence";
 import { isReplyKind, MAX_REPLY_CHARS, type ReplyResult } from "@/lib/apps/reply";
@@ -201,7 +202,10 @@ export async function draftMessage(
   const days = Math.min(90, Math.max(1, Math.round(Number(opts?.days) || 7)));
   const contact = okId(opts?.contactId) ? listContacts(id).find((c) => c.id === opts.contactId) : undefined;
   try {
-    const r = await generateMessage(type, { job, profile: getProfile(), locale: await getLocale(), contactName: contact?.name, days });
+    // thank-you notes cite what went well in the latest debrief of this application
+    const db = type === "thanks" ? listDebriefs(100).find((x) => x.application_id === id) : undefined;
+    const topics = db ? [...db.questions.filter((q) => q.rating === "green").map((q) => q.competency || q.question), ...db.competencies].filter(Boolean).slice(0, 3) : undefined;
+    const r = await generateMessage(type, { job, profile: getProfile(), locale: await getLocale(), contactName: contact?.name, days, topics });
     return { ok: true, ...r };
   } catch {
     return fail("generic");

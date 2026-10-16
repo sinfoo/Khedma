@@ -24,7 +24,7 @@ export function CoachTabs({ t, current }: { t: Dict; current: "practice" | "stor
 export function DimBars({ scores, t }: { scores: Scores; t: Dict }) {
   return (
     <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
-      {DIMS.map((d) => (
+      {DIMS.filter((d) => Number.isFinite(scores[d])).map((d) => (
         <div key={d} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1">
           <dt className="text-xs font-medium text-ink-2">{t.coach2.dims[d]}</dt>
           <dd className="mono text-xs font-semibold" style={{ color: scoreColor(scores[d]) }}>
@@ -39,14 +39,14 @@ export function DimBars({ scores, t }: { scores: Scores; t: Dict }) {
   );
 }
 
-/** Four-axis radar (decorative) next to a real table that carries the numbers. */
+/** Radar (decorative) next to a real table that carries the numbers. */
 export function DimRadar({ scores, t }: { scores: Scores; t: Dict }) {
   const R = 68;
   const CX = 150;
   const CY = 105;
-  // structure top, relevance right, specificity bottom, communication left
+  // first dimension on top, then clockwise
   const pt = (i: number, v: number) => {
-    const a = -Math.PI / 2 + (i * Math.PI) / 2;
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / DIMS.length;
     return [CX + Math.cos(a) * R * (v / 5), CY + Math.sin(a) * R * (v / 5)] as const;
   };
   const poly = DIMS.map((d, i) => pt(i, scores[d]).join(",")).join(" ");
@@ -67,8 +67,9 @@ export function DimRadar({ scores, t }: { scores: Scores; t: Dict }) {
         })}
         {DIMS.map((d, i) => {
           const [x, y] = pt(i, 5.45);
+          const dx = x - CX;
           return (
-            <text key={d} x={x} y={i === 0 ? y : i === 2 ? y + 9 : y + 3.5} textAnchor={i === 1 ? "start" : i === 3 ? "end" : "middle"} fontSize="10" fontWeight="600" fill="var(--muted)">
+            <text key={d} x={x} y={y > CY + 1 ? y + 9 : y < CY - R ? y : y + 3.5} textAnchor={dx > 1 ? "start" : dx < -1 ? "end" : "middle"} fontSize="10" fontWeight="600" fill="var(--muted)">
               {t.coach2.dims[d]}
             </text>
           );

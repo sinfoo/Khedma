@@ -6,7 +6,7 @@ import { TRACKS } from "./bank";
 export const KINDS = ["hr", "technical", "mixed"] as const;
 export type Kind = (typeof KINDS)[number];
 export const LENGTHS = [5, 8, 12] as const;
-export const DIMS = ["structure", "relevance", "specificity", "communication"] as const;
+export const DIMS = ["structure", "relevance", "specificity", "communication", "credibility", "differentiation"] as const;
 export type Dim = (typeof DIMS)[number];
 export type Scores = Record<Dim, number>;
 
@@ -170,7 +170,9 @@ export type TipCode =
   | "add_definition"
   | "cover_hint"
   | "link_posting"
-  | "add_steps";
+  | "add_steps"
+  | "add_proof"
+  | "be_distinct";
 export interface Tip {
   code: TipCode;
   detail?: string;
@@ -190,6 +192,8 @@ export interface AnswerSignals {
   covered: string[];
   missed: string[];
   postingHits: string[];
+  cvHits: string[];
+  cliches: string[];
 }
 
 export interface AnswerScore {
@@ -217,6 +221,8 @@ const RE = {
   definition: /\b(c['’]est|désigne|consiste|signifie|permet de|is a|is an|means|refers to|is the|are the|est un|est une|sont des)\b/iu,
   example: /\b(par exemple|exemple|for example|for instance|e\.g\.|such as|comme|like when|imaginons|imagine|dans mon projet|in my project|j['’]ai utilisé|i used)\b/iu,
   tradeoff: /\b(mais|cependant|en revanche|par contre|inconvénient|avantage|compromis|alors que|tandis que|dépend|however|but|whereas|trade-?off|drawback|advantage|downside|on the other hand|depends|instead|plutôt que|rather than|versus|vs)\b/iu,
+  cliches:
+    /\b(passionn[ée]e?s?|passionate|hard[- ]?working|travailleur|team player|esprit d['’]équipe|perfectionniste?|perfectionist|motiv[ée]e?|motivated|dynamique|dynamic|rigoureu(?:x|se)|detail[- ]oriented|curieu(?:x|se)|fast learner|j['’]apprends vite|polyvalente?|go-getter|think outside the box)\b/giu,
   steps: /\b(d['’]abord|premièrement|ensuite|puis|enfin|finalement|first|firstly|then|next|after that|finally|step|étape|1[.)]|2[.)])/giu,
 };
 
@@ -242,6 +248,8 @@ export function scoreAnswer(input: {
   question: Pick<SessionQuestion, "text" | "type" | "hints">;
   postingSkills?: string[];
   skillsIn?: (text: string) => string[];
+  /** Candidate-specific terms (CV projects, employers, skills): naming them is what makes an answer only yours. */
+  cvTerms?: string[];
 }): AnswerScore {
   const answer = input.answer.trim();
   const type = input.question.type;
@@ -270,11 +278,14 @@ export function scoreAnswer(input: {
   const postingHits = (input.postingSkills ?? []).filter((s) => skills.some((x) => x.toLowerCase() === s.toLowerCase()));
   const hintRatio = input.question.hints.length ? covered.length / input.question.hints.length : qHit;
 
-  const signals: AnswerSignals = { words, sentences, star, numbers, skills, actionVerbs, iCount, weCount, fillers, hedges, covered, missed, postingHits };
+  const lower = answer.toLowerCase();
+  const cvHits = [...new Set((input.cvTerms ?? []).map((x) => x.trim()).filter((x) => x.length >= 3 && lower.includes(x.toLowerCase())))];
+  const cliches = [...new Set(answer.match(new RegExp(RE.cliches.source, "giu"))?.map((c) => c.toLowerCase()) ?? [])];
+  const signals: AnswerSignals = { words, sentences, star, numbers, skills, actionVerbs, iCount, weCount, fillers, hedges, covered, missed, postingHits, cvHits, cliches };
 
   if (words < 5) {
     return {
-      scores: { structure: 1, relevance: 1, specificity: 1, communication: 1 },
+      scores: { structure: 1, relevance: 1, specificity: 1, communication: 1, credibility: 1, differentiation: 1 },
       overall: 1,
       signals,
       tips: [{ code: "empty" }],
@@ -318,13 +329,25 @@ export function scoreAnswer(input: {
   const avgSentence = words / sentences;
   if (avgSentence > 32) communication -= 0.8;
 
+  // credibility: is it believable? Own actions ("I" over "we"), a checkable result, no hedging.
+  const owns = iCount >= weCount ? 1 : weCount > Math.max(2, iCount * 1.5) ? 0 : 0.5;
+  let credibility = 1.2 + owns + (actionVerbs > 0 ? 0.8 : 0) + (star.r ? 0.8 : 0) + Math.min(1, numbers * 0.5) - Math.min(1.2, hedges * 0.4);
+  if (type === "technical") credibility += (hasEx ? 0.6 : 0) + (hasTrade ? 0.4 : 0);
+
+  // differentiation: could only this candidate say it? CV-specific names and figures beat clichés.
+  // ponytail: substring match on CV terms; an embedding check would catch paraphrases.
+  const differentiation =
+    1.2 + Math.min(2.2, cvHits.length * 1.1) + (numbers > 0 ? 0.5 : 0) + Math.min(0.6, skills.length * 0.2) + (actionVerbs > 1 ? 0.4 : 0) - Math.min(1.5, cliches.length * 0.5);
+
   const scores: Scores = {
     structure: clamp15(structure),
     relevance: clamp15(relevance),
     specificity: clamp15(specificity),
     communication: clamp15(communication),
+    credibility: clamp15(credibility),
+    differentiation: clamp15(differentiation),
   };
-  const overall = round1((scores.structure + scores.relevance + scores.specificity + scores.communication) / 4);
+  const overall = round1(DIMS.reduce((a, d) => a + scores[d], 0) / DIMS.length);
 
   // tips, most useful first
   const tips: Tip[] = [];
@@ -339,6 +362,8 @@ export function scoreAnswer(input: {
     tips.push(...star.slice(0, 2));
     if (weCount > Math.max(2, iCount * 1.5)) tips.push({ code: "use_i" });
   }
+  if (scores.credibility < 3 && type !== "technical") tips.push({ code: "add_proof" });
+  if (scores.differentiation < 3) tips.push({ code: "be_distinct" });
   if (type === "technical") {
     if (!hasDef) tips.push({ code: "add_definition" });
     if (!hasEx) tips.push({ code: "add_example" });
@@ -353,7 +378,7 @@ export function scoreAnswer(input: {
   if (avgSentence > 32) tips.push({ code: "long_sentences" });
   if (words > hi + 60) tips.push({ code: "too_long" });
 
-  return { scores, overall, signals, tips: tips.slice(0, 6) };
+  return { scores, overall, signals, tips: tips.slice(0, 8) };
 }
 
 const TIP_TEXT: Record<TipCode, Record<Lang, string>> = {
@@ -374,6 +399,14 @@ const TIP_TEXT: Record<TipCode, Record<Lang, string>> = {
   add_definition: { en: "Start with a crisp one-sentence definition before the details.", fr: "Commencez par une définition claire en une phrase avant les détails." },
   cover_hint: { en: "You did not address: {d}.", fr: "Point non abordé : {d}." },
   link_posting: { en: "Connect your answer to the posting's skills ({d}).", fr: "Reliez votre réponse aux compétences de l'offre ({d})." },
+  add_proof: {
+    en: "Make it believable: say what you personally did and give a result someone could check.",
+    fr: "Rendez-la crédible : dites ce que vous avez fait vous-même et donnez un résultat vérifiable.",
+  },
+  be_distinct: {
+    en: "Make it yours: name a project, a decision or a figure from your CV instead of generic qualities.",
+    fr: "Rendez-la unique : citez un projet, une décision ou un chiffre de votre CV plutôt que des qualités génériques.",
+  },
   add_steps: { en: "Lay out your approach as ordered steps: first…, then…, finally….", fr: "Présentez votre démarche en étapes ordonnées : d'abord…, ensuite…, enfin…." },
 };
 
@@ -416,16 +449,21 @@ export function storyStrength(input: StoryInput): { score: number; gaps: StoryGa
   return { score: Math.round(Math.min(100, score)), gaps };
 }
 
+/** Keyword overlap between a story and a question; tags and skills count double. */
+export function storyFit(s: StoryInput, qText: string): number {
+  const qs = new Set(stems(qText));
+  const tagHits = [...s.tags, ...s.skills].filter((t) => stems(t).some((w) => qs.has(w))).length * 2;
+  const body = new Set(stems(`${s.title} ${s.situation} ${s.task} ${s.action} ${s.result}`));
+  return [...body].filter((w) => qs.has(w)).length + tagHits;
+}
+
 /** Best matching story for a question (keyword overlap), or null under a minimal threshold. */
 export function matchStory<T extends StoryInput & { id: number }>(stories: readonly T[], q: Pick<SessionQuestion, "text" | "hints" | "type">): T | null {
   if (q.type !== "behavioral" && q.type !== "situational") return null;
-  const qs = new Set(stems(`${q.text} ${q.hints.join(" ")}`));
   let best: T | null = null;
   let bestScore = 0;
   for (const s of stories) {
-    const tagHits = [...s.tags, ...s.skills].filter((t) => stems(t).some((w) => qs.has(w))).length * 2;
-    const body = new Set(stems(`${s.title} ${s.situation} ${s.task} ${s.action} ${s.result}`));
-    const hits = [...body].filter((w) => qs.has(w)).length + tagHits;
+    const hits = storyFit(s, `${q.text} ${q.hints.join(" ")}`);
     if (hits > bestScore) {
       bestScore = hits;
       best = s;
@@ -433,6 +471,84 @@ export function matchStory<T extends StoryInput & { id: number }>(stories: reado
   }
   return bestScore >= 2 ? best : null;
 }
+
+export interface StoryMap<T> {
+  rows: { question: string; story: T | null; fit: number; reused: boolean }[];
+  /** Questions no story fits: write a story or prepare a direct answer. */
+  gaps: string[];
+  /** Stories that fit no question. */
+  unused: T[];
+}
+
+/**
+ * Story portfolio for one interview: strongest (question, story) pairs first, each story used once;
+ * a story is reused only when nothing else fits (flagged so the candidate prepares a variant).
+ */
+export function mapStories<T extends StoryInput & { id: number }>(stories: readonly T[], questions: readonly string[], minFit = 2): StoryMap<T> {
+  const pairs = questions.flatMap((q, qi) => stories.map((s) => ({ qi, s, fit: storyFit(s, q) }))).filter((p) => p.fit >= minFit);
+  pairs.sort((a, b) => b.fit - a.fit || a.qi - b.qi);
+  const chosen = new Map<number, { s: T; fit: number; reused: boolean }>();
+  const used = new Set<number>();
+  for (const p of pairs) {
+    if (chosen.has(p.qi) || used.has(p.s.id)) continue;
+    chosen.set(p.qi, { s: p.s, fit: p.fit, reused: false });
+    used.add(p.s.id);
+  }
+  for (const p of pairs) if (!chosen.has(p.qi)) chosen.set(p.qi, { s: p.s, fit: p.fit, reused: true });
+  const rows = questions.map((question, qi) => {
+    const c = chosen.get(qi);
+    return { question, story: c?.s ?? null, fit: c?.fit ?? 0, reused: c?.reused ?? false };
+  });
+  return { rows, gaps: rows.filter((r) => !r.story).map((r) => r.question), unused: stories.filter((s) => !used.has(s.id)) };
+}
+
+// ---------- interview transcript ----------
+export interface TranscriptTurn {
+  question: string;
+  answer: string;
+}
+const SPEAKER = /^\s*(?:\[[\d:.\s]+\]\s*)?([\p{L}][\p{L} .'’-]{0,30}?)\s*(?:\([^)]*\))?\s*[:：]\s*(.*)$/u;
+const INTERVIEWER = /^(q|question|interviewer|intervieweur|recruiter|recruteur|recruteuse|rh|hr|manager|jury)$/i;
+const CANDIDATE = /^(a|r|answer|réponse|reponse|me|moi|candidate|candidat|candidate|you|vous)$/i;
+
+/**
+ * Split a pasted interview transcript into question/answer turns.
+ * Understands "Interviewer:/Me:", "Q:/A:" and named speakers (whoever speaks first is the interviewer).
+ * ponytail: two-speaker heuristic; a panel is merged into one interviewer.
+ */
+export function parseTranscript(text: string): TranscriptTurn[] {
+  const blocks: { who: "i" | "c"; text: string }[] = [];
+  let first: string | null = null;
+  for (const raw of text.replace(/\r/g, "").split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    const m = line.match(SPEAKER);
+    const last = blocks[blocks.length - 1];
+    if (!m) {
+      if (last) last.text += (last.text ? " " : "") + line;
+      else blocks.push({ who: "i", text: line });
+      continue;
+    }
+    const name = m[1].trim();
+    first ??= name;
+    const who = INTERVIEWER.test(name) ? "i" : CANDIDATE.test(name) ? "c" : name.toLowerCase() === first.toLowerCase() ? "i" : "c";
+    const body = m[2].trim();
+    if (last && last.who === who) last.text += (last.text && body ? " " : "") + body;
+    else blocks.push({ who, text: body });
+  }
+  const turns: TranscriptTurn[] = [];
+  for (const b of blocks) {
+    if (b.who === "i") turns.push({ question: b.text, answer: "" });
+    else if (turns.length) {
+      const t = turns[turns.length - 1];
+      t.answer += (t.answer ? " " : "") + b.text;
+    }
+  }
+  return turns.filter((t) => t.question && t.answer);
+}
+
+/** Debrief rating from a rubric overall (1–5). */
+export const ratingFor = (overall: number): "red" | "yellow" | "green" => (overall >= 3.6 ? "green" : overall >= 2.6 ? "yellow" : "red");
 
 // ---------- spaced repetition (Leitner boxes 1..5) ----------
 export type DrillGrade = "knew" | "partial" | "no";
@@ -484,7 +600,11 @@ export interface ScoredAnswer {
 export function aggregate(answers: readonly ScoredAnswer[]) {
   const scored = answers.filter((a) => !a.skipped && a.scores && a.overall !== null);
   const dims = Object.fromEntries(
-    DIMS.map((d) => [d, scored.length ? round1(scored.reduce((s, a) => s + a.scores![d], 0) / scored.length) : 0]),
+    DIMS.map((d) => {
+      // rows scored before a dimension existed don't have it
+      const xs = scored.map((a) => a.scores![d]).filter((v) => Number.isFinite(v));
+      return [d, xs.length ? round1(xs.reduce((s, v) => s + v, 0) / xs.length) : 0];
+    }),
   ) as Scores;
   const overall = scored.length ? round1(scored.reduce((s, a) => s + a.overall!, 0) / scored.length) : null;
   const sorted = scored.slice().sort((a, b) => b.overall! - a.overall! || a.idx - b.idx);

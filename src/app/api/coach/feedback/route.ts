@@ -4,7 +4,7 @@
 import { getApplication, getJob, getProfile } from "@/lib/db";
 import { aiStreamResponse } from "@/lib/ai";
 import { extractSkills } from "@/lib/ai/heuristic";
-import { feedbackMessages, heuristicFeedback, postingSkills } from "@/lib/ai/coach";
+import { cvTerms, feedbackMessages, heuristicFeedback, postingSkills } from "@/lib/ai/coach";
 import { scoreAnswer } from "@/lib/coach/logic";
 import { getSession, saveAnswer, setFeedback } from "@/lib/repo/coach";
 
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   const app = session.application_id ? getApplication(session.application_id) : null;
   const job = app ? getJob(app.job_id) : null;
   const profile = getProfile();
-  const result = scoreAnswer({ answer, question, postingSkills: postingSkills(job), skillsIn: extractSkills });
+  const result = scoreAnswer({ answer, question, postingSkills: postingSkills(job), skillsIn: extractSkills, cvTerms: cvTerms(profile) });
   saveAnswer(session.id, { idx, question_id: question.id, answer, seconds, skipped: false, scores: result.scores, overall: result.overall, tips: result.tips });
 
   const ctx = { question, answer, lang: session.lang, job, profile, result };

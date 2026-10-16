@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { DEBRIEF_ROUNDS, RATINGS, type DebriefRound, type Rating } from "@/lib/ai/debrief";
+import { parseTranscript, ratingFor, scoreAnswer, type SessionQuestion } from "@/lib/coach/logic";
 import { deleteDebriefAction, saveDebrief } from "@/app/actions/coach";
 
 export interface DebriefAppOption {
@@ -22,6 +23,16 @@ interface Q {
   notes: string;
   competency: string;
 }
+
+// ponytail: keyword guess of the question type; the rubric only needs it to pick STAR vs definition/example checks
+const guessType = (q: string): SessionQuestion["type"] =>
+  /tell me about a time|give (?:me )?an example|describe a situation|racontez|un exemple|décrivez une situation|une fois où/i.test(q)
+    ? "behavioral"
+    : /what is|what's the difference|explain|how does|how would you implement|qu['’]est-ce|différence|expliquez|comment fonctionne|comment implémenter/i.test(q)
+      ? "technical"
+      : /what would you do|que feriez-vous|imagine/i.test(q)
+        ? "situational"
+        : "motivation";
 
 const RATING_UI: Record<Rating, { glyph: string; cls: string }> = {
   red: { glyph: "🔴", cls: "has-[:checked]:border-danger has-[:checked]:bg-danger-soft" },
@@ -43,6 +54,19 @@ export function DebriefForm({ apps, preselect, round: initialRound }: { apps: De
   const [competencies, setCompetencies] = useState("");
   const [qs, setQs] = useState<Q[]>([{ question: "", rating: "yellow", notes: "", competency: "" }]);
   const [retracted, setRetracted] = useState<string[]>([]);
+  const [transcript, setTranscript] = useState("");
+
+  const importTranscript = () => {
+    const turns = parseTranscript(transcript).slice(0, 20);
+    if (!turns.length) return toast.error(d.importNone);
+    setQs(
+      turns.map(({ question, answer }) => {
+        const r = scoreAnswer({ answer, question: { text: question, type: guessType(question), hints: [] } });
+        return { question: question.slice(0, 400), rating: ratingFor(r.overall), notes: `${fmt(d.score, { s: r.overall.toFixed(1) })} — ${answer}`.slice(0, 1500), competency: "" };
+      }),
+    );
+    toast.success(fmt(d.imported, { n: turns.length }));
+  };
   const app = apps.find((a) => a.id === appId);
   const valid = !!round && qs.some((q) => q.question.trim());
 
@@ -129,6 +153,16 @@ export function DebriefForm({ apps, preselect, round: initialRound }: { apps: De
           <p id="db-comp-h" className="hint mt-1">{d.competenciesHint}</p>
         </div>
       </section>
+
+      <details className="card p-5">
+        <summary className="cursor-pointer font-medium">{d.transcript}</summary>
+        <p id="db-tr-h" className="hint mt-2">{d.transcriptHint}</p>
+        <label className="sr-only" htmlFor="db-tr">{d.transcript}</label>
+        <textarea id="db-tr" className="input mt-3 !min-h-40" maxLength={30000} value={transcript} placeholder={d.transcriptPh} aria-describedby="db-tr-h" onChange={(e) => setTranscript(e.target.value)} />
+        <button type="button" className="btn btn-secondary btn-sm mt-3" disabled={!transcript.trim()} onClick={importTranscript}>
+          {d.importTranscript}
+        </button>
+      </details>
 
       <section aria-labelledby="db-q-h">
         <h2 id="db-q-h" className="mb-3 text-lg">{d.questions}</h2>

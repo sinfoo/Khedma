@@ -4,7 +4,9 @@ import { BANK, TRACKS, type BankQuestion } from "./bank";
 import {
   aggregate,
   inferTrack,
+  mapStories,
   matchStory,
+  parseTranscript,
   mulberry32,
   nextDrillState,
   orderDrill,
@@ -150,7 +152,7 @@ test("stories: strength meter and matching", () => {
 });
 
 test("report aggregation: averages, best/worst and top improvements", () => {
-  const s = (v: number) => ({ structure: v, relevance: v, specificity: v, communication: v });
+  const s = (v: number) => ({ structure: v, relevance: v, specificity: v, communication: v, credibility: v, differentiation: v });
   const agg = aggregate([
     { idx: 0, skipped: false, scores: s(4), overall: 4, tips: [{ code: "add_numbers" }] },
     { idx: 1, skipped: false, scores: s(2), overall: 2, tips: [{ code: "add_numbers" }, { code: "fillers", detail: "euh" }] },
@@ -161,4 +163,54 @@ test("report aggregation: averages, best/worst and top improvements", () => {
   assert.equal(agg.worst?.idx, 1);
   assert.equal(agg.skipped, 1);
   assert.equal(agg.improvements[0].code, "add_numbers");
+});
+
+test("credibility and differentiation: own CV facts beat clichés and \"we\"", () => {
+  const q = { text: "Tell me about a project you are proud of", type: "behavioral" as const, hints: [] };
+  const cliche = scoreAnswer({
+    question: q,
+    cvTerms: ["SmartFarm", "Sagemcom"],
+    answer: "We are a passionate and motivated team. We worked hard on things and we were dynamic, maybe it went well I think, our team was detail-oriented.",
+  });
+  const own = scoreAnswer({
+    question: q,
+    cvTerms: ["SmartFarm", "Sagemcom"],
+    answer:
+      "During my internship at Sagemcom I had to cut the SmartFarm sensor gateway latency. I profiled the MQTT pipeline, I rewrote the batching in C and I tested it on 40 devices. As a result latency dropped from 900 ms to 120 ms and the team adopted it.",
+  });
+  assert.ok(own.scores.differentiation >= 3.5, `own diff ${own.scores.differentiation}`);
+  assert.ok(cliche.scores.differentiation <= 2, `cliche diff ${cliche.scores.differentiation}`);
+  assert.ok(own.scores.credibility > cliche.scores.credibility);
+  assert.ok(cliche.tips.some((t) => t.code === "be_distinct"));
+  assert.deepEqual(own.signals.cvHits.sort(), ["Sagemcom", "SmartFarm"]);
+});
+
+test("story map: one story per question, reuse flagged, gaps listed", () => {
+  const mk = (id: number, title: string, tags: string[]) => ({ id, title, situation: title, task: "", action: "", result: "", tags, skills: [] });
+  const conflict = mk(1, "Désaccord sur l'architecture du projet", ["conflit", "équipe"]);
+  const deadline = mk(2, "Livraison sous délai serré", ["délai", "pression"]);
+  const m = mapStories([conflict, deadline], [
+    "Parlez d'un conflit dans une équipe",
+    "Un délai serré sous pression ?",
+    "Un autre conflit en équipe ?",
+    "Pourquoi notre entreprise ?",
+  ]);
+  assert.equal(m.rows[0].story?.id, 1);
+  assert.equal(m.rows[1].story?.id, 2);
+  assert.equal(m.rows[2].story?.id, 1);
+  assert.equal(m.rows[2].reused, true);
+  assert.deepEqual(m.gaps, ["Pourquoi notre entreprise ?"]);
+  assert.equal(m.unused.length, 0);
+});
+
+test("transcript: labelled, Q/A and named speakers", () => {
+  const a = parseTranscript("Interviewer: Tell me about yourself.\nMe: I am a final-year student.\nI built a robot.\nInterviewer: Why us?\nMe: Your product.");
+  assert.deepEqual(a, [
+    { question: "Tell me about yourself.", answer: "I am a final-year student. I built a robot." },
+    { question: "Why us?", answer: "Your product." },
+  ]);
+  const b = parseTranscript("[00:01] Sarra (RH): Présentez-vous.\n[00:05] Amine: Je suis élève ingénieur.\nSarra (RH): Disponibilités ?\nAmine: Dès juin.");
+  assert.equal(b.length, 2);
+  assert.equal(b[1].answer, "Dès juin.");
+  assert.equal(parseTranscript("Q: unanswered").length, 0);
 });

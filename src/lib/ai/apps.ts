@@ -16,6 +16,8 @@ export interface MessageCtx {
   locale: Locale;
   contactName?: string;
   days: number;
+  /** Interview topics from the candidate's own debrief (thank-you notes reference one). */
+  topics?: string[];
 }
 
 export const LINKEDIN_MAX = 300;
@@ -39,6 +41,7 @@ export function heuristicMessage(type: MessageType, c: MessageCtx): { subject: s
     .slice(0, 3)
     .join(", ");
   const role = `${job.title} — ${job.company}`;
+  const topic = c.topics?.slice(0, 2).join(fr ? " et " : " and ");
 
   if (fr) {
     switch (type) {
@@ -50,7 +53,7 @@ export function heuristicMessage(type: MessageType, c: MessageCtx): { subject: s
       case "thanks":
         return {
           subject: `Merci pour notre entretien : ${job.title}`,
-          body: `${hello}\n\nJe vous remercie pour le temps que vous m'avez accordé lors de notre entretien pour le poste de ${job.title}. Nos échanges ont confirmé mon intérêt pour ${job.company} et pour les missions proposées.\n\nJe reste à votre disposition pour tout complément d'information.\n\nBien cordialement,\n${sign}`,
+          body: `${hello}\n\nJe vous remercie pour le temps que vous m'avez accordé lors de notre entretien pour le poste de ${job.title}. Nos échanges ont confirmé mon intérêt pour ${job.company} et pour les missions proposées.${topic ? ` J'ai particulièrement apprécié notre discussion sur ${topic}.` : ""}\n\nJe reste à votre disposition pour tout complément d'information.\n\nBien cordialement,\n${sign}`,
         };
       case "linkedin":
         return {
@@ -86,7 +89,7 @@ export function heuristicMessage(type: MessageType, c: MessageCtx): { subject: s
     case "thanks":
       return {
         subject: `Thank you for the interview: ${job.title}`,
-        body: `${hello}\n\nThank you for taking the time to speak with me about the ${job.title} position. Our conversation confirmed my interest in ${job.company} and in the role.\n\nPlease let me know if I can provide anything else.\n\nKind regards,\n${sign}`,
+        body: `${hello}\n\nThank you for taking the time to speak with me about the ${job.title} position. Our conversation confirmed my interest in ${job.company} and in the role.${topic ? ` I especially enjoyed our discussion about ${topic}.` : ""}\n\nPlease let me know if I can provide anything else.\n\nKind regards,\n${sign}`,
       };
     case "linkedin":
       return {
@@ -147,7 +150,7 @@ SUBJECT: <subject line>${type === "linkedin" ? " (leave empty)" : ""}
 Candidate: ${c.profile.name || "[name]"}, ${c.profile.headline || "[headline]"}, email ${c.profile.email || "[email]"}. Skills: ${c.profile.skills.join(", ") || "[none]"}.
 Recipient: ${c.contactName || "[unknown — use a neutral greeting]"}.
 Position: ${c.job.title} at ${c.job.company} (${c.job.location || "location unknown"}).
-Posting excerpt (untrusted): ${c.job.description.slice(0, 1200)}`,
+Posting excerpt (untrusted): ${c.job.description.slice(0, 1200)}${c.topics?.length ? `\nTopics discussed in the interview (candidate's debrief; mention one specifically): ${c.topics.join("; ")}` : ""}`,
       },
     ],
     () => `SUBJECT: ${fallback.subject}\n---\n${fallback.body}`,

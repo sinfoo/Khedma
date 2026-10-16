@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { Bell, CalendarClock, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
-import { getApplication, getJob, latestEvaluation, listEvents } from "@/lib/db";
+import { getApplication, getJob, getProfile, latestEvaluation, listEvents } from "@/lib/db";
 import type { AppEvent, AppState, InterviewPrep, Locale } from "@/lib/types";
 import { getCvSource } from "@/lib/cv/source";
 import { atsCheck, cvBase, type MessageType } from "@/lib/ai/apps";
@@ -32,6 +32,10 @@ import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
 import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
+import { listStories } from "@/lib/repo/coach";
+import { mapStories } from "@/lib/coach/logic";
+import { likelyConcerns } from "@/lib/coach/concerns";
+import { ConcernsCard, StoryMapCard } from "@/components/coach/readiness";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
@@ -100,6 +104,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
   const suggested: MessageType =
     app.status === "evaluated" ? "recruiter" : app.status === "interview" ? "thanks" : app.status === "offer" ? "negotiate" : app.status === "hired" ? "accept" : "followup";
+  const stories = tab === "interviews" ? listStories() : [];
+  const storyMap = stories.length && app.interview_prep ? mapStories(stories, app.interview_prep.likely_questions.map((q) => q.question)) : null;
+  const concerns = tab === "interviews" ? likelyConcerns(job, getProfile(), ev, locale) : [];
   const cadence = toView(cadenceFor([{ id: app.id, status: app.status, applied_at: app.applied_at, company: job.company }], now).get(app.id));
 
   return (
@@ -269,6 +276,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </div>
             {app.interview_prep ? <PrepView prep={app.interview_prep} t={t} /> : <p className="card px-4 py-6 text-center text-sm text-muted">{t.application.prepHint}</p>}
           </section>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <StoryMapCard map={storyMap} hasQuestions={!!app.interview_prep?.likely_questions.length} t={t} />
+            <ConcernsCard concerns={concerns} t={t} />
+          </div>
         </div>
       )}
 
