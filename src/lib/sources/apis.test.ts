@@ -126,3 +126,31 @@ test("keyed providers: a missing env var is a clear scan error, not a request", 
     assert.match(r.error ?? "", new RegExp(`Missing env: ${c.needsEnv!.join(", ")}`), c.kind);
   }
 });
+
+// arbeitsagentur / weworkremotely: trimmed live responses saved on 2026-10-16.
+test("arbeitsagentur: v6 list maps to German offers with posting links and salary lines", async () => {
+  const { mapBa, baSearchUrl, baSalary } = await import("./arbeitsagentur");
+  const jobs = mapBa(fx("arbeitsagentur.json"));
+  assert.ok(jobs.length >= 1);
+  for (const j of jobs) {
+    assert.equal(j.source, "arbeitsagentur");
+    assert.match(j.url, /^https:\/\/www\.arbeitsagentur\.de\/jobsuche\/jobdetail\//);
+    assert.match(j.location, /Germany$/);
+    assert.match(j.posted_at ?? "", /^\d{4}-\d{2}-\d{2}/);
+  }
+  assert.equal(baSalary({ verguetungsangabe: "JAHRESGEHALT", gehaltsspanneVon: 45000, gehaltsspanneBis: 55000 }), "Salary: 45,000 € – 55,000 € / year");
+  assert.equal(baSalary({ verguetungsangabe: "KEINE_ANGABEN" }), "");
+  assert.match(baSearchUrl("Praktikum", "Berlin"), /pc\/v6\/jobs\?was=Praktikum&size=50&page=1&wo=Berlin&umkreis=50$/);
+});
+
+test("weworkremotely: RSS items become remote offers split into company and title", async () => {
+  const { mapWwr } = await import("./remote");
+  const jobs = mapWwr(readFileSync(path.join(process.cwd(), "src/lib/sources/fixtures/weworkremotely.rss"), "utf8"));
+  assert.equal(jobs.length, 3);
+  for (const j of jobs) {
+    assert.equal(j.source, "weworkremotely");
+    assert.equal(j.remote, true);
+    assert.ok(j.company && !j.title.includes(": "), j.title);
+    assert.match(j.url, /^https:\/\/weworkremotely\.com\//);
+  }
+});

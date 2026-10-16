@@ -4,7 +4,8 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, matchesKeywords, normalizeDate } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
-import { getJson } from "./http";
+import { getJson, getText } from "./http";
+import { parseRss } from "./rss";
 
 type Listed = { jobs: NewJob[]; error?: string };
 const text = (html?: string) => htmlToText(decodeEntities(html ?? ""));
@@ -165,4 +166,14 @@ async function scanAiJobs(_handle: string, keywords: string[] = []): Promise<Lis
   return { jobs: byTitle(jobs, keywords), error: jobs.length ? undefined : error };
 }
 
-export const scan = { remoteok: scanRemoteOk, jobicy: scanJobicy, himalayas: scanHimalayas, remotive: scanRemotive, aijobs: scanAiJobs };
+// ---------- We Work Remotely — public RSS of every category (robots allows it); keywords filter titles locally ----------
+export const WWR_FEED = "https://weworkremotely.com/remote-jobs.rss";
+export const mapWwr = (xml: string): NewJob[] =>
+  parseRss(xml, WWR_FEED).map((j) => ({ ...j, source: "weworkremotely" as SourceKind, remote: true, location: j.location || "Anywhere" }));
+
+async function scanWwr(_handle: string, keywords: string[] = []): Promise<Listed> {
+  const { text: xml, error } = await getText(WWR_FEED, "application/rss+xml, application/xml;q=0.9");
+  return error ? { jobs: [], error } : { jobs: byTitle(mapWwr(xml), keywords) };
+}
+
+export const scan = { remoteok: scanRemoteOk, jobicy: scanJobicy, himalayas: scanHimalayas, remotive: scanRemotive, aijobs: scanAiJobs, weworkremotely: scanWwr };

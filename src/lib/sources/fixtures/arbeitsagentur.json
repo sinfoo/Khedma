@@ -1,0 +1,127 @@
+{
+ "ergebnisliste": [
+  {
+   "stellenangebotsart": "ARBEIT",
+   "stellenangebotsTitel": "Softwareentwickler (m/w/d)",
+   "quereinstiegGeeignet": false,
+   "arbeitszeitVollzeit": true,
+   "eintrittszeitraum": {
+    "von": "2026-10-16"
+   },
+   "verguetungsangabe": "JAHRESGEHALT",
+   "artDerVerguetung": "GEHALTSSPANNE",
+   "gehaltsspanneVon": 45000.0,
+   "gehaltsspanneBis": 55000.0,
+   "vertragsdauer": "KEINE_ANGABE",
+   "istGeringfuegigeBeschaeftigung": false,
+   "stellenlokationen": [
+    {
+     "adresse": {
+      "plz": "17389",
+      "ort": "Anklam",
+      "region": "MECKLENBURG_VORPOMMERN",
+      "land": "DEUTSCHLAND"
+     },
+     "breite": 53.82829014,
+     "laenge": 13.679618137
+    }
+   ],
+   "chiffrenummer": "VA30-07353-HGW",
+   "veroeffentlichungszeitraum": {
+    "von": "2026-10-16"
+   },
+   "datumErsteVeroeffentlichung": "2026-10-16",
+   "aenderungsdatum": "2026-10-16T07:41:38.272",
+   "hauptberuf": "Softwareentwickler/in",
+   "firma": "FERCHAU GmbH Vertriebsstützpunkt Greifswald",
+   "arbeitgeberKundennummerHash": "Ot4va9HgtVr247XLQkzOwtE1C8AsCL1sm3Q7Jg9pITQ=",
+   "referenznummer": "12265-479500_JB5274244-S",
+   "alleBerufe": [
+    "Softwareentwickler/in"
+   ]
+  },
+  {
+   "stellenangebotsart": "ARBEIT",
+   "stellenangebotsTitel": "Softwareentwickler (m/w/d)",
+   "quereinstiegGeeignet": false,
+   "arbeitszeitVollzeit": true,
+   "eintrittszeitraum": {
+    "von": "2026-10-16"
+   },
+   "verguetungsangabe": "JAHRESGEHALT",
+   "artDerVerguetung": "GEHALTSSPANNE",
+   "gehaltsspanneVon": 42000.0,
+   "gehaltsspanneBis": 61000.0,
+   "vertragsdauer": "KEINE_ANGABE",
+   "istGeringfuegigeBeschaeftigung": false,
+   "stellenlokationen": [
+    {
+     "adresse": {
+      "plz": "28309",
+      "ort": "Bremen",
+      "region": "BREMEN",
+      "land": "DEUTSCHLAND"
+     },
+     "breite": 53.049549218,
+     "laenge": 8.895344516
+    }
+   ],
+   "chiffrenummer": "VA56-81470-HB",
+   "veroeffentlichungszeitraum": {
+    "von": "2026-10-16"
+   },
+   "datumErsteVeroeffentlichung": "2026-10-16",
+   "aenderungsdatum": "2026-10-16T07:41:29.813",
+   "hauptberuf": "Softwareentwickler/in",
+   "firma": "FERCHAU GmbH Niederlassung Bremen City",
+   "arbeitgeberKundennummerHash": "noym_V-HdmKcyYJXAOyR8vQaX0JnnXaPPoNYlTPnOcs=",
+   "referenznummer": "12265-482110_JB5274138-S",
+   "alleBerufe": [
+    "Softwareentwickler/in"
+   ]
+  },
+  {
+   "stellenangebotsart": "ARBEIT",
+   "stellenangebotsTitel": "Softwareentwickler (m/w/d)",
+   "quereinstiegGeeignet": false,
+   "arbeitszeitVollzeit": true,
+   "eintrittszeitraum": {
+    "von": "2026-10-16"
+   },
+   "verguetungsangabe": "JAHRESGEHALT",
+   "artDerVerguetung": "GEHALTSSPANNE",
+   "gehaltsspanneVon": 37000.0,
+   "gehaltsspanneBis": 67000.0,
+   "vertragsdauer": "KEINE_ANGABE",
+   "istGeringfuegigeBeschaeftigung": false,
+   "stellenlokationen": [
+    {
+     "adresse": {
+      "plz": "27751",
+      "ort": "Delmenhorst",
+      "region": "NIEDERSACHSEN",
+      "land": "DEUTSCHLAND"
+     },
+     "breite": 53.068561483001,
+     "laenge": 8.663015318
+    }
+   ],
+   "chiffrenummer": "VA93-87153-HB",
+   "veroeffentlichungszeitraum": {
+    "von": "2026-10-16"
+   },
+   "datumErsteVeroeffentlichung": "2026-10-16",
+   "aenderungsdatum": "2026-10-16T07:41:20.405",
+   "hauptberuf": "Softwareentwickler/in",
+   "firma": "FERCHAU GmbH Niederlassung Bremen City",
+   "arbeitgeberKundennummerHash": "noym_V-HdmKcyYJXAOyR8vQaX0JnnXaPPoNYlTPnOcs=",
+   "referenznummer": "12265-485869_JB5274030-S",
+   "alleBerufe": [
+    "Softwareentwickler/in"
+   ]
+  }
+ ],
+ "maxErgebnisse": 3539,
+ "page": 1,
+ "size": 3
+}

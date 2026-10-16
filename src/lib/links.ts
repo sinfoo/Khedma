@@ -48,6 +48,7 @@ const PLATFORMS: [RegExp, string][] = [
   [/jobicy\.com/, "Jobicy"],
   [/himalayas\.app/, "Himalayas"],
   [/remotive\.com/, "Remotive"],
+  [/weworkremotely\.com/, "We Work Remotely"],
   [/artificialintelligencejobs\.co/, "AI Jobs"],
   [/adzuna\./, "Adzuna"],
   [/jooble\.org/, "Jooble"],

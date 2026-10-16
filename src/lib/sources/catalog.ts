@@ -4,7 +4,7 @@ import { countryByCode, countryOf, REMOTE_CODE } from "../geo";
 export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
-  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork",
+  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely",
   "greenhouse", "lever", "ashby", "rss", "careers",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
@@ -12,7 +12,7 @@ export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS
 
 /** Sites Khedma cannot read (login, JavaScript or bot walls): shown as ready-made search links only. */
 export const LINK_KINDS = [
-  "indeed", "google", "stepstone", "xing", "arbeitsagentur", "glassdoor", "ziprecruiter", "wellfound",
+  "indeed", "google", "stepstone", "xing", "glassdoor", "ziprecruiter", "wellfound",
   "francetravail", "hellowork", "apec", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
@@ -103,7 +103,7 @@ export const CATALOG: CatalogEntry[] = [
   // Germany
   { kind: "arbeitnow", name: "Arbeitnow", country: "DE", method: "api", site: "https://www.arbeitnow.com", handle: none, keywords: true },
   { kind: "englishjobs_de", name: "EnglishJobs.de", country: "DE", method: "html", site: "https://www.englishjobs.de", handle: none, keywords: true },
-  link("arbeitsagentur", "Bundesagentur für Arbeit", "DE", "https://www.arbeitsagentur.de/jobsuche", (q, loc) => `https://www.arbeitsagentur.de/jobsuche/suche?was=${enc(q)}&wo=${enc(loc)}`),
+  { kind: "arbeitsagentur", name: "Bundesagentur für Arbeit", country: "DE", method: "api", site: "https://www.arbeitsagentur.de/jobsuche", handle: { type: "slug", placeholder: "Berlin" }, keywords: true },
   link("stepstone", "StepStone", "DE", "https://www.stepstone.de", (q, loc) => `https://www.stepstone.de/jobs/${slug(q) || "praktikum"}/in-${slug(loc) || "deutschland"}`),
   link("xing", "XING Jobs", "DE", "https://www.xing.com/jobs", (q, loc) => `https://www.xing.com/jobs/search?keywords=${enc(q)}&location=${enc(loc)}`),
   // Switzerland
@@ -146,6 +146,7 @@ export const CATALOG: CatalogEntry[] = [
   },
   { kind: "himalayas", name: "Himalayas", country: "INT", method: "api", site: "https://himalayas.app", handle: none, keywords: true },
   { kind: "remotive", name: "Remotive", country: "INT", method: "api", site: "https://remotive.com", handle: none, keywords: true },
+  { kind: "weworkremotely", name: "We Work Remotely", country: "INT", method: "rss", site: "https://weworkremotely.com", handle: none, keywords: false },
   { kind: "aijobs", name: "Artificial Intelligence Jobs", country: "INT", method: "api", site: "https://artificialintelligencejobs.co", handle: none, keywords: true },
   {
     kind: "adzuna",
