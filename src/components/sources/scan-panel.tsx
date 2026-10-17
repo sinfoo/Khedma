@@ -129,6 +129,7 @@ export function ScanPanel({
   const scanning = busy && plan !== null;
   const finishedAll = !busy && done !== null;
   const showStage = !finishedAll;
+  const showFeed = scanning || finishedAll || jobs.length > 0;
 
   // Blips: planned runs while scanning or after; enabled sources when idle.
   const blips: { key: string; label: string; kind: string; st?: SourceStatus }[] = plan
@@ -142,8 +143,6 @@ export function ScanPanel({
   const droppedTotal = Object.values(dropped).reduce((a, b) => a + b, 0);
   const kept = jobs.length;
   const pct = total ? Math.round((finished / total) * 100) : 0;
-  const nTn = sources.filter((s) => CATALOG.find((c) => c.kind === s.kind)?.country === "TN").length;
-  const nCareers = sources.filter((s) => ["greenhouse", "lever", "ashby", "rss", "careers"].includes(s.kind)).length;
 
   const title = scanning ? fmt(m.titleRunning, { n: total }) : finishedAll ? (done!.added === 0 ? m.titleDoneNone : done!.added === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: done!.added })) : m.titleIdle;
   const lead = scanning ? m.leadRunning : finishedAll ? m.leadDone : m.leadIdle;
@@ -167,7 +166,7 @@ export function ScanPanel({
         </div>
       </header>
 
-      <div className={`grid items-stretch gap-5 ${showStage ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : ""}`} style={{ transition: "grid-template-columns .5s cubic-bezier(.2,.7,.2,1)" }}>
+      <div className={`grid items-stretch gap-5 ${showStage && showFeed ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : ""}`} style={{ transition: "grid-template-columns .5s cubic-bezier(.2,.7,.2,1)" }}>
         {showStage && (
           <section aria-live="polite" aria-busy={scanning} className="card relative flex min-h-[520px] flex-col overflow-hidden">
             <div className="flex items-center gap-2.5 border-b border-line px-[18px] py-3.5">
@@ -179,6 +178,43 @@ export function ScanPanel({
               <span className="mono whitespace-nowrap text-[0.75rem] text-muted">{scanning ? `${elapsed} s` : ""}</span>
             </div>
 
+            {!scanning && (
+                  <form
+                    className="mx-[18px] mt-[18px] rounded-xl bg-surface-2 px-4 py-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!busy && preview.runs.length) run();
+                    }}
+                  >
+                    <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
+                    <div className="flex gap-1.5">
+                      <input id="scan-kw" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
+                      <button type="submit" className="btn btn-saffron !h-10" disabled={busy || preview.runs.length === 0}>
+                        <Radar size={15} aria-hidden="true" /> {m.scan}
+                      </button>
+                    </div>
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
+                      {places.countries.map((code) => {
+                        const on = countries.includes(code);
+                        const c = countryByCode(code);
+                        return (
+                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? cs.filter((x) => x !== code) : [...cs, code]))}>
+                            {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
+                          </button>
+                        );
+                      })}
+                    </p>
+                    <p className="mt-1.5 text-[0.72rem] text-muted">
+                      {keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}
+                      {keywords.length > 0 && kw !== keywords.join(", ") && (
+                        <>
+                          {" · "}
+                          <button type="button" className="font-semibold text-accent-text" onClick={() => setKw(keywords.join(", "))}>{m.useCv}</button>
+                        </>
+                  )}
+                    </p>
+                  </form>
+            )}
             <div className="grid items-center gap-[18px] px-[18px] pb-2 pt-[18px] md:grid-cols-[auto_minmax(0,1fr)]">
               {/* Radar: 3 rings, sweep, one blip per source */}
               <div aria-hidden="true" className="relative mx-auto grid size-[300px] place-items-center">
@@ -240,43 +276,6 @@ export function ScanPanel({
                       <p className="truncate text-[0.72rem] text-muted">{fmt(m.readingDetail, { listed: sums.listed })}</p>
                     </div>
                   </div>
-                )}
-                {!scanning && (
-                  <form
-                    className="rounded-xl bg-surface-2 px-3 py-2.5"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!busy && preview.runs.length) run();
-                    }}
-                  >
-                    <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
-                    <div className="flex gap-1.5">
-                      <input id="scan-kw" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-9 min-w-0 flex-1 !py-0 text-sm" />
-                      <button type="submit" className="btn btn-saffron !h-9 !px-3" disabled={busy || preview.runs.length === 0}>
-                        <Radar size={14} aria-hidden="true" />
-                      </button>
-                    </div>
-                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
-                      {places.countries.map((code) => {
-                        const on = countries.includes(code);
-                        const c = countryByCode(code);
-                        return (
-                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? cs.filter((x) => x !== code) : [...cs, code]))}>
-                            {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
-                          </button>
-                        );
-                      })}
-                    </p>
-                    <p className="mt-1.5 text-[0.72rem] text-muted">
-                      {keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}
-                      {keywords.length > 0 && kw !== keywords.join(", ") && (
-                        <>
-                          {" · "}
-                          <button type="button" className="font-semibold text-accent-text" onClick={() => setKw(keywords.join(", "))}>{m.useCv}</button>
-                        </>
-                      )}
-                    </p>
-                  </form>
                 )}
                 <dl className="grid grid-cols-2 gap-1.5">
                   {[
@@ -356,7 +355,7 @@ export function ScanPanel({
           </section>
         )}
 
-        <Feed
+        {showFeed && <Feed
           jobs={jobs}
           scanning={scanning}
           done={finishedAll ? done : null}
@@ -366,7 +365,7 @@ export function ScanPanel({
           finished={finished}
           total={total}
           onScanAgain={run}
-        />
+        />}
       </div>
     </>
   );
