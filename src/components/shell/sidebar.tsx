@@ -179,8 +179,9 @@ export function Sidebar({ data }: { data: ShellData }) {
             />
           </span>
           <span className="rail-hide min-w-0 flex-1">
-            <span className="block truncate text-[0.85rem] font-semibold leading-tight">{data.name || s.nav.profile}</span>
-            <span className="block whitespace-nowrap text-[0.7rem] text-muted">
+            <span className="block truncate text-[0.85rem] font-semibold leading-tight">{s.nav.profile}</span>
+            <span className="block truncate text-[0.7rem] text-muted">
+              {data.name ? `${data.name} · ` : ""}
               {fmt(s.profileStrength, { pct: data.strength })} · {data.engine.short}
             </span>
           </span>
