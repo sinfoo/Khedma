@@ -247,3 +247,10 @@ test("plan: EURES runs once for the chosen EU countries, never for non-EU ones",
   assert.ok(p.runs.some((r) => r.kind === "arbeitsagentur"), "German federal board runs for DE");
   assert.equal(planSearch({ keywords: ["x"], countries: ["TN", "CA"], remote: "no" }).runs.filter((r) => r.kind === "eures").length, 0);
 });
+
+test("filter: typed keywords alone decide the role, stale targets do not widen them", () => {
+  // runScan strips target_roles when the user typed keywords; this is the filter it builds then.
+  const f = buildFilter({ keywords: ["ui/ux designer"], profile: { ...profile, target_roles: [] }, places: { countries: ["TN"], remote: "yes" } });
+  assert.equal(f.decide(job({ title: "Stage UI/UX designer", location: "Tunis" })).keep, true);
+  assert.equal(f.decide(job({ title: "Stage développeur full stack", location: "Tunis" })).keep, false);
+});

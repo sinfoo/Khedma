@@ -357,8 +357,11 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const runId = Number(db().prepare("INSERT INTO scan_runs (started_at, trigger, sources) VALUES (?,?,?)").run(started, opts.trigger ?? "manual", runs.length).lastInsertRowid);
     emit({ type: "plan", run_id: runId, runs, skipped: plan.skipped, skipped_blacklist: skippedBlacklist });
 
-    const filter = buildFilter({ keywords, profile, places, types: opts.types, extraNegatives: opts.negatives, includeSenior: opts.includeSenior, prefs });
-    const tiers = buildTiers(keywords, profile.target_roles);
+    // Typed keywords are the whole intent: saved target roles only fill in when the user typed none,
+    // otherwise an old "développeur" target keeps engineering postings through a "ui/ux designer" search.
+    const roles = keywords.length ? [] : profile.target_roles;
+    const filter = buildFilter({ keywords, profile: { ...profile, target_roles: roles }, places, types: opts.types, extraNegatives: opts.negatives, includeSenior: opts.includeSenior, prefs });
+    const tiers = buildTiers(keywords, roles);
     const known = knownIndex();
     const tracked = new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
     const applied = prefs.applyOnceAtCompany ? appliedCompanies() : new Set<string>();
