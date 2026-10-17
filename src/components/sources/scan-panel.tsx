@@ -144,7 +144,6 @@ export function ScanPanel({
   const pct = total ? Math.round((finished / total) * 100) : 0;
   const nTn = sources.filter((s) => CATALOG.find((c) => c.kind === s.kind)?.country === "TN").length;
   const nCareers = sources.filter((s) => ["greenhouse", "lever", "ashby", "rss", "careers"].includes(s.kind)).length;
-  const nIntl = Math.max(0, sources.length - nTn - nCareers);
 
   const title = scanning ? fmt(m.titleRunning, { n: total }) : finishedAll ? (done!.added === 0 ? m.titleDoneNone : done!.added === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: done!.added })) : m.titleIdle;
   const lead = scanning ? m.leadRunning : finishedAll ? m.leadDone : m.leadIdle;
@@ -243,10 +242,41 @@ export function ScanPanel({
                   </div>
                 )}
                 {!scanning && (
-                  <div className="rounded-xl bg-surface-2 px-3 py-2.5">
-                    <p className="text-[0.82rem] font-semibold">{sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}</p>
-                    <p className="mt-0.5 text-[0.72rem] text-muted">{fmt(m.readyDetail, { tn: nTn, intl: nIntl, careers: nCareers })}</p>
-                  </div>
+                  <form
+                    className="rounded-xl bg-surface-2 px-3 py-2.5"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!busy && preview.runs.length) run();
+                    }}
+                  >
+                    <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
+                    <div className="flex gap-1.5">
+                      <input id="scan-kw" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-9 min-w-0 flex-1 !py-0 text-sm" />
+                      <button type="submit" className="btn btn-saffron !h-9 !px-3" disabled={busy || preview.runs.length === 0}>
+                        <Radar size={14} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
+                      {places.countries.map((code) => {
+                        const on = countries.includes(code);
+                        const c = countryByCode(code);
+                        return (
+                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? cs.filter((x) => x !== code) : [...cs, code]))}>
+                            {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
+                          </button>
+                        );
+                      })}
+                    </p>
+                    <p className="mt-1.5 text-[0.72rem] text-muted">
+                      {keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}
+                      {keywords.length > 0 && kw !== keywords.join(", ") && (
+                        <>
+                          {" · "}
+                          <button type="button" className="font-semibold text-accent-text" onClick={() => setKw(keywords.join(", "))}>{m.useCv}</button>
+                        </>
+                      )}
+                    </p>
+                  </form>
                 )}
                 <dl className="grid grid-cols-2 gap-1.5">
                   {[
@@ -266,25 +296,8 @@ export function ScanPanel({
                     <span style={{ width: `${pct}%` }} />
                   </div>
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[0.72rem] text-muted">
-                    {m.lookingFor}
-                    <input
-                      aria-label={m.lookingFor}
-                      value={kw}
-                      onChange={(e) => setKw(e.target.value)}
-                      disabled={busy}
-                      placeholder={m.keywordsPh}
-                      className="mono min-w-[12ch] flex-1 rounded-md border border-transparent bg-transparent px-1 text-ink-2 hover:border-line focus:border-line focus:outline-none"
-                    />
-                    ·
-                    {places.countries.map((code) => {
-                      const on = countries.includes(code);
-                      const c = countryByCode(code);
-                      return (
-                        <button key={code} type="button" aria-pressed={on} disabled={busy} className={`rounded-md px-1 ${on ? "font-semibold text-ink-2" : "line-through opacity-60"}`} onClick={() => setCountries((cs) => (on ? cs.filter((x) => x !== code) : [...cs, code]))}>
-                          {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
-                        </button>
-                      );
-                    })}
+                    {m.lookingFor} <span className="mono text-ink-2">{terms.join(" · ") || "—"}</span> ·{" "}
+                    {countries.map((code) => (code === REMOTE_CODE ? t.common.remote : (countryByCode(code)?.[L] ?? code))).join(", ")}
                     <button type="button" className="ml-auto inline-flex items-center gap-1 font-semibold text-accent-text" aria-expanded={options} onClick={() => setOptions((o) => !o)}>
                       <Settings2 size={12} aria-hidden="true" /> {m.options}
                     </button>
@@ -586,6 +599,7 @@ function whyText(t: ReturnType<typeof useT>["t"], locale: string, code: string):
     case "junior": return w.junior;
     case "dup": return w.dup;
     case "tier": return w.tier;
+    case "skills": return fmt(w.skills, { v: v.replace(/,/g, ", ") });
     default: return code;
   }
 }

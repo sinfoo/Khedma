@@ -15,6 +15,8 @@ export interface RankContext {
   tracked: ReadonlySet<string>;
   /** Dedupe keys already produced by this search (another board listed the same role). */
   seen: ReadonlySet<string>;
+  /** Skills read from the profile and the CV text; postings that name them rank higher. */
+  skills?: string[];
   now?: number;
 }
 
@@ -55,6 +57,16 @@ export function scoreJob(job: Pick<NewJob, "title" | "company" | "description" |
     if (n) {
       score += Math.min(4, n) * 5;
       why.push(`desc:${n}`);
+    }
+  }
+
+  // CV skills (12): distinct profile/CV skills named in the posting.
+  if (ctx.skills?.length) {
+    const text = fold(`${job.title} ${job.description ?? ""}`.slice(0, 8000));
+    const hits = ctx.skills.filter((k) => k && text.includes(fold(k)));
+    if (hits.length) {
+      score += Math.min(3, hits.length) * 4;
+      why.push(`skills:${hits.slice(0, 3).join(",")}`);
     }
   }
 

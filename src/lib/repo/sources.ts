@@ -13,6 +13,8 @@ import { companyKey, scoreJob, type RankContext } from "../search/rank";
 import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust } from "../search/store";
 import { buildTiers, type Tier, type Tiers } from "../search/tiers";
 import { sweep } from "../search/sweep";
+import { extractSkills } from "../ai/heuristic";
+import { cvForMatching } from "./offers";
 
 export { getSearchPrefs, setSearchPrefs } from "../search/store";
 export { sweep } from "../search/sweep";
@@ -115,13 +117,23 @@ export function updateSourceRow(id: number, p: Partial<Pick<SourceRow, "label" |
     .run(n.label, n.keywords.join(", "), n.keep_all ? 1 : 0, n.enabled ? 1 : 0, id);
 }
 
-/** Keywords used when a source has none: target roles first, then internship kinds. */
-export function defaultKeywords(profile: Profile): string[] {
+/** Skills the profile lists plus the ones found in the CV text, profile order first. */
+const LANGUAGE_WORDS = new Set(["arabic", "arabe", "french", "francais", "français", "english", "anglais", "german", "allemand", "spanish", "espagnol", "italian", "italien"]);
+export function cvSkills(profile: Profile, cvText = profile.cv_md): string[] {
+  // Spoken languages are listed as skills by some profiles; they make poor board queries.
+  return [...new Set([...profile.skills, ...extractSkills(cvText)].map((k) => k.trim()).filter((k) => k && !LANGUAGE_WORDS.has(k.toLowerCase())))];
+}
+
+/**
+ * Keywords used when the user types none: the head word of each target role, the first skills of the CV,
+ * then the internship kinds. Boards phrase-match keywords; the profile filter narrows the results afterwards.
+ */
+export function defaultKeywords(profile: Profile, cvText = profile.cv_md): string[] {
   const kinds = profile.target_types.filter((t) => t === "stage" || t === "pfe" || t === "alternance");
-  // Head word of each role ("Développeur full stack" -> "développeur", "Data analyst" -> "data"):
-  // boards phrase-match keywords, and the profile filter narrows the results afterwards.
+  // "Développeur full stack" -> "développeur", "Data analyst" -> "data".
   const roles = profile.target_roles.map((r) => r.trim().split(/\s+/)[0]).filter((w) => w && w.length >= 3);
-  return [...new Set([...roles, ...kinds].map((k) => k.toLowerCase()))].slice(0, 6);
+  const skills = cvSkills(profile, cvText).slice(0, 3);
+  return [...new Set([...roles, ...skills, ...kinds].map((k) => k.toLowerCase()))].slice(0, 6);
 }
 
 // ---------- auto-scan ----------
@@ -328,12 +340,14 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const prefs = getSearchPrefs();
     const all = listSourceRows();
     const keywords = opts.keywords ?? [];
+    const cvText = cvForMatching().text;
+    const skills = cvSkills(profile, cvText);
     const countries = opts.countries?.length ? opts.countries : extra.places.countries;
     const places = { countries, cities: countries.includes("TN") ? extra.places.cities : [], remote: opts.remote ?? extra.places.remote };
     const missingEnv = CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind);
     const plan = opts.ids?.length
-      ? planSources(all.filter((s) => opts.ids!.includes(s.id)), keywords, defaultKeywords(profile))
-      : planSearch({ keywords, countries: places.countries, cities: places.cities, remote: places.remote, enabledSources: all, missingEnv, defaultKeywords: defaultKeywords(profile) });
+      ? planSources(all.filter((s) => opts.ids!.includes(s.id)), keywords, defaultKeywords(profile, cvText))
+      : planSearch({ keywords, countries: places.countries, cities: places.cities, remote: places.remote, enabledSources: all, missingEnv, defaultKeywords: defaultKeywords(profile, cvText) });
     // Blacklisted employers never run as tracked companies.
     const blocked = prefs.companyBlacklist.map((k) => compileKeyword(k));
     const runs = plan.runs.filter((r) => !(r.company && blocked.some((m) => m(fold(r.label)))));
@@ -348,7 +362,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const known = knownIndex();
     const tracked = new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
     const applied = prefs.applyOnceAtCompany ? appliedCompanies() : new Set<string>();
-    const rank: RankContext = { positives: filter.positives, keywords, types: filter.types, places, tracked, seen: known.seen };
+    const rank: RankContext = { positives: filter.positives, keywords, types: filter.types, places, tracked, seen: known.seen, skills };
     const newIds: number[] = [];
     const found: FoundJob[] = [];
     const dropped: Record<string, number> = {};

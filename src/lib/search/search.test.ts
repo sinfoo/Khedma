@@ -154,6 +154,9 @@ test("rank: order and why", () => {
   assert.ok(!mid.why.some((w) => w.startsWith("title:")) && mid.why.includes("type:stage"), String(mid.why));
   assert.ok(best.why.some((w) => w.startsWith("desc:")));
   assert.ok(!low.why.some((w) => w.startsWith("title:")));
+  const skilled = scoreJob(job({ title: "Stage développeur full stack", company: "Vermeg", location: "Tunis", posted_at: "2026-10-12", description: "React Node TypeScript PostgreSQL" }), { ...ctx, skills: ["React", "PostgreSQL", "Rust"] });
+  const plain = scoreJob(job({ title: "Stage développeur full stack", company: "Vermeg", location: "Tunis", posted_at: "2026-10-12", description: "React Node TypeScript PostgreSQL" }), ctx);
+  assert.ok(skilled.score > plain.score && skilled.why.includes("skills:React,PostgreSQL"), `${skilled.score} ${skilled.why}`);
   const dupCtx = { ...ctx, seen: new Set([dedupeKey("Vermeg", "Stage développeur full stack")]) };
   const dup = scoreJob(job({ title: "Stage développeur full stack", company: "Vermeg", location: "Tunis" }), dupCtx);
   assert.ok(dup.why.includes("dup") && dup.score < best.score);

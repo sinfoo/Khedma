@@ -11,6 +11,7 @@ import { CATALOG } from "@/lib/sources/catalog";
 import { TN_COMPANIES } from "@/lib/recommend/companies";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { defaultKeywords, getAutoScan, getSearchPrefs, listRuns, listSourceRows } from "@/lib/repo/sources";
+import { cvForMatching } from "@/lib/repo/offers";
 
 export const metadata: Metadata = { title: "Sources" };
 
@@ -24,7 +25,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
   return (
     <>
       <ScanPanel
-        keywords={defaultKeywords(profile)}
+        keywords={defaultKeywords(profile, cvForMatching().text)}
         places={{ countries: extra.places.countries, remote: extra.places.remote }}
         sources={rows.filter((x) => x.enabled).map((x) => ({ id: x.id, label: x.label, kind: x.kind }))}
         autoStart={sp.scan === "1"}
@@ -33,7 +34,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
       <div className="mt-8 space-y-8">
         <TrackedCompanies tracked={rows.filter((s) => s.company)} suggestions={suggestions} prefs={getSearchPrefs()} />
         <History runs={listRuns(8)} />
-        <CatalogAnchor existing={rows.map((s) => `${s.kind}:${s.handle}`)} keywords={defaultKeywords(profile)} missingEnv={CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind)} />
+        <CatalogAnchor existing={rows.map((s) => `${s.kind}:${s.handle}`)} keywords={defaultKeywords(profile, cvForMatching().text)} missingEnv={CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind)} />
         <Clipper token={clipToken()} />
       </div>
       <p className="mt-6 px-1 text-xs leading-relaxed text-muted">{t.sources2.respect}</p>

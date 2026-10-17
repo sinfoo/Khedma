@@ -7,6 +7,7 @@ import { EmptyState, PageHeader } from "@/components/kit";
 import { OffersBrowser } from "@/components/offers/offers-browser";
 import { ScoreNewButton } from "@/components/offers/score-new-button";
 import { defaultKeywords, listSourceRows } from "@/lib/repo/sources";
+import { cvForMatching } from "@/lib/repo/offers";
 import { loadDemoJobs } from "@/app/actions/jobs";
 import { listOfferRows, listSources, listViews, parseFilters, unevaluated } from "@/lib/repo/offers";
 import { getProfile, stats } from "@/lib/db";
@@ -35,7 +36,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
   const pending = unevaluated();
 
   if (!f.archived && all.length === 0) {
-    const kw = defaultKeywords(getProfile()).slice(0, 4).join(" · ");
+    const kw = defaultKeywords(getProfile(), cvForMatching().text).slice(0, 4).join(" · ");
     const enabled = listSourceRows().filter((x) => x.enabled);
     const names = enabled.slice(0, 5).map((x) => x.label).join(", ");
     const sources = enabled.length > 5 ? `${names}… (${fmt(L.sourcesN, { n: enabled.length })})` : names || fmt(L.sourcesN, { n: 0 });
