@@ -59,17 +59,17 @@ export function SalaryExplorer() {
   );
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-      <div className="grid min-w-0 grid-cols-1 gap-6">
-        <section className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="band-h">
-          <h2 id="band-h" className="sr-only">{m.filters}</h2>
+    <div className="grid grid-cols-1 items-start gap-[18px] lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 gap-[18px]">
+        <section className="card p-[18px] rise" style={{ ["--i" as string]: 2 }} aria-labelledby="band-h">
+          <h2 id="band-h" className="card-title mb-3">{m.bandsTitle}</h2>
           <div className="grid gap-3 sm:grid-cols-3">
             {select("sal-fam", m.family, family, setFamily, FAMILIES, m.families)}
             {select("sal-lvl", m.level, level, setLevel, LEVELS, m.levels)}
             {select("sal-tier", m.tier, tier, setTier, TIERS, m.tiers)}
           </div>
 
-          <div className="mt-5 rounded-2xl bg-surface-2 p-5" aria-live="polite">
+          <div className="mt-4 rounded-[14px] bg-surface-2 p-4" aria-live="polite">
             <p className="text-xs font-medium text-muted">{m.families[family]} · {m.levels[level]} · {m.tiers[tier]}</p>
             <p className="mt-1 flex flex-wrap items-baseline gap-x-2">
               <span className="display tabular text-4xl">{nf.format(lo)}–{nf.format(hi)}</span>
@@ -83,8 +83,7 @@ export function SalaryExplorer() {
             )}
           </div>
 
-          <h3 className="mt-5 mb-2 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.bandsTitle}</h3>
-          <table className="w-full text-sm">
+          <table className="mt-4 w-full text-sm">
             <caption className="sr-only">{m.bandsTitle} — {m.levels[level]}, {m.tiers[tier]} ({m.perMonth})</caption>
             <thead className="sr-only">
               <tr><th scope="col">{m.family}</th><th scope="col">{m.perMonth}</th><th scope="col">{m.amount}</th></tr>
@@ -93,17 +92,16 @@ export function SalaryExplorer() {
               {FAMILIES.map((f) => {
                 const [l, h] = band(f, level, tier);
                 return (
-                  <tr key={f} className={f === family ? "font-medium" : ""}>
-                    <th scope="row" className="w-[42%] py-1 pr-3 text-left font-[inherit] text-ink-2">
-                      <button type="button" className="text-left hover:text-accent-text" aria-pressed={f === family} onClick={() => setFamily(f)}>{m.families[f]}</button>
+                  <tr key={f} className={`border-t border-line ${f === family ? "font-semibold" : ""}`}>
+                    <th scope="row" className="w-[40%] py-3 pr-3 text-left font-[inherit] text-ink-2">
+                      <button type="button" className="text-left text-[0.875rem] hover:text-accent-text" aria-pressed={f === family} onClick={() => setFamily(f)}>{m.families[f]}</button>
                     </th>
-                    <td className="py-1" aria-hidden="true">
-                      <svg viewBox="0 0 100 8" preserveAspectRatio="none" className="h-3 w-full">
-                        <rect x="0" y="0" width="100" height="8" rx="2" fill="var(--surface-2)" />
-                        <rect x={(l / allMax) * 100} y="0" width={((h - l) / allMax) * 100} height="8" rx="2" fill={f === family ? "var(--accent)" : "var(--line-strong)"} />
-                      </svg>
+                    <td className="py-3" aria-hidden="true">
+                      <span className="relative block h-2.5 rounded-[5px] bg-surface-2">
+                        <span className="absolute inset-y-0 rounded-[5px]" style={{ left: `${(l / allMax) * 100}%`, width: `${Math.max(1, ((h - l) / allMax) * 100)}%`, background: f === family ? "var(--accent)" : "var(--line-strong)", transition: "left .8s, width .8s" }} />
+                      </span>
+                      <span className="mt-1 flex justify-between font-mono text-[0.72rem] font-normal text-ink-2"><span>{nf.format(l)}</span><span className="text-muted">{m.perMonth}</span><span>{nf.format(h)}</span></span>
                     </td>
-                    <td className="mono whitespace-nowrap py-1 pl-3 text-right text-xs tabular">{nf.format(l)}–{nf.format(h)}</td>
                   </tr>
                 );
               })}
@@ -111,8 +109,8 @@ export function SalaryExplorer() {
           </table>
         </section>
 
-        <section className="card p-5 rise" style={{ ["--i" as string]: 3 }} aria-labelledby="remote-h">
-          <h2 id="remote-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.remote}</h2>
+        <section className="card p-[18px] rise" style={{ ["--i" as string]: 3 }} aria-labelledby="remote-h">
+          <h2 id="remote-h" className="card-title">{m.remote}</h2>
           <p className="mt-0.5 text-xs text-muted">{m.remoteDesc}</p>
           <div className="mt-3 overflow-x-auto">
             <table className="table w-full text-sm">
@@ -138,27 +136,26 @@ export function SalaryExplorer() {
       </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-6">
-        <section className="card p-5 rise" style={{ ["--i" as string]: 4 }} aria-labelledby="calc-h">
-          <h2 id="calc-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.calc}</h2>
-          <p className="mt-0.5 text-xs text-muted">{m.calcDesc}</p>
+        <section className="card p-[18px] rise lg:sticky lg:top-[76px]" style={{ ["--i" as string]: 4 }} aria-labelledby="calc-h">
+          <h2 id="calc-h" className="card-title">{m.calc}</h2>
+          <p className="mt-0.5 text-[0.75rem] text-muted">{m.calcDesc}</p>
 
-          <div role="group" aria-label={m.mode} className="mt-4 inline-flex rounded-xl border border-line bg-surface p-0.5">
+          <div role="radiogroup" aria-label={m.mode} className="seg seg-sm mt-3.5">
             {(["g2n", "n2g"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={mode === k}
-                onClick={() => setMode(k)}
-                className={`min-h-8 rounded-[10px] px-3 text-sm font-medium transition-colors ${mode === k ? "bg-surface-3 text-ink" : "text-muted hover:text-ink"}`}
-              >
+              <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={`seg-btn ${mode === k ? "on" : ""}`}>
                 {m[k]}
               </button>
             ))}
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3.5">
             <label htmlFor="sal-amt" className="label">{mode === "g2n" ? m.grossMonthly : m.netMonthly}</label>
-            <input id="sal-amt" inputMode="decimal" className="input tabular" value={amount} onChange={(e) => setAmount(e.target.value)} aria-describedby="sal-out" />
+            <input type="range" min={300} max={6000} step={50} value={Math.min(6000, Math.max(300, a))} aria-label={mode === "g2n" ? m.grossMonthly : m.netMonthly} onChange={(e) => setAmount(e.target.value)} className="w-full accent-[var(--accent)]" />
+            <div className="mt-1.5 flex items-center justify-between font-mono text-[0.75rem] text-muted">
+              <span>300</span>
+              <input id="sal-amt" inputMode="decimal" className="input !h-8 !w-28 !py-0 text-center text-[0.9rem] font-semibold tabular" value={amount} onChange={(e) => setAmount(e.target.value)} aria-describedby="sal-out" />
+              <span>6 000</span>
+            </div>
           </div>
 
           <dl id="sal-out" aria-live="polite" className="mt-4 divide-y divide-line text-sm">
@@ -174,14 +171,14 @@ export function SalaryExplorer() {
             <div className="flex justify-between py-2"><dt className="text-ink-2">{m.irpp}</dt><dd className="mono tabular">−{nf2.format(b.irpp)}</dd></div>
             <div className="flex items-baseline justify-between py-3">
               <dt className="font-semibold">{m.net} {m.month}</dt>
-              <dd className="display tabular text-2xl">{nf2.format(b.netMonthly)} DT</dd>
+              <dd className="display tabular text-[1.5rem] leading-none">{nf.format(b.netMonthly)} <span className="text-[0.8rem] font-medium text-muted" style={{ fontFamily: "var(--font-sans)" }}>DT</span></dd>
             </div>
             <div className="flex justify-between py-2 text-muted"><dt>{m.annual}</dt><dd className="mono tabular">{nf.format(b.netMonthly * 12)} DT</dd></div>
           </dl>
         </section>
 
-        <section className="card p-5 rise" style={{ ["--i" as string]: 5 }} aria-labelledby="fx-h">
-          <h2 id="fx-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.fx}</h2>
+        <section className="card p-[18px] rise" style={{ ["--i" as string]: 5 }} aria-labelledby="fx-h">
+          <h2 id="fx-h" className="card-title">{m.fx}</h2>
           <div className="mt-3">
             <label htmlFor="fx-rate" className="label">{m.fxRate}</label>
             <input id="fx-rate" inputMode="decimal" className="input tabular" value={rate} onChange={(e) => setRate(e.target.value)} aria-describedby="fx-hint" />

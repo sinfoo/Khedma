@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarClock, ChevronLeft, ChevronRight, Download, FileText, Lightbulb, Star } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Download, FileText, Lightbulb, Printer, Trophy } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { loadReportsData, weeklyDigest } from "@/lib/reports/repo";
 import { addDays, localDate, weekStart } from "@/lib/reports/digest";
-import { CompanyAvatar, EmptyState, PageHeader, Stat } from "@/components/kit";
+import { CompanyAvatar, EmptyState, PageHeader } from "@/components/kit";
 import { ScoreRing, StateChip, fmtDate, scoreLabel } from "@/components/ui";
 import { PolishFocus } from "@/components/reports/polish";
 import { CalibrationCard, SilentCard } from "@/components/insights/calibration";
@@ -29,8 +29,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     return (
       <>
         <PageHeader eyebrow={r.eyebrow} title={r.title} lead={r.lead} />
-        <EmptyState icon={<FileText size={22} aria-hidden="true" />} title={r.empty} hint={r.emptyHint}>
-          <Link href="/app/jobs" className="btn btn-primary">{t.nav.jobs}</Link>
+        <EmptyState icon={<FileText aria-hidden="true" />} title={r.empty} hint={r.emptyHint}>
+          <Link href="/app/jobs" className="btn btn-primary btn-lg">{t.nav.jobs}</Link>
         </EmptyState>
       </>
     );
@@ -43,112 +43,101 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     { label: r.kpis.responses, value: d.responses },
     { label: r.kpis.interviews, value: d.interviews.length },
   ];
-  const h2 = "flex items-center gap-2 text-base font-semibold";
-  const h2s = { fontFamily: "var(--font-sans)", letterSpacing: 0 } as const;
+  const iconBtn = "grid size-9 place-items-center rounded-[10px] border border-line bg-surface text-ink hover:bg-surface-2";
+  const h2 = "mb-2 mt-5 flex items-center gap-2 text-[1.15rem] tracking-[-0.01em] first:mt-0";
 
   return (
     <>
-      <PageHeader eyebrow={r.eyebrow} title={r.title} lead={r.lead}
-        actions={
-          <>
-            <a href={`/api/reports/html?range=week:${week}`} className="btn btn-secondary" target="_blank" rel="noopener"><FileText size={16} aria-hidden="true" />{r.exportHtml}</a>
-            <a href={`/api/reports/html?range=week:${week}&format=md`} className="btn btn-ghost"><Download size={16} aria-hidden="true" />{r.exportMd}</a>
-            <a href="/api/reports/csv" className="btn btn-ghost"><Download size={16} aria-hidden="true" />{r.exportCsv}</a>
-          </>
-        } />
-
-      <nav aria-label={r.week.replace("{d}", "")} className="mb-6 flex items-center justify-between gap-3 no-print">
-        <Link href={`/app/reports?week=${addDays(week, -7)}`} className="btn btn-secondary btn-sm" aria-label={r.prevWeek}><ChevronLeft size={16} aria-hidden="true" /><span className="hidden sm:inline">{r.prevWeek}</span></Link>
-        <p className="text-center">
-          <span className="display text-lg">{fmt(r.week, { d: date(d.weekStart) })}</span>
-          <span className="block text-xs text-muted tabular">{date(d.weekStart)} → {date(d.weekEnd)}{isCurrent ? ` · ${r.thisWeek}` : ""}</span>
-        </p>
-        <div className="flex gap-1.5">
-          {!isCurrent && <Link href="/app/reports" className="btn btn-ghost btn-sm">{r.thisWeek}</Link>}
-          <Link href={`/app/reports?week=${addDays(week, 7)}`} className="btn btn-secondary btn-sm" aria-label={r.nextWeek} aria-disabled={isCurrent || undefined} tabIndex={isCurrent ? -1 : undefined}><span className="hidden sm:inline">{r.nextWeek}</span><ChevronRight size={16} aria-hidden="true" /></Link>
+      <header className="mb-[18px] flex flex-wrap items-end justify-between gap-4 rise">
+        <div className="min-w-0">
+          <p className="eyebrow mb-1">{r.title}</p>
+          <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{fmt(r.week, { d: date(d.weekStart) })}</h1>
+          <p className="mt-1.5 text-muted tabular">
+            {date(d.weekStart)} → {date(d.weekEnd)}
+            {isCurrent ? ` · ${r.thisWeek}` : ""}
+          </p>
         </div>
-      </nav>
+        <nav className="flex items-center gap-1.5 no-print" aria-label={r.title}>
+          <Link href={`/app/reports?week=${addDays(week, -7)}`} className={iconBtn} aria-label={r.prevWeek}><ChevronLeft size={16} aria-hidden="true" /></Link>
+          {isCurrent ? (
+            <span className={`${iconBtn} cursor-not-allowed text-line-strong`} aria-disabled="true" aria-label={r.nextWeek}><ChevronRight size={16} aria-hidden="true" /></span>
+          ) : (
+            <Link href={`/app/reports?week=${addDays(week, 7)}`} className={iconBtn} aria-label={r.nextWeek}><ChevronRight size={16} aria-hidden="true" /></Link>
+          )}
+          <a href={`/api/reports/html?range=week:${week}`} className="btn btn-outline ml-2 !h-9" target="_blank" rel="noopener"><Printer size={14} aria-hidden="true" /> {t.common.print}</a>
+          <a href={`/api/reports/html?range=week:${week}&format=md`} className="btn btn-outline !h-9"><Download size={14} aria-hidden="true" /> .md</a>
+        </nav>
+      </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {kpis.map((k, i) => <Stat key={k.label} label={k.label} value={k.value} i={i} />)}
-      </div>
-
-      <div className="grid items-start gap-5 lg:grid-cols-2">
-        <section className="card p-5 rise" style={{ ["--i" as string]: 1 }} aria-labelledby="focus-h">
-          <h2 id="focus-h" className={h2} style={h2s}><Lightbulb size={16} className="text-saffron" aria-hidden="true" />{r.focus}</h2>
-          <ol className="mt-3 space-y-2 text-sm">
-            {d.focus.map((f, i) => (
-              <li key={f.key} className="flex gap-3"><span className="mono text-muted tabular">{String(i + 1).padStart(2, "0")}</span><span>{fmt(r.focusKeys[f.key], f.vars)}</span></li>
+      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <article className="card px-6 py-6 leading-relaxed sm:px-8 sm:py-7 rise" style={{ ["--i" as string]: 1 }}>
+          <dl className="mb-5 grid grid-cols-3 gap-2 border-b border-line pb-[18px] sm:grid-cols-5">
+            {kpis.map((k) => (
+              <div key={k.label}>
+                <dd className="display tabular text-[1.6rem] leading-none">{k.value}</dd>
+                <dt className="mt-1 text-[0.72rem] text-muted">{k.label}</dt>
+              </div>
             ))}
+          </dl>
+          <h2 className={h2}><Lightbulb size={16} className="text-saffron" aria-hidden="true" /> {r.focus}</h2>
+          <ol className="flex flex-col gap-1 pl-5 text-[0.92rem] text-ink-2" style={{ listStyle: "decimal" }}>
+            {d.focus.map((f) => <li key={f.key}>{fmt(r.focusKeys[f.key], f.vars)}</li>)}
           </ol>
           <PolishFocus week={week} />
-        </section>
-
-        <section className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="top-h">
-          <h2 id="top-h" className={h2} style={h2s}><Star size={16} className="text-saffron" aria-hidden="true" />{r.top}</h2>
-          <p className="text-xs text-muted">{r.topHint}</p>
+          <h2 className={h2}><Trophy size={16} className="text-success" aria-hidden="true" /> {r.top}</h2>
           {d.top.length ? (
-            <ul className="mt-3 divide-y divide-line">
+            <ul className="flex flex-col gap-2">
               {d.top.map((x) => (
-                <li key={x.job_id} className="flex items-center gap-3 py-2.5">
-                  <CompanyAvatar name={x.company} size={32} />
+                <li key={x.job_id} className="flex items-center gap-3">
+                  <CompanyAvatar name={x.company} size={30} />
                   <div className="min-w-0 flex-1">
-                    <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="block truncate text-sm font-medium hover:underline">{x.title}</Link>
+                    <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="block truncate text-[0.9rem] font-semibold hover:text-accent-text">{x.title}</Link>
                     <p className="truncate text-xs text-muted">{x.company}{x.deadline ? ` · ${t.common.deadline} ${date(x.deadline)}` : ""}</p>
                   </div>
-                  <ScoreRing value={x.score} size={36} label={scoreLabel(t, x.score)} animate={false} />
+                  <ScoreRing value={x.score} size={32} label={scoreLabel(t, x.score)} animate={false} />
                 </li>
               ))}
             </ul>
-          ) : <p className="mt-3 text-sm text-muted">{r.noneTop}</p>}
-        </section>
-
-        <section className="card p-5 rise" style={{ ["--i" as string]: 3 }} aria-labelledby="dl-h">
-          <h2 id="dl-h" className={h2} style={h2s}><CalendarClock size={16} aria-hidden="true" />{r.deadlinesNext}</h2>
-          {d.deadlinesNext.length ? (
-            <ul className="mt-3 divide-y divide-line text-sm">
-              {d.deadlinesNext.map((x) => (
-                <li key={x.job_id} className="flex items-center justify-between gap-3 py-2">
-                  <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="min-w-0 truncate hover:underline">{x.title} <span className="text-muted">— {x.company}</span></Link>
-                  <span className="chip chip-saffron tabular shrink-0">{date(x.deadline)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : <p className="mt-3 text-sm text-muted">{r.none}</p>}
-          {d.interviews.length > 0 && (
-            <>
-              <h3 className="mt-5 text-sm font-semibold" style={h2s}>{r.kpis.interviews}</h3>
-              <ul className="mt-2 divide-y divide-line text-sm">
-                {d.interviews.map((i, k) => <li key={k} className="flex justify-between gap-3 py-2"><span className="truncate">{i.title} — {i.company}</span><span className="text-muted tabular shrink-0">{date(i.starts_at)}</span></li>)}
-              </ul>
-            </>
-          )}
-        </section>
-
-        <section className="card p-5 rise" style={{ ["--i" as string]: 4 }} aria-labelledby="les-h">
-          <h2 id="les-h" className={h2} style={h2s}>{r.lessons}</h2>
+          ) : <p className="text-sm text-muted">{r.noneTop}</p>}
+          <h2 className={h2}><BookOpen size={16} className="text-accent-text" aria-hidden="true" /> {r.lessons}</h2>
           {d.lessons.length ? (
-            <ul className="mt-3 space-y-3 text-sm">
-              {d.lessons.map((l) => (
-                <li key={l.application_id} className="rounded-xl bg-surface-2 p-3">
-                  <p className="text-xs text-muted">{l.title} — {l.company}{l.outcome ? ` · ${o[l.outcome as keyof typeof o]}` : ""}</p>
-                  <p className="mt-1">{l.lesson}</p>
+            <ul className="flex flex-col gap-1 pl-5 text-[0.92rem] text-ink-2" style={{ listStyle: "disc" }}>
+              {d.lessons.map((l) => <li key={l.application_id}>{l.lesson} <span className="text-muted">— {l.company}{l.outcome ? ` · ${o[l.outcome as keyof typeof o]}` : ""}</span></li>)}
+            </ul>
+          ) : <p className="text-sm text-muted">{r.noneLessons}</p>}
+          <h2 className={h2}><CalendarDays size={16} className="text-muted" aria-hidden="true" /> {r.deadlinesNext}</h2>
+          {d.deadlinesNext.length || d.interviews.length ? (
+            <ul className="flex flex-col gap-1 pl-5 text-[0.92rem] text-ink-2" style={{ listStyle: "disc" }}>
+              {d.interviews.map((i, k) => <li key={`i${k}`}>{i.title} — {i.company} <span className="text-muted tabular">· {date(i.starts_at)}</span></li>)}
+              {d.deadlinesNext.map((x) => (
+                <li key={x.job_id}>
+                  <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="hover:text-accent-text">{x.title}</Link> <span className="text-muted">— {x.company} · <span className="tabular">{date(x.deadline)}</span></span>
                 </li>
               ))}
             </ul>
-          ) : <p className="mt-3 text-sm text-muted">{r.noneLessons}</p>}
-        </section>
+          ) : <p className="text-sm text-muted">{r.none}</p>}
+        </article>
 
-        <SilentCard t={t} silent={d.silent} i={5} />
-        <CalibrationCard t={t} bands={d.calibration.bands} verdict={d.calibration.verdict} n={d.calibration.n} i={6} />
+        <aside className="flex flex-col gap-3">
+          <SilentCard t={t} silent={d.silent} i={2} />
+          <CalibrationCard t={t} bands={d.calibration.bands} verdict={d.calibration.verdict} n={d.calibration.n} i={3} />
+          <section className="card p-4" style={{ ["--i" as string]: 4 }}>
+            <h2 className="card-title mb-1.5 text-[0.9rem]">{r.exportHtml}</h2>
+            <p className="text-[0.78rem] text-muted">{r.lead}</p>
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <a href={`/api/reports/html?range=week:${week}`} className="btn btn-outline btn-sm" target="_blank" rel="noopener"><FileText size={13} aria-hidden="true" /> {r.exportHtml}</a>
+              <a href="/api/reports/csv" className="btn btn-outline btn-sm"><Download size={13} aria-hidden="true" /> {r.exportCsv}</a>
+            </div>
+          </section>
+        </aside>
       </div>
 
-      <section className="card mt-6 p-5 rise" style={{ ["--i" as string]: 7 }} aria-labelledby="hist-h">
+      <section className="card mt-[18px] p-[18px] rise" style={{ ["--i" as string]: 7 }} aria-labelledby="hist-h">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 id="hist-h" className={h2} style={h2s}>{r.history} <span className="chip tabular">{data.apps.length}</span></h2>
+          <h2 id="hist-h" className="card-title">{r.history} <span className="chip tabular">{data.apps.length}</span></h2>
           <a href="/api/reports/csv" className="btn btn-ghost btn-sm no-print"><Download size={14} aria-hidden="true" />{r.exportCsv}</a>
         </div>
-        <div className="-mx-5 overflow-x-auto px-5">
+        <div className="-mx-[18px] overflow-x-auto px-[18px]">
           <table className="table min-w-[860px]">
             <thead>
               <tr>

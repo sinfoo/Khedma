@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Check, List, Plus, RotateCcw } from "lucide-react";
+import { Check, Plus, RotateCcw } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -134,34 +134,25 @@ export function CalendarView({
   };
 
   const dayItems = byDay.get(selected) ?? [];
+  const [showForm, setShowForm] = useState(false);
+  const upcoming = items.filter((it) => it.day >= today).sort((a, b) => (a.day + (a.time ?? "")).localeCompare(b.day + (b.time ?? ""))).slice(0, 6);
+  const shortDay = (key: string) => {
+    const [y, mo, d] = key.split("-").map(Number);
+    return new Date(y, mo - 1, d).toLocaleDateString(loc, { weekday: "short", day: "numeric" });
+  };
   const agendaDays = grid.filter((g) => g.inMonth && byDay.has(g.key));
 
   return (
     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 rise" style={{ ["--i" as string]: 1 }}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div role="group" aria-label={m.view} className="inline-flex rounded-xl border border-line bg-surface p-0.5">
+          <div role="tablist" aria-label={m.view} className="seg">
             {(["month", "agenda"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                aria-pressed={view === v}
-                onClick={() => setView(v)}
-                className={`inline-flex min-h-8 items-center gap-1.5 rounded-[10px] px-3 text-sm font-medium transition-colors ${view === v ? "bg-surface-3 text-ink" : "text-muted hover:text-ink"}`}
-              >
-                {v === "month" ? <CalendarDays size={15} aria-hidden="true" /> : <List size={15} aria-hidden="true" />}
+              <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className="seg-btn">
                 {m[v]}
               </button>
             ))}
           </div>
-          <ul aria-label={m.legend} className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-            {(Object.keys(KIND_COLOR) as CalKind[]).map((k) => (
-              <li key={k} className="inline-flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full" style={{ background: KIND_COLOR[k] }} aria-hidden="true" />
-                {m.kinds[k]}
-              </li>
-            ))}
-          </ul>
         </div>
 
         {view === "month" ? (
@@ -171,7 +162,7 @@ export function CalendarView({
               <thead>
                 <tr>
                   {m.weekdays.map((w, i) => (
-                    <th key={w} scope="col" abbr={m.weekdaysLong[i]} className="border-b border-line py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted">
+                    <th key={w} scope="col" abbr={m.weekdaysLong[i]} className="border-b border-line py-2 text-center text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-muted">
                       {w}
                     </th>
                   ))}
@@ -203,7 +194,7 @@ export function CalendarView({
                           }}
                           onKeyDown={(e) => onKey(e, idx)}
                           onFocus={() => setFocused(g.key)}
-                          className={`h-16 cursor-pointer border-b border-r border-line p-1 align-top outline-none transition-colors last:border-r-0 focus-visible:relative focus-visible:z-10 focus-visible:shadow-[inset_0_0_0_2px_var(--ring)] sm:h-24 sm:p-1.5 ${
+                          className={`h-16 cursor-pointer border-b border-r border-line p-1.5 align-top outline-none transition-colors last:border-r-0 focus-visible:relative focus-visible:z-10 focus-visible:shadow-[inset_0_0_0_2px_var(--ring)] sm:min-h-[92px] sm:p-1.5 ${
                             isSel ? "bg-accent-soft/60" : g.inMonth ? "hover:bg-surface-2" : "bg-surface-2/40 hover:bg-surface-2"
                           }`}
                         >
@@ -226,10 +217,10 @@ export function CalendarView({
                                   {list.slice(0, 2).map((it) => (
                                     <span
                                       key={it.id}
-                                      className={`block truncate rounded px-1 text-[0.68rem] leading-4 ${KIND_SOFT[it.kind]} ${isDone(it) ? "line-through opacity-60" : ""}`}
+                                      className={`flex items-center gap-1 truncate rounded-md px-1.5 py-px text-[0.68rem] font-semibold leading-4 ${KIND_SOFT[it.kind]} ${isDone(it) ? "line-through opacity-60" : ""}`}
                                     >
-                                      {it.time && <span className="mono">{it.time} </span>}
-                                      {it.title}
+                                      <span className="size-[5px] shrink-0 rounded-full bg-current" />
+                                      <span className="truncate">{it.time && <span className="mono">{it.time} </span>}{it.title}</span>
                                     </span>
                                   ))}
                                   {list.length > 2 && <span className="block px-1 text-[0.68rem] text-muted">+{list.length - 2}</span>}
@@ -244,6 +235,14 @@ export function CalendarView({
                 ))}
               </tbody>
             </table>
+            <ul aria-label={m.legend} className="flex flex-wrap gap-x-3.5 gap-y-1 px-3.5 py-2.5 text-[0.72rem] text-muted">
+              {(Object.keys(KIND_COLOR) as CalKind[]).map((k) => (
+                <li key={k} className="inline-flex items-center gap-1.5">
+                  <span className="size-2 rounded-full" style={{ background: KIND_COLOR[k] }} aria-hidden="true" />
+                  {m.kinds[k]}
+                </li>
+              ))}
+            </ul>
           </div>
         ) : agendaDays.length === 0 ? (
           <div className="card p-8 text-center text-sm text-muted">{m.agendaEmpty}</div>
@@ -267,52 +266,86 @@ export function CalendarView({
         )}
       </div>
 
-      <aside className="card p-5 rise lg:sticky lg:top-20" style={{ ["--i" as string]: 2 }} aria-labelledby="day-h">
-        <p className="text-xs font-medium text-muted">{m.selectedDay}</p>
-        <h2 id="day-h" className="text-lg capitalize" aria-live="polite">{longDay(selected)}</h2>
-        {dayItems.length === 0 ? <p className="mt-2 text-sm text-muted">{m.noItems}</p> : <ul className="mt-3 space-y-2">{dayItems.map(itemRow)}</ul>}
-
-        <form
-          ref={formRef}
-          className="mt-5 space-y-3 border-t border-line pt-4"
-          action={(fd) =>
-            start(async () => {
-              const r = await addReminderAction(fd);
-              if (r.ok) {
-                toast.success(m.added);
-                formRef.current?.reset();
-              } else toast.error(t.common.error, r.error === "title" ? m.reminderTitle : m.reminderDate);
-            })
-          }
-        >
-          <h3 className="flex items-center gap-1.5 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
-            <Plus size={15} aria-hidden="true" /> {m.addReminder}
-          </h3>
-          <div>
-            <label htmlFor="rem-title" className="label">{m.reminderTitle}</label>
-            <input id="rem-title" name="title" required maxLength={200} className="input" placeholder={m.reminderTitlePh} />
+      <aside className="flex flex-col gap-3 lg:sticky lg:top-20" style={{ ["--i" as string]: 2 }}>
+        <section className="card p-4" aria-labelledby="up-h">
+          <div className="mb-2.5 flex items-center justify-between">
+            <h2 id="up-h" className="card-title text-[0.9rem]">{m.comingUp}</h2>
+            <button type="button" className="btn btn-outline btn-sm !h-7 !px-2.5 !text-[0.75rem]" aria-expanded={showForm} aria-controls="rem-form" onClick={() => setShowForm((v) => !v)}>
+              <Plus size={12} aria-hidden="true" /> {m.reminder}
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label htmlFor="rem-date" className="label">{m.reminderDate}</label>
-              <input id="rem-date" key={selected} name="date" type="date" required defaultValue={selected} className="input" />
-            </div>
-            <div>
-              <label htmlFor="rem-time" className="label">{m.reminderTime}</label>
-              <input id="rem-time" name="time" type="time" className="input" />
-            </div>
-          </div>
-          {targets.length > 0 && (
-            <div>
-              <label htmlFor="rem-job" className="label">{m.reminderOffer}</label>
-              <select id="rem-job" name="job_id" className="input" defaultValue="">
-                <option value="">{m.noOffer}</option>
-                {targets.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-              </select>
-            </div>
+          {showForm && (
+            <form
+              id="rem-form"
+              ref={formRef}
+              className="mb-3 space-y-2.5 rounded-xl border border-line p-3"
+              style={{ animation: "pop .18s ease both" }}
+              action={(fd) =>
+                start(async () => {
+                  const r = await addReminderAction(fd);
+                  if (r.ok) {
+                    toast.success(m.added);
+                    formRef.current?.reset();
+                    setShowForm(false);
+                  } else toast.error(t.common.error, r.error === "title" ? m.reminderTitle : m.reminderDate);
+                })
+              }
+            >
+              <div>
+                <label htmlFor="rem-title" className="label">{m.reminderTitle}</label>
+                <input id="rem-title" name="title" required maxLength={200} className="input !h-9 !py-0 text-sm" placeholder={m.reminderTitlePh} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label htmlFor="rem-date" className="label">{m.reminderDate}</label>
+                  <input id="rem-date" key={selected} name="date" type="date" required defaultValue={selected} className="input !h-9 !py-0 text-sm" />
+                </div>
+                <div>
+                  <label htmlFor="rem-time" className="label">{m.reminderTime}</label>
+                  <input id="rem-time" name="time" type="time" className="input !h-9 !py-0 text-sm" />
+                </div>
+              </div>
+              {targets.length > 0 && (
+                <div>
+                  <label htmlFor="rem-job" className="label">{m.reminderOffer}</label>
+                  <select id="rem-job" name="job_id" className="input !h-9 !py-0 text-sm" defaultValue="">
+                    <option value="">{m.noOffer}</option>
+                    {targets.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </select>
+                </div>
+              )}
+              <button type="submit" className="btn btn-primary btn-sm w-full" disabled={pending} aria-busy={pending}>{m.save}</button>
+            </form>
           )}
-          <button type="submit" className="btn btn-primary w-full" disabled={pending} aria-busy={pending}>{m.save}</button>
-        </form>
+          {upcoming.length === 0 ? (
+            <p className="text-sm text-muted">{m.agendaEmpty}</p>
+          ) : (
+            <ol className="flex flex-col gap-2.5">
+              {upcoming.map((it) => (
+                <li key={it.id} className="grid grid-cols-[auto_1fr] items-start gap-3">
+                  <span className={`grid min-w-[44px] place-items-center rounded-[9px] px-1.5 py-1 text-center text-[0.68rem] font-bold leading-[1.2] ${KIND_SOFT[it.kind]}`}>{shortDay(it.day)}</span>
+                  <button type="button" className="min-w-0 text-left text-ink" onClick={() => setSelected(it.day)}>
+                    <span className={`block truncate text-[0.85rem] font-semibold ${isDone(it) ? "text-muted line-through" : ""}`}>{it.title}</span>
+                    <span className="block truncate text-[0.72rem] text-muted">
+                      {m.kinds[it.kind]}
+                      {it.time && ` · ${it.time}`}
+                      {it.sub && ` · ${it.sub}`}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+        <section className="card p-4" aria-labelledby="day-h">
+          <p className="eyebrow text-[0.7rem]">{m.selectedDay}</p>
+          <h2 id="day-h" className="card-title mt-0.5 capitalize text-[0.9rem]" aria-live="polite">{longDay(selected)}</h2>
+          {dayItems.length === 0 ? <p className="mt-2 text-sm text-muted">{m.noItems}</p> : <ul className="mt-3 space-y-2">{dayItems.map(itemRow)}</ul>}
+        </section>
+        <section className="card p-4">
+          <h2 className="card-title mb-1.5 text-[0.9rem]">{m.cadenceTitle}</h2>
+          <p className="text-[0.78rem] leading-relaxed text-muted">{m.cadenceText}</p>
+        </section>
       </aside>
     </div>
   );

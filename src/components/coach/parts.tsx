@@ -1,22 +1,27 @@
 // Server-safe coach building blocks (no hooks): section tabs and score visuals.
-import { LinkTabs, Progress } from "@/components/kit";
+import Link from "next/link";
+import { Progress } from "@/components/kit";
 import { scoreColor } from "@/components/ui";
 import type { Dict } from "@/lib/i18n/dict";
 import { DIMS, type Scores } from "@/lib/coach/logic";
 
-export function CoachTabs({ t, current }: { t: Dict; current: "practice" | "stories" | "drill" | "debrief" }) {
+export function CoachTabs({ t, current, counts = {} }: { t: Dict; current: "practice" | "stories" | "drill" | "debrief"; counts?: { stories?: number; drill?: number } }) {
   const c = t.coach2.tabs;
+  const tabs = [
+    { key: "practice", href: "/app/coach", label: c.practice },
+    { key: "stories", href: "/app/coach/stories", label: c.stories, n: counts.stories },
+    { key: "drill", href: "/app/coach/drill", label: c.drill, n: counts.drill, due: true },
+    { key: "debrief", href: "/app/coach/debrief", label: c.debrief },
+  ] as const;
   return (
-    <LinkTabs
-      label={c.label}
-      current={current}
-      tabs={[
-        { key: "practice", href: "/app/coach", label: c.practice },
-        { key: "stories", href: "/app/coach/stories", label: c.stories },
-        { key: "drill", href: "/app/coach/drill", label: c.drill },
-        { key: "debrief", href: "/app/coach/debrief", label: c.debrief },
-      ]}
-    />
+    <nav aria-label={c.label} className="seg max-w-full overflow-x-auto no-print">
+      {tabs.map((x) => (
+        <Link key={x.key} href={x.href} aria-current={current === x.key ? "page" : undefined} className="seg-btn">
+          {x.label}
+          {"n" in x && x.n ? <span className="n">{"due" in x && x.due ? `${x.n} ${c.due}` : x.n}</span> : null}
+        </Link>
+      ))}
+    </nav>
   );
 }
 

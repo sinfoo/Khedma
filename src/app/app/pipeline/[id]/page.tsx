@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Bell, CalendarClock, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, PackageCheck, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
 import { getApplication, getJob, getProfile, latestEvaluation, listEvents } from "@/lib/db";
@@ -17,9 +17,7 @@ import {
   listReminders,
   localDate,
 } from "@/lib/repo/apps";
-import { LinkTabs, Progress } from "@/components/kit";
-import { EngineChip, VerdictChip } from "@/components/ui";
-import { ScoreBreakdown } from "@/components/score-breakdown";
+import { EngineChip } from "@/components/ui";
 import { DocEditor } from "@/components/doc-editor";
 import { ActionButton } from "@/components/action-button";
 import { WorkspaceHeader } from "@/components/pipeline/header";
@@ -31,7 +29,7 @@ import { ReplyClassifier } from "@/components/pipeline/reply-classifier";
 import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
-import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
+import { generateDoc, generatePrep, moveApplication, saveDoc } from "@/app/actions/applications";
 import { listStories } from "@/lib/repo/coach";
 import { mapStories } from "@/lib/coach/logic";
 import { likelyConcerns } from "@/lib/coach/concerns";
@@ -39,7 +37,11 @@ import { ConcernsCard, StoryMapCard } from "@/components/coach/readiness";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
+const AFTER_TABS: Tab[] = ["messages", "interviews", "contacts", "reminders", "timeline"];
 const PAST_APPLIED: AppState[] = ["applied", "responded", "interview", "offer", "hired"];
+type Step = "tailor" | "letter" | "review" | "after";
+const STEPS: Step[] = ["tailor", "letter", "review", "after"];
+const words = (x: string | null) => (x ?? "").replace(/[#>*_`|[\]()-]+/g, " ").split(/\s+/).filter(Boolean).length;
 
 export async function generateMetadata({ params }: PageProps<"/app/pipeline/[id]">): Promise<Metadata> {
   const app = getApplication(Number((await params).id));
@@ -56,11 +58,17 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   if (!app || !job) notFound();
   const { t, locale } = await getDict();
   const a = t.apps2;
+  const F = a.flow;
   const now = new Date();
   const nowMs = now.getTime();
   const today = localDate(now);
-  const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "overview";
-  const doc = sp.doc === "letter" ? "letter" : "cv";
+  const applied = !!app.applied_at || PAST_APPLIED.includes(app.status);
+  const defaultTab: Tab = applied ? "messages" : !app.cv_md?.trim() ? "documents" : !app.cover_letter_md?.trim() ? "documents" : "overview";
+  const defaultDoc = app.cv_md?.trim() ? "letter" : "cv";
+  const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : defaultTab;
+  const doc = sp.doc === "letter" || sp.doc === "cv" ? sp.doc : tab === "documents" && !sp.tab ? defaultDoc : "cv";
+  const step: Step = tab === "documents" ? (doc === "letter" ? "letter" : "tailor") : tab === "overview" ? "review" : "after";
+  const stepHref = (k: Step) => (k === "tailor" ? `/app/pipeline/${appId}?tab=documents&doc=cv` : k === "letter" ? `/app/pipeline/${appId}?tab=documents&doc=letter` : k === "review" ? `/app/pipeline/${appId}?tab=overview` : `/app/pipeline/${appId}?tab=messages`);
 
   const ev = latestEvaluation(job.id);
   const extras = getExtras(app.id);
@@ -73,7 +81,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const reminders = listReminders(app.id);
   const events = listEvents(app.id);
   const openReminders = reminders.filter((r) => !r.done);
-  const nextInterview = interviews.find((i) => i.starts_at.slice(0, 10) >= today) ?? null;
   const overdue = !!app.next_action_at && app.next_action_at.slice(0, 10) < today;
 
   const checklist = computeChecklist(
@@ -82,7 +89,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       evaluated: !!ev,
       cv_tailored: !!app.cv_md?.trim(),
       letter: !!app.cover_letter_md?.trim(),
-      applied: !!app.applied_at || PAST_APPLIED.includes(app.status),
+      applied,
       followup: events.some((e) => e.kind === "followup"),
       interview_prep: !!app.interview_prep,
     },
@@ -116,100 +123,130 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         status={app.status}
         title={job.title}
         company={job.company}
-        score={ev?.global ?? null}
+        meta={[t.jobTypes[job.type], job.location, app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), n: daysSince(app.applied_at, nowMs) }) : a.overview.notApplied].filter(Boolean).join(" · ")}
         jobId={job.id}
         postingUrl={/^https?:\/\//.test(job.url) ? job.url : null}
       />
       <CadenceBanner id={app.id} c={cadence} t={t} locale={locale} />
 
-      <LinkTabs
-        label={a.ws.tabsLabel}
-        current={tab}
-        tabs={TABS.map((k) => ({
-          key: k,
-          href: `/app/pipeline/${app.id}?tab=${k}`,
-          label: a.ws.tabs[k],
-          count: k === "interviews" ? interviews.length || undefined : k === "contacts" ? contacts.length || undefined : k === "reminders" ? openReminders.length || undefined : undefined,
-        }))}
-      />
+      {/* Step rail: the application is a path, not a set of tabs */}
+      <ol aria-label={F.stepsLabel} className="card mb-[18px] grid grid-cols-2 gap-1 p-1.5 no-print lg:grid-cols-4">
+        {STEPS.map((k, i) => {
+          const done = k === "tailor" ? !!app.cv_md?.trim() : k === "letter" ? !!app.cover_letter_md?.trim() : k === "review" ? applied : false;
+          const current = k === step;
+          return (
+            <li key={k}>
+              <Link
+                href={stepHref(k)}
+                aria-current={current ? "step" : undefined}
+                className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left transition-colors ${current ? "bg-accent-soft" : "hover:bg-surface-2"}`}
+              >
+                <span className={`mono grid size-[26px] shrink-0 place-items-center rounded-full text-[0.72rem] font-bold ${done ? "bg-success text-white" : current ? "bg-accent text-accent-ink" : "bg-surface-3 text-ink-2"}`}>
+                  {done ? <Check size={13} aria-hidden="true" /> : i + 1}
+                </span>
+                <span className="min-w-0">
+                  <span className={`block whitespace-nowrap text-[0.85rem] font-semibold ${current ? "text-ink" : "text-ink-2"}`}>{F.steps[k].label}</span>
+                  <span className="block truncate text-[0.7rem] text-muted">{F.steps[k].hint}</span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ol>
 
       {tab === "overview" && (
-        <div className="grid items-start gap-5 lg:grid-cols-[1fr_360px]">
-          <div className="space-y-5 rise" style={{ ["--i" as string]: 1 }}>
-            <Checklist id={app.id} items={checklist.items} />
-            <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
-          </div>
-          <div className="space-y-5 rise" style={{ ["--i" as string]: 2 }}>
-            <section className="card p-5" aria-labelledby="up-h">
-              <h2 id="up-h" className="mb-3 text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{a.overview.upNext}</h2>
-              <ul className="space-y-3 text-sm">
-                <li className="flex items-start gap-2.5">
-                  <Mic size={16} aria-hidden="true" className="mt-0.5 text-saffron" />
-                  {nextInterview ? (
-                    <Link href={`/app/pipeline/${app.id}?tab=interviews`} className="hover:text-accent-text">
-                      {a.interviews.kinds[nextInterview.kind]} · <span className="tabular">{shortDate(nextInterview.starts_at, locale, true)}</span>
-                    </Link>
-                  ) : (
-                    <span className="text-muted">{a.overview.noInterview}</span>
-                  )}
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <Bell size={16} aria-hidden="true" className="mt-0.5 text-accent-text" />
-                  {openReminders[0] ? (
-                    <Link href={`/app/pipeline/${app.id}?tab=reminders`} className={openReminders[0].due_at.slice(0, 10) < today ? "font-semibold text-danger" : "hover:text-accent-text"}>
-                      {openReminders[0].title} · <span className="tabular">{shortDate(openReminders[0].due_at, locale)}</span>
-                    </Link>
-                  ) : (
-                    <span className="text-muted">{a.overview.noReminder}</span>
-                  )}
-                </li>
-                <li className="flex items-start gap-2.5">
-                  <CalendarClock size={16} aria-hidden="true" className="mt-0.5 text-muted" />
-                  <span className={app.applied_at ? "" : "text-muted"}>
-                    {app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), n: daysSince(app.applied_at, nowMs) }) : a.overview.notApplied}
-                  </span>
-                </li>
+        <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]" style={{ animation: "fade .25s ease both" }}>
+          <section className="flex flex-col gap-3">
+            <div className="card p-[18px]">
+              <h2 className="mb-3 text-[1.15rem] tracking-[-0.01em]">{F.pack}</h2>
+              <ul className="flex flex-col gap-2">
+                {([["cv", app.cv_md, F.packCv], ["letter", app.cover_letter_md, F.packLetter]] as const).map(([k, text, label]) => (
+                  <li key={k} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-line bg-bg-elev px-3 py-2.5">
+                    <span className={`tile tile-sm ${text?.trim() ? "tone-success" : "tone-muted"}`}>{k === "cv" ? <FileText size={16} aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{label}</p>
+                      <p className="text-[0.75rem] text-muted">{text?.trim() ? fmt(F.packWords, { n: words(text) }) : F.packMissing}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{F.edit}</Link>
+                      {text?.trim() && (
+                        <a href={`/api/applications/${app.id}/export?doc=${k}&format=docx`} className="btn btn-outline btn-icon btn-sm !h-7 !w-7 text-ink-2" aria-label={F.download} download>
+                          <Download size={13} aria-hidden="true" />
+                        </a>
+                      )}
+                    </div>
+                  </li>
+                ))}
               </ul>
-            </section>
-            <section className="card p-5" aria-labelledby="ev-h">
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="ev-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{t.jobs.evaluation}</h2>
-                {ev && <VerdictChip verdict={ev.verdict} t={t} />}
+            </div>
+            <div className="card p-[18px]">
+              <h2 className="mb-1 text-[1.15rem] tracking-[-0.01em]">{F.howToApply}</h2>
+              <p className="mb-3 text-[0.82rem] text-muted">{F.howToApplyLead}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {contacts.find((c) => c.email) ? (
+                  <a href={`mailto:${contacts.find((c) => c.email)!.email}?subject=${encodeURIComponent(job.title)}`} className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
+                    <Mail size={18} aria-hidden="true" className="text-accent-text" />
+                    <span>
+                      <span className="block text-[0.85rem] font-semibold">{F.email}</span>
+                      <span className="block text-[0.72rem] text-muted">{contacts.find((c) => c.email)!.email} · {F.emailHint}</span>
+                    </span>
+                  </a>
+                ) : (
+                  <Link href={`/app/pipeline/${app.id}?tab=contacts`} className="flex items-center gap-2.5 rounded-xl border border-dashed border-line-strong p-3 text-left hover:bg-surface-2">
+                    <Mail size={18} aria-hidden="true" className="text-muted" />
+                    <span>
+                      <span className="block text-[0.85rem] font-semibold">{F.email}</span>
+                      <span className="block text-[0.72rem] text-muted">{F.noEmail}</span>
+                    </span>
+                  </Link>
+                )}
+                {/^https?:\/\//.test(job.url) ? (
+                  <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
+                    <ExternalLink size={18} aria-hidden="true" className="text-accent-text" />
+                    <span>
+                      <span className="block text-[0.85rem] font-semibold">{F.portal}</span>
+                      <span className="block truncate text-[0.72rem] text-muted">{new URL(job.url).host} · {F.portalHint}</span>
+                    </span>
+                  </a>
+                ) : (
+                  <span className="flex items-center gap-2.5 rounded-xl border border-dashed border-line-strong p-3 text-left opacity-70">
+                    <ExternalLink size={18} aria-hidden="true" className="text-muted" />
+                    <span>
+                      <span className="block text-[0.85rem] font-semibold">{F.portal}</span>
+                      <span className="block text-[0.72rem] text-muted">{F.noPortal}</span>
+                    </span>
+                  </span>
+                )}
               </div>
-              {ev ? (
-                <>
-                  <div className="mt-4"><ScoreBreakdown ev={ev} t={t} /></div>
-                  {ev.summary && <p className="mt-4 text-sm leading-relaxed text-ink-2">{ev.summary}</p>}
-                  <div className="mt-3"><EngineChip engine={ev.engine} t={t} /></div>
-                </>
-              ) : (
-                <div className="mt-2">
-                  <p className="hint">{t.jobs.notEvaluated}</p>
-                  <Link href={`/app/jobs/${job.id}`} className="btn btn-secondary btn-sm mt-3">{t.jobs.evaluate}</Link>
-                </div>
+              <Link href={`/app/apply/${app.id}`} className="mt-2.5 flex items-start gap-2 rounded-[10px] bg-saffron-soft px-3 py-2.5 text-[0.8rem] text-saffron hover:brightness-95">
+                <PackageCheck size={14} aria-hidden="true" className="mt-0.5" />
+                <span>
+                  <strong>{F.assistant}</strong> · {F.assistantHint}
+                </span>
+              </Link>
+            </div>
+            <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
+          </section>
+          <aside className="flex flex-col gap-3.5">
+            <Checklist id={app.id} items={checklist.items} />
+            <section className="card p-4">
+              <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
+              <p className="text-[0.78rem] leading-relaxed text-muted">{F.afterApplyText}</p>
+              {!applied && (
+                <ActionButton action={async () => { "use server"; await moveApplication(app.id, "applied"); }} className="btn btn-primary btn-sm mt-3 w-full">
+                  <CircleCheck size={14} aria-hidden="true" /> {F.markApplied}
+                </ActionButton>
               )}
             </section>
-          </div>
+          </aside>
         </div>
       )}
 
       {tab === "documents" && (
-        <div className="rise" style={{ ["--i" as string]: 1 }}>
-          <nav aria-label={a.docs.switchLabel} className="mb-4 inline-flex overflow-hidden rounded-full border border-line-strong no-print">
-            {(["cv", "letter"] as const).map((k) => (
-              <Link
-                key={k}
-                href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`}
-                aria-current={doc === k ? "page" : undefined}
-                className={`btn btn-sm rounded-none ${doc === k ? "bg-surface-3 text-ink" : "btn-ghost"}`}
-              >
-                {k === "cv" ? <FileText size={14} aria-hidden="true" /> : <Mail size={14} aria-hidden="true" />} {k === "cv" ? a.docs.cv : a.docs.letter}
-              </Link>
-            ))}
-          </nav>
+        <div style={{ animation: "fade .25s ease both" }}>
           {hasCv && <SourceBar appId={app.id} label={sourceLabel} isOverride={!!override} />}
-          {doc === "cv" ? (
-            <div className="grid items-start gap-5 xl:grid-cols-[1fr_300px]">
+          <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_320px]">
+            {doc === "cv" ? (
               <DocEditor
                 key={`cv-${app.updated_at}`}
                 value={app.cv_md}
@@ -224,24 +261,53 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 downloads={{ docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
                 original={hasCv ? cvBase(source) : null}
               />
-              <AtsPanel t={t} before={hasCv ? atsCheck(job, source.text) : null} after={app.cv_md ? atsCheck(job, app.cv_md) : null} />
-            </div>
-          ) : (
-            <DocEditor
-              key={`letter-${app.updated_at}`}
-              value={app.cover_letter_md}
-              saveAction={saveDoc.bind(null, app.id, "letter")}
-              generateAction={generateDoc.bind(null, app.id, "letter")}
-              emptyText={t.application.noLetter}
-              generateLabel={t.application.letter}
-              generateHint={t.application.letterHint}
-              engine={extras.letter_engine}
-              disabledReason={needCv}
-              disabledSlot={needCv ? uploadSlot : undefined}
-              downloads={{ docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
-            />
-          )}
+            ) : (
+              <DocEditor
+                key={`letter-${app.updated_at}`}
+                value={app.cover_letter_md}
+                saveAction={saveDoc.bind(null, app.id, "letter")}
+                generateAction={generateDoc.bind(null, app.id, "letter")}
+                emptyText={t.application.noLetter}
+                generateLabel={t.application.letter}
+                generateHint={t.application.letterHint}
+                engine={extras.letter_engine}
+                disabledReason={needCv}
+                disabledSlot={needCv ? uploadSlot : undefined}
+                downloads={{ docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
+              />
+            )}
+            <aside className="flex flex-col gap-3.5">
+              {doc === "cv" && <AtsPanel t={t} before={hasCv ? atsCheck(job, source.text) : null} after={app.cv_md ? atsCheck(job, app.cv_md) : null} />}
+              <Checklist id={app.id} items={checklist.items} compact title={F.beforeSend} />
+              <Link href={`/app/coach?application=${app.id}`} className="inline-flex items-center gap-1.5 px-1 text-[0.8rem] font-semibold">
+                <GraduationCap size={13} aria-hidden="true" /> {F.prepareInterview}
+              </Link>
+            </aside>
+          </div>
         </div>
+      )}
+
+      {AFTER_TABS.includes(tab) && (
+        <>
+          {applied && (
+            <div className="mb-3.5 flex flex-wrap items-center gap-3 rounded-xl bg-success-soft px-3.5 py-3 text-success" style={{ animation: "pop .3s ease both" }}>
+              <CircleCheck size={18} aria-hidden="true" />
+              <p className="min-w-0 flex-1 text-sm font-semibold">{fmt(F.appliedOn, { date: shortDate(app.applied_at ?? app.updated_at, locale) })}</p>
+              <Link href="/app/pipeline" className="text-[0.8rem] font-semibold text-success">{F.seePipeline}</Link>
+            </div>
+          )}
+          <div role="tablist" aria-label={a.ws.tabsLabel} className="seg mb-3.5 max-w-full overflow-x-auto no-print">
+            {AFTER_TABS.map((k) => {
+              const n = k === "interviews" ? interviews.length : k === "contacts" ? contacts.length : k === "reminders" ? openReminders.length : 0;
+              return (
+                <Link key={k} href={`/app/pipeline/${app.id}?tab=${k}`} role="tab" aria-selected={tab === k} className="seg-btn">
+                  {a.ws.tabs[k]}
+                  {n > 0 && <span className="n">{n}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {tab === "messages" && (
@@ -320,6 +386,24 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           <NoteForm appId={app.id} />
         </div>
       )}
+
+      {/* Flow bar: always know where you are and what is next */}
+      <div className="sticky bottom-0 z-10 -mx-4 mt-[22px] flex items-center gap-3 border-t border-line bg-bg/90 px-4 py-3 backdrop-blur-md no-print sm:-mx-8 sm:px-8">
+        <p className="text-[0.82rem] text-muted">
+          <span className="font-semibold text-ink">{fmt(F.stepOf, { n: STEPS.indexOf(step) + 1 })}</span> · {F.steps[step].label}
+        </p>
+        <span className="flex-1" />
+        {STEPS.indexOf(step) > 0 && (
+          <Link href={stepHref(STEPS[STEPS.indexOf(step) - 1])} className="btn btn-outline !h-10">
+            <ArrowLeft size={14} aria-hidden="true" /> {F.back}
+          </Link>
+        )}
+        {step !== "after" && (
+          <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>
+            {step === "review" ? F.steps.after.label : F.next} <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        )}
+      </div>
     </>
   );
 }
@@ -351,38 +435,31 @@ function eventText(e: AppEvent, t: Dict): string {
 
 function AtsPanel({ t, before, after }: { t: Dict; before: ReturnType<typeof atsCheck> | null; after: ReturnType<typeof atsCheck> | null }) {
   const d = t.apps2.docs;
+  const F = t.apps2.flow;
   const r = after ?? before;
+  const now = r?.pct ?? null;
+  const was = after && before ? before.pct : null;
   return (
-    <aside className="card p-5 no-print" aria-labelledby="ats-h">
-      <h2 id="ats-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{d.ats}</h2>
-      <p className="hint mt-1">{d.atsHint}</p>
-      {!r || r.pct === null ? (
-        <p className="mt-4 text-sm text-muted">{d.atsNone}</p>
+    <aside className="card p-4 no-print" aria-labelledby="ats-h">
+      <h2 id="ats-h" className="card-title text-[0.9rem]">{F.keywordMatch}</h2>
+      {now === null ? (
+        <p className="mt-3 text-sm text-muted">{d.atsNone}</p>
       ) : (
         <>
-          <p className="mt-4 flex items-baseline gap-2">
-            <span className="display text-4xl tabular">{r.pct}%</span>
-            <span className="text-sm text-muted">{after ? d.tailored : d.original}</span>
-          </p>
-          {after && before && before.pct !== null && (
-            <p className="mt-1 text-xs text-muted tabular">{fmt(d.atsBefore, { n: before.pct })}</p>
-          )}
-          <div className="mt-3">
-            <Progress value={r.pct} label={d.ats} tone={r.pct >= 70 ? "success" : r.pct >= 40 ? "saffron" : "danger"} />
+          <div className="mt-3 flex items-end gap-2.5">
+            <span className="display tabular text-[2.4rem] leading-none">{now}%</span>
+            {was !== null && <span className="pb-1 text-[0.78rem] text-muted">{fmt(F.was, { n: was })}</span>}
           </div>
-          <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted" style={{ fontFamily: "var(--font-sans)" }}>{fmt(d.present, { n: r.present.length })}</h3>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {r.present.map((k) => <li key={k} className="chip chip-success">{k}</li>)}
+          <div className="relative mt-2.5 h-2 overflow-hidden rounded-full bg-surface-3">
+            {was !== null && <span className="absolute inset-y-0 left-0 rounded-full bg-line-strong" style={{ width: `${was}%` }} />}
+            <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${now}%`, background: now >= 70 ? "var(--success)" : now >= 40 ? "var(--saffron)" : "var(--danger)", transition: "width 1.1s cubic-bezier(.2,.7,.2,1)" }} />
+          </div>
+          <p className="mt-2.5 text-[0.75rem] text-muted">{F.keywordHint}</p>
+          <ul className="mt-3 flex flex-wrap gap-1.5">
+            {r!.present.map((k) => <li key={k} className="chip chip-success !py-0 text-[0.72rem]">{k}</li>)}
+            {r!.missing.map((k) => <li key={k} className="chip !py-0 text-[0.72rem]">{k}</li>)}
           </ul>
-          {r.missing.length > 0 && (
-            <>
-              <h3 className="mt-4 text-xs font-semibold uppercase tracking-wide text-muted" style={{ fontFamily: "var(--font-sans)" }}>{fmt(d.missing, { n: r.missing.length })}</h3>
-              <ul className="mt-2 flex flex-wrap gap-1.5">
-                {r.missing.map((k) => <li key={k} className="chip">{k}</li>)}
-              </ul>
-              <p className="hint mt-3">{d.missingHint}</p>
-            </>
-          )}
+          {r!.missing.length > 0 && <p className="hint mt-2.5">{d.missingHint}</p>}
         </>
       )}
     </aside>

@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { BadgeCheck, ExternalLink, Sparkles } from "lucide-react";
+import { BadgeCheck, BookOpen, Check, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
-import { Progress } from "@/components/kit";
 import { EngineChip } from "@/components/ui";
 import { generateUpskillPlan, markSkillAcquired, toggleStep } from "@/app/actions/upskill";
 import type { JobType } from "@/lib/types";
@@ -37,221 +36,163 @@ export function UpskillBoard({ matrix, plan }: { matrix: Matrix; plan: PlanView 
       .filter((r) => val(r) > 0 && (show === "all" || (show === "have" ? r.have : !r.have)))
       .sort((a, b) => val(b) - val(a) || a.skill.localeCompare(b.skill));
   }, [matrix.rows, type, show]);
-  const cols = type ? [type] : matrix.types;
-  const max = Math.max(1, ...matrix.rows.flatMap((r) => cols.map((c) => r.byType[c] ?? 0)));
 
   const isDone = (skill: string, i: number, base: number[]) => over[`${skill}|${i}`] ?? base.includes(i);
   const totalSteps = plan?.items.reduce((s, p) => s + p.steps.length, 0) ?? 0;
   const doneSteps = plan?.items.reduce((s, p) => s + p.steps.filter((_, i) => isDone(p.skill, i, p.done) || acquiredNow[p.skill]).length, 0) ?? 0;
 
+  const PR = { 1: { label: m.priorityShort[1], cls: "bg-danger-soft text-danger" }, 2: { label: m.priorityShort[2], cls: "bg-saffron-soft text-saffron" }, 3: { label: m.priorityShort[3], cls: "bg-surface-2 text-ink-2" } } as const;
+  const ringR = 18;
+  const ringC = 2 * Math.PI * ringR;
+  const val = (r: Matrix["rows"][number]) => (type ? r.byType[type] ?? 0 : r.total);
+  const demandMax = Math.max(1, ...rows.map(val));
+
   return (
-    <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-      <section className="card p-5 rise min-w-0" style={{ ["--i" as string]: 1 }} aria-labelledby="heat-h">
-        <h2 id="heat-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.heatmap}</h2>
-        <p className="mt-0.5 text-xs text-muted">{m.heatmapDesc}</p>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor="sk-type" className="label">{m.filterType}</label>
-            <select id="sk-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="">{m.allTypes}</option>
-              {matrix.types.map((ty) => <option key={ty} value={ty}>{t.jobTypes[ty]}</option>)}
-            </select>
+    <div className="grid grid-cols-1 items-start gap-[18px] xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <section className="flex min-w-0 flex-col gap-2.5" aria-labelledby="plan-h">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <h2 id="plan-h" className="text-[1.2rem] tracking-[-0.015em]">{m.plan}</h2>
+            {plan && <EngineChip engine={plan.engine} t={t} />}
           </div>
-          <div>
-            <label htmlFor="sk-show" className="label">{m.filterHave}</label>
-            <select id="sk-show" className="input" value={show} onChange={(e) => setShow(e.target.value as typeof show)}>
-              {(["all", "missing", "have"] as const).map((k) => <option key={k} value={k}>{m.show[k]}</option>)}
-            </select>
-          </div>
+          <button
+            type="button"
+            className="btn btn-saffron"
+            disabled={pending}
+            aria-busy={pending}
+            onClick={() =>
+              start(async () => {
+                await generateUpskillPlan();
+                setOver({});
+                toast.success(m.generated);
+              })
+            }
+          >
+            <Sparkles size={15} aria-hidden="true" /> {pending ? m.generating : plan ? m.regenerate : m.generate}
+          </button>
         </div>
+        {plan ? (
+          <p className="text-[0.8rem] text-muted tabular">{fmt(m.progress, { done: doneSteps, n: totalSteps })} · {m.overall}</p>
+        ) : (
+          <p className="card p-5 text-sm text-muted">{m.planEmpty}</p>
+        )}
 
-        <div className="mt-4 max-h-[34rem] overflow-auto">
-          {rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted" aria-live="polite">{m.noRows}</p>
-          ) : (
-            <table className="w-full border-separate border-spacing-y-1 text-sm">
-              <caption className="sr-only">{m.heatmap}</caption>
-              <thead className="sticky top-0 bg-surface">
-                <tr className="text-xs text-muted">
-                  <th scope="col" className="py-1 pr-2 text-left font-medium">{t.insights2.ins.skill}</th>
-                  {cols.map((c) => <th key={c} scope="col" className="px-1 py-1 text-center font-medium" title={t.jobTypes[c as JobType]}>{/\(([^)]+)\)/.exec(t.jobTypes[c as JobType])?.[1] ?? t.jobTypes[c as JobType]}</th>)}
-                  {!type && <th scope="col" className="py-1 pl-1 text-right font-medium">{m.total}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.skill}>
-                    <th scope="row" className="max-w-[9rem] py-0.5 pr-2 text-left font-normal">
-                      <span className="flex items-center gap-1.5 max-sm:flex-row-reverse max-sm:justify-end">
-                        <span className="truncate">{r.skill}</span>
-                        <span className={`chip !px-1.5 !py-0 text-[0.68rem] max-sm:sr-only ${r.have ? "chip-accent" : "chip-saffron"}`}>{r.have ? m.have : m.missing}</span>
-                        <span aria-hidden="true" className="size-2 shrink-0 rounded-full sm:hidden" style={{ background: r.have ? "var(--accent)" : "var(--saffron)" }} />
-                      </span>
-                    </th>
-                    {cols.map((c) => {
-                      const v = r.byType[c] ?? 0;
-                      return (
-                        <td key={c} className="px-1 text-center">
-                          <span
-                            className="inline-flex h-7 w-full min-w-9 items-center justify-center rounded-md text-xs tabular text-ink"
-                            style={{ background: v ? `color-mix(in srgb, ${r.have ? "var(--accent)" : "var(--saffron)"} ${12 + Math.round((v / max) * 48)}%, transparent)` : "var(--surface-2)" }}
-                          >
-                            {v || <span className="text-muted">·</span>}
-                          </span>
-                        </td>
-                      );
-                    })}
-                    {!type && <td className="mono pl-1 text-right tabular">{r.total}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
-
-      <section className="min-w-0 space-y-4" aria-labelledby="plan-h">
-        <div className="card p-5 rise" style={{ ["--i" as string]: 2 }}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h2 id="plan-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.plan}</h2>
-              {plan && <EngineChip engine={plan.engine} t={t} />}
-            </div>
-            <button
-              type="button"
-              className={`btn ${plan ? "btn-secondary" : "btn-primary"} btn-sm`}
-              disabled={pending}
-              aria-busy={pending}
-              onClick={() =>
-                start(async () => {
-                  await generateUpskillPlan();
-                  setOver({});
-                  toast.success(m.generated);
-                })
-              }
-            >
-              <Sparkles size={14} aria-hidden="true" /> {pending ? m.generating : plan ? m.regenerate : m.generate}
-            </button>
-          </div>
-          {plan ? (
-            <div className="mt-4">
-              <div className="mb-1.5 flex justify-between text-xs text-muted">
-                <span>{m.overall}</span>
-                <span className="tabular">{fmt(m.progress, { done: doneSteps, n: totalSteps })}</span>
-              </div>
-              <Progress value={doneSteps} max={Math.max(1, totalSteps)} label={m.overall} tone={doneSteps === totalSteps && totalSteps ? "success" : "accent"} />
-            </div>
-          ) : (
-            <p className="mt-2 text-sm text-muted">{m.planEmpty}</p>
-          )}
-        </div>
-
-        {plan && (
-          <ol className="relative space-y-4 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-line">
-            {plan.items.map((p, k) => {
-              const acquired = p.acquired || !!acquiredNow[p.skill];
-              const done = p.steps.filter((_, i) => acquired || isDone(p.skill, i, p.done)).length;
-              const complete = done === p.steps.length;
-              return (
-                <li key={p.skill} className="relative pl-11 rise" style={{ ["--i" as string]: k + 3 }}>
-                  <span
-                    aria-hidden="true"
-                    className={`absolute left-0 top-4 grid size-8 place-items-center rounded-full border text-sm font-semibold ${
-                      acquired ? "border-success bg-success-soft text-success" : "border-line-strong bg-surface text-ink-2"
-                    }`}
-                  >
-                    {acquired ? <BadgeCheck size={16} /> : k + 1}
+        {plan &&
+          plan.items.map((p, k) => {
+            const acquired = p.acquired || !!acquiredNow[p.skill];
+            const done = p.steps.filter((_, i) => acquired || isDone(p.skill, i, p.done)).length;
+            const complete = done === p.steps.length;
+            const pct = p.steps.length ? done / p.steps.length : 0;
+            return (
+              <article key={p.skill} className="card px-[18px] py-4 rise" style={{ ["--i" as string]: k }} aria-labelledby={`sk-${k}`}>
+                <div className="flex items-start gap-3">
+                  <span role="img" aria-label={`${p.skill}: ${fmt(m.progress, { done, n: p.steps.length })}`} className="relative grid size-11 shrink-0 place-items-center">
+                    <svg viewBox="0 0 44 44" width="44" height="44" className="-rotate-90" aria-hidden="true">
+                      <circle cx="22" cy="22" r={ringR} fill="none" stroke="var(--surface-3)" strokeWidth="5" />
+                      <circle cx="22" cy="22" r={ringR} fill="none" stroke={complete ? "var(--success)" : "var(--accent)"} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${ringC * pct} ${ringC}`} style={{ transition: "stroke-dasharray .8s cubic-bezier(.2,.7,.2,1)" }} />
+                    </svg>
+                    <span className="mono absolute text-[0.68rem] font-semibold">{done}/{p.steps.length}</span>
                   </span>
-                  <article className="card p-5" aria-labelledby={`sk-${k}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <h3 id={`sk-${k}`} className="text-lg">{p.skill}</h3>
-                        <p className="mt-0.5 text-sm text-ink-2">{p.why}</p>
-                      </div>
-                      <span className={`chip ${p.priority === 1 ? "chip-danger" : p.priority === 2 ? "chip-saffron" : ""}`}>{fmt(m.priority, { n: p.priority })}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 id={`sk-${k}`} className="text-[1.1rem] tracking-[-0.01em]">{p.skill}</h3>
+                      <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-px text-[0.68rem] font-semibold ${PR[p.priority].cls}`}>{PR[p.priority].label}</span>
+                      {acquired && <span className="chip chip-success !py-0 text-[0.68rem]"><BadgeCheck size={11} aria-hidden="true" /> {m.acquired}</span>}
+                      <span className="ml-auto whitespace-nowrap text-[0.75rem] text-muted">{fmt(m.weeks, { n: Math.max(1, p.steps.length) })}</span>
                     </div>
-
-                    <div className="mt-3 flex items-center gap-3">
-                      <div className="flex-1">
-                        <Progress value={done} max={Math.max(1, p.steps.length)} label={`${p.skill}: ${fmt(m.progress, { done, n: p.steps.length })}`} tone={complete ? "success" : "accent"} />
-                      </div>
-                      <span className="text-xs tabular text-muted">{fmt(m.progress, { done, n: p.steps.length })}</span>
-                    </div>
-
-                    <fieldset className="mt-3">
-                      <legend className="sr-only">{p.skill}</legend>
-                      <ul className="space-y-1">
-                        {p.steps.map((s, i) => {
-                          const checked = acquired || isDone(p.skill, i, p.done);
-                          const id = `st-${k}-${i}`;
-                          return (
-                            <li key={i}>
-                              <label htmlFor={id} className="-mx-2 flex min-h-8 cursor-pointer items-start gap-2.5 rounded-lg px-2 py-1.5 text-sm hover:bg-surface-2">
-                                <input
-                                  id={id}
-                                  type="checkbox"
-                                  className="mt-0.5 size-4 shrink-0 accent-[var(--accent)]"
-                                  checked={checked}
-                                  disabled={acquired}
-                                  onChange={(e) => {
-                                    const v = e.target.checked;
-                                    setOver((o) => ({ ...o, [`${p.skill}|${i}`]: v }));
-                                    start(async () => {
-                                      await toggleStep(p.skill, i, v);
-                                      toast.success(v ? m.stepDone : m.stepUndone);
-                                    });
-                                  }}
-                                />
-                                <span className={checked ? "text-muted line-through" : ""}>{s}</span>
-                              </label>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </fieldset>
-
-                    <div className="mt-4 border-t border-line pt-3">
-                      <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{m.resources}</h4>
-                      <ul className="flex flex-wrap gap-1.5">
-                        {p.resources.map((r) => (
-                          <li key={r.url}>
-                            <a href={r.url} target="_blank" rel="noopener noreferrer" className="chip hover:border-line-strong hover:text-ink">
-                              {r.title} <ExternalLink size={12} aria-hidden="true" />
-                              <span className="sr-only"> ({m.external})</span>
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="mt-4 flex justify-end">
-                      {acquired ? (
-                        <span className="chip chip-success"><BadgeCheck size={13} aria-hidden="true" /> {m.acquired}</span>
-                      ) : (
+                    <p className="mt-0.5 text-[0.82rem] text-muted">{p.why}</p>
+                  </div>
+                </div>
+                <ol className="mt-3 flex flex-col gap-1.5">
+                  {p.steps.map((s, i) => {
+                    const checked = acquired || isDone(p.skill, i, p.done);
+                    return (
+                      <li key={i}>
                         <button
                           type="button"
-                          className={`btn btn-sm ${complete ? "btn-primary" : "btn-secondary"}`}
-                          disabled={pending}
+                          role="checkbox"
+                          aria-checked={checked}
+                          disabled={acquired}
+                          className={`flex w-full items-center gap-2.5 rounded-[10px] border border-line px-2.5 py-2 text-left transition-colors ${checked ? "bg-success-soft/40" : "bg-surface hover:bg-surface-2"}`}
                           onClick={() => {
-                            setAcquiredNow((a) => ({ ...a, [p.skill]: true }));
+                            const v = !checked;
+                            setOver((o) => ({ ...o, [`${p.skill}|${i}`]: v }));
                             start(async () => {
-                              await markSkillAcquired(p.skill);
-                              toast.success(fmt(m.acquiredToast, { skill: p.skill }));
+                              await toggleStep(p.skill, i, v);
+                              toast.success(v ? m.stepDone : m.stepUndone);
                             });
                           }}
                         >
-                          <BadgeCheck size={14} aria-hidden="true" /> {m.acquire}
+                          <span aria-hidden="true" className={`grid size-[18px] shrink-0 place-items-center rounded-md border text-white ${checked ? "border-success bg-success" : "border-line-strong bg-surface"}`}>
+                            {checked && <Check size={11} />}
+                          </span>
+                          <span className={`flex-1 text-[0.85rem] ${checked ? "text-muted line-through" : "text-ink"}`}>{s}</span>
                         </button>
-                      )}
-                    </div>
-                  </article>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                  {p.resources.map((r) => (
+                    <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border border-line bg-surface-2 px-2.5 text-[0.72rem] font-semibold text-ink-2 hover:border-line-strong">
+                      <BookOpen size={11} aria-hidden="true" /> {r.title}
+                      <span className="sr-only"> ({m.external})</span>
+                    </a>
+                  ))}
+                  {!acquired && (
+                    <button
+                      type="button"
+                      className={`btn btn-sm ml-auto ${complete ? "btn-primary" : "btn-outline"}`}
+                      disabled={pending}
+                      onClick={() => {
+                        setAcquiredNow((a) => ({ ...a, [p.skill]: true }));
+                        start(async () => {
+                          await markSkillAcquired(p.skill);
+                          toast.success(fmt(m.acquiredToast, { skill: p.skill }));
+                        });
+                      }}
+                    >
+                      <BadgeCheck size={13} aria-hidden="true" /> {m.acquire}
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })}
       </section>
+
+      <aside className="flex min-w-0 flex-col gap-3 xl:sticky xl:top-[76px]">
+        <section className="card p-4" aria-labelledby="heat-h">
+          <h2 id="heat-h" className="card-title text-[0.9rem]">{m.demand}</h2>
+          <p className="mt-0.5 mb-3 text-[0.75rem] text-muted">{m.demandLegend}</p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            <select className="input !h-7 !w-auto !py-0 text-[0.78rem]" aria-label={m.filterType} value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="">{m.allTypes}</option>
+              {matrix.types.map((ty) => <option key={ty} value={ty}>{t.jobTypes[ty]}</option>)}
+            </select>
+            <span role="radiogroup" aria-label={m.filterHave} className="seg seg-sm">
+              {(["all", "missing", "have"] as const).map((k) => (
+                <button key={k} type="button" role="radio" aria-checked={show === k} className={`seg-btn ${show === k ? "on" : ""}`} onClick={() => setShow(k)}>{m.show[k]}</button>
+              ))}
+            </span>
+          </div>
+          {rows.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted" aria-live="polite">{m.noRows}</p>
+          ) : (
+            <ul className="flex flex-col gap-[7px]">
+              {rows.slice(0, 14).map((r) => (
+                <li key={r.skill} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-2.5 text-[0.8rem]">
+                  <span className="truncate text-ink-2" title={r.skill}>{r.skill}</span>
+                  <span className="block h-2.5 overflow-hidden rounded-[5px] bg-surface-2">
+                    <span className="block h-full rounded-[5px]" style={{ width: `${(val(r) / demandMax) * 100}%`, background: r.have ? "var(--accent)" : "var(--saffron)", transition: "width .9s cubic-bezier(.2,.7,.2,1)" }} />
+                  </span>
+                  <span className="mono text-[0.72rem] text-muted tabular">{val(r)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </aside>
     </div>
   );
 }

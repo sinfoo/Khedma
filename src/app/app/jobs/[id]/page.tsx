@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PostingLink } from "@/components/posting-link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Bookmark, Copy, ExternalLink, FileText, MapPin, Pencil, Sparkles, Wifi } from "lucide-react";
+import { ArrowLeft, Bookmark, Copy, FileText, Pencil, Sparkles } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
 import { getJob, getProfile, listJobs, withMeta } from "@/lib/db";
@@ -11,7 +11,7 @@ import { eligibilityGates, type Gate } from "@/lib/ai/gates";
 import { getTriageMarginals, latestEvaluationV2 } from "@/lib/repo/evaluations";
 import { EvaluationV2 } from "@/components/offers/evaluation-v2";
 import type { Evaluation, Locale } from "@/lib/types";
-import { CompanyAvatar, LinkTabs, Progress } from "@/components/kit";
+import { CompanyAvatar } from "@/components/kit";
 import { EngineChip, ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreLabel } from "@/components/ui";
 import { ScoreBreakdown } from "@/components/score-breakdown";
 import { ActionButton } from "@/components/action-button";
@@ -40,35 +40,47 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
   const o = t.offers2;
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "overview";
   const ev = job.evaluation;
-  const isHttp = /^https?:/.test(job.url);
   const dup = findDuplicates(listJobs({ archived: job.archived })).get(job.id);
   const d = daysUntil(job.deadline);
   const cv = cvForMatching();
   const ats = atsKeywords(job, cv.text);
   const href = (k: Tab) => (k === "overview" ? `/app/jobs/${job.id}` : `/app/jobs/${job.id}?tab=${k}`);
 
+  const tabBtn = (k: Tab, label: string) => (
+    <Link
+      key={k}
+      href={href(k)}
+      aria-current={tab === k ? "page" : undefined}
+      className={`h-9 border-b-2 px-3 text-[0.85rem] font-semibold leading-9 transition-colors ${tab === k ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
+    >
+      {label}
+    </Link>
+  );
+
   return (
     <>
-      <Link href="/app/jobs" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink no-print">
+      <Link href="/app/jobs" className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted hover:text-ink no-print">
         <ArrowLeft size={15} aria-hidden="true" /> {o.back}
       </Link>
 
       {sp.new === "1" && !ev && <NewOfferPrompt id={job.id} />}
 
-      <header className="mb-6 rise">
-        <div className="flex flex-wrap items-start gap-4">
-          <CompanyAvatar name={job.company} size={56} />
-          <div className="min-w-0 flex-1 basis-72">
-            <p className="text-sm font-semibold text-ink-2">{job.company}</p>
-            <h1 className="text-[1.6rem] leading-tight sm:text-[2rem]">{job.title}</h1>
-            <div className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm text-muted">
-              <span className="chip">{t.jobTypes[job.type]}</span>
-              {job.location && <span className="inline-flex items-center gap-1"><MapPin size={14} aria-hidden="true" />{job.location}</span>}
-              {job.remote && <span className="inline-flex items-center gap-1 text-accent-text"><Wifi size={14} aria-hidden="true" />{o.remote}</span>}
+      <header className="mb-4 rise">
+        <div className="flex items-start gap-3.5">
+          <CompanyAvatar name={job.company} size={48} />
+          <div className="min-w-0 flex-1">
+            <p className="text-[0.8rem] font-semibold text-ink-2">
+              {job.company} · {t.jobTypes[job.type]}
+              {job.location ? ` · ${job.location}` : ""}
+              {job.remote ? ` · ${o.remote}` : ""}
+            </p>
+            <h1 className="mt-0.5 text-[1.45rem] leading-[1.2] tracking-[-0.02em] sm:text-[1.6rem]">{job.title}</h1>
+            <p className="mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[0.8rem] text-muted">
               <span>{job.posted_at ? o.posted : o.added} {fmtDate(job.posted_at ?? job.created_at, locale)}</span>
-              <span className={d !== null && d >= 0 && d <= 3 ? "font-semibold text-danger" : d !== null && d >= 0 && d <= 7 ? "text-saffron" : ""}>
+              <span className={d !== null && d >= 0 && d <= 3 ? "font-semibold text-danger" : d !== null && d >= 0 && d <= 7 ? "font-semibold text-saffron" : ""}>
                 {job.deadline ? `${t.common.deadline} ${fmtDate(job.deadline, locale)}${d !== null && d >= 0 ? ` · ${d === 0 ? o.dToday : fmt(o.dMinus, { n: d })}` : d !== null ? ` · ${o.expired}` : ""}` : o.noDeadline}
               </span>
+              <span>{o.list2.via} {job.source}</span>
               {job.application && <StateChip state={job.application.status} t={t} />}
               {job.archived && <span className="chip">{o.archived}</span>}
               {dup && (
@@ -76,58 +88,62 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
                   <Copy size={12} aria-hidden="true" /> {fmt(o.dupOf, { title: dup.title })}
                 </Link>
               )}
-            </div>
+            </p>
           </div>
-          {ev && (
-            <div className="hidden items-center gap-3 sm:flex">
-              <ScoreRing value={ev.global} size={64} label={scoreLabel(t, ev.global)} />
-            </div>
-          )}
+          {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2 no-print">
+        <div className="mt-3.5 flex flex-wrap items-center gap-2 no-print">
           {job.application ? (
-            <Link href={`/app/pipeline/${job.application.id}`} className="btn btn-primary">
-              <Bookmark size={16} aria-hidden="true" /> {o.openApplication}
+            <Link href={`/app/pipeline/${job.application.id}`} className="btn btn-primary !h-9">
+              <Bookmark size={14} aria-hidden="true" /> {o.openApplication}
             </Link>
           ) : (
-            <ActionButton action={trackJob.bind(null, job.id)} className="btn btn-primary">
-              <Bookmark size={16} aria-hidden="true" /> {t.jobs.track}
+            <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-primary !h-9">
+              <Bookmark size={14} aria-hidden="true" /> {o.trackTailor}
             </ActionButton>
           )}
-          <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-secondary">
-            <FileText size={16} aria-hidden="true" className="text-accent-text" /> {o.tailorCv}
-          </ActionButton>
-          <span aria-hidden="true" className="mx-1 hidden h-6 w-px bg-line sm:block" />
+          {!ev && (
+            <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-saffron !h-9">
+              <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
+            </ActionButton>
+          )}
+          {job.application ? (
+            <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-outline !h-9">
+              <FileText size={14} aria-hidden="true" /> {o.tailorCv}
+            </ActionButton>
+          ) : (
+            <ActionButton action={trackJob.bind(null, job.id)} className="btn btn-outline !h-9">
+              <Bookmark size={14} aria-hidden="true" /> {t.jobs.track}
+            </ActionButton>
+          )}
           <PostingLink job={job} size="md" variant="secondary" />
-          <Link href={`/app/jobs/${job.id}/edit`} className="btn btn-ghost">
-            <Pencil size={16} aria-hidden="true" /> {o.edit}
-          </Link>
-          <StarToggle id={job.id} starred={job.starred} />
-          <OfferMenu id={job.id} archived={job.archived} />
+          <span className="ml-auto flex items-center gap-1.5">
+            <Link href={`/app/jobs/${job.id}/edit`} className="btn btn-outline btn-icon !h-9 !w-9" aria-label={o.edit} title={o.edit}>
+              <Pencil size={15} aria-hidden="true" />
+            </Link>
+            <StarToggle id={job.id} starred={job.starred} />
+            <OfferMenu id={job.id} archived={job.archived} />
+          </span>
         </div>
+
+        <nav aria-label={o.tabsLabel} className="mt-3 flex gap-1 border-b border-line no-print">
+          {tabBtn("overview", o.tabs.overview)}
+          {tabBtn("fit", o.tabs.fit)}
+          {tabBtn("keywords", ats.keywords.length && !cv.empty ? `${o.tabs.keywords} · ${ats.pct}%` : o.tabs.keywords)}
+          {tabBtn("ask", o.tabs.ask)}
+        </nav>
       </header>
 
-      <LinkTabs
-        label={o.tabsLabel}
-        current={tab}
-        tabs={[
-          { key: "overview", href: href("overview"), label: o.tabs.overview },
-          { key: "fit", href: href("fit"), label: ev ? `${o.tabs.fit} · ${ev.global.toFixed(1)}` : o.tabs.fit },
-          { key: "keywords", href: href("keywords"), label: ats.keywords.length && !cv.empty ? `${o.tabs.keywords} · ${ats.pct}%` : o.tabs.keywords },
-          { key: "ask", href: href("ask"), label: o.tabs.ask },
-        ]}
-      />
-
       {tab === "overview" && (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
           <article className="card p-6 rise" aria-labelledby="desc-h" style={{ ["--i" as string]: 1 }}>
             <h2 id="desc-h" className="sr-only">{o.description}</h2>
             {job.description.trim() ? <FormattedDescription text={job.description} /> : <p className="text-muted">{o.noDescription}</p>}
           </article>
-          <aside className="space-y-4">
-            <section className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="fit-mini-h">
-              <h2 id="fit-mini-h" className="text-xs font-semibold uppercase tracking-wide text-muted">{o.fitScore}</h2>
+          <aside className="space-y-3.5">
+            <section className="card p-4 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="fit-mini-h">
+              <h2 id="fit-mini-h" className="card-title text-[0.9rem]">{o.fitScore}</h2>
               {ev ? (
                 <Link href={href("fit")} className="mt-3 flex items-center gap-3 rounded-lg hover:text-accent-text">
                   <ScoreRing value={ev.global} size={52} label={scoreLabel(t, ev.global)} animate={false} />
@@ -139,23 +155,15 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               ) : (
                 <>
                   <p className="mt-2 text-sm text-muted">{o.notEvaluatedHint}</p>
-                  <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-primary btn-sm mt-3 w-full">
-                    <Sparkles size={14} aria-hidden="true" /> {o.evaluate}
+                  <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-saffron btn-sm mt-3 w-full">
+                    <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
                   </ActionButton>
                 </>
               )}
             </section>
-            <section className="card relative overflow-hidden p-5 rise" style={{ ["--i" as string]: 3 }} aria-labelledby="tailor-h">
-              <div className="pattern pattern-fade" aria-hidden="true" />
-              <h2 id="tailor-h" className="relative text-base font-semibold" style={{ fontFamily: "var(--font-sans)" }}>{o.tailorCv}</h2>
-              <p className="relative mt-1 text-sm text-muted">{o.tailorHint}</p>
-              <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-secondary btn-sm relative mt-3 w-full">
-                <FileText size={14} aria-hidden="true" /> {o.tailorCv}
-              </ActionButton>
-            </section>
             {job.tags.length > 0 && (
-              <section className="card p-5 rise" style={{ ["--i" as string]: 4 }} aria-labelledby="tags-h">
-                <h2 id="tags-h" className="text-xs font-semibold uppercase tracking-wide text-muted">{o.tags}</h2>
+              <section className="card p-4 rise" style={{ ["--i" as string]: 3 }} aria-labelledby="tags-h">
+                <h2 id="tags-h" className="card-title text-[0.9rem]">{o.tags}</h2>
                 <ul className="mt-3 flex flex-wrap gap-1.5">
                   {job.tags.map((tag) => (
                     <li key={tag}>
@@ -182,25 +190,17 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
       )}
 
       {tab === "keywords" && (
-        <section className="card p-6 rise" aria-labelledby="kw-h">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-2xl">
-              <h2 id="kw-h" className="text-xl">{o.kw.title}</h2>
-              <p className="mt-1 text-sm text-muted">{o.kw.intro}</p>
-            </div>
-            <span className="chip">
-              <FileText size={12} aria-hidden="true" /> {cv.fileName ? fmt(o.kw.fromFile, { name: cv.fileName }) : o.kw.fromMd}
-            </span>
-          </div>
+        <section aria-labelledby="kw-h" className="flex flex-col gap-3.5 rise">
+          <h2 id="kw-h" className="sr-only">{o.kw.title}</h2>
           {cv.empty ? (
-            <div className="mt-6 rounded-xl border border-dashed border-line-strong p-6 text-center">
+            <div className="card border-dashed !border-line-strong p-7 text-center">
               <p className="text-ink-2">{o.kw.noCv}</p>
               <Link href="/app/profile" className="btn btn-primary btn-sm mt-3">{o.kw.addCv}</Link>
             </div>
           ) : !ats.keywords.length ? (
-            <p className="mt-6 text-muted">{o.kw.none}</p>
+            <p className="card p-5 text-muted">{o.kw.none}</p>
           ) : (
-            <KeywordReport ats={ats} t={t} />
+            <KeywordReport ats={ats} t={t} fileName={cv.fileName} appId={job.application?.id ?? null} jobId={job.id} />
           )}
         </section>
       )}
@@ -210,49 +210,59 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
   );
 }
 
-function KeywordReport({ ats, t }: { ats: ReturnType<typeof atsKeywords>; t: Dict }) {
+function KeywordReport({ ats, t, fileName, appId, jobId }: { ats: ReturnType<typeof atsKeywords>; t: Dict; fileName: string | null | undefined; appId: number | null; jobId: number }) {
   const o = t.offers2;
   const present = ats.keywords.filter((k) => k.inCv);
   const missing = ats.keywords.filter((k) => !k.inCv);
-  const tone = ats.pct >= 70 ? "success" : ats.pct >= 40 ? "saffron" : "danger";
-  const chipList = (items: typeof present, cls: string) => (
-    <ul className="mt-3 flex flex-wrap gap-1.5">
-      {items.map((k) => (
-        <li key={k.term} className={`chip ${cls}`}>
-          {k.term}
-          <span className="text-[0.7rem] opacity-70">· {k.kind === "skill" ? o.kw.skill : o.kw.term}</span>
-        </li>
-      ))}
-    </ul>
-  );
+  const tone = ats.pct >= 70 ? "var(--success)" : ats.pct >= 40 ? "var(--saffron)" : "var(--danger)";
   return (
     <>
-      <div className="mt-6 max-w-xl">
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <span className="text-sm font-semibold">{o.kw.match}</span>
-          <span className="display text-3xl tabular">{ats.pct}%</span>
+      <section className="card p-[18px]">
+        <div className="flex items-end gap-3">
+          <span className="display tabular text-[2.4rem] leading-none">{ats.pct}%</span>
+          <div className="flex-1 pb-1.5">
+            <p className="text-[0.85rem] font-semibold">{o.kw.match}</p>
+            <p className="mt-0.5 text-[0.75rem] text-muted">
+              {fileName ? fmt(o.kw.fromFile, { name: fileName }) : o.kw.fromMd} · {fmt(o.kw.pct, { p: ats.pct, n: ats.keywords.length })}
+            </p>
+          </div>
         </div>
-        <Progress value={ats.pct} label={o.kw.match} tone={tone} />
-        <p className="mt-1.5 text-xs text-muted">{fmt(o.kw.pct, { p: ats.pct, n: ats.keywords.length })}</p>
-      </div>
-      <div className="mt-7 grid gap-6 md:grid-cols-2">
-        <div>
-          <h3 className="flex items-center gap-2 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)" }}>
-            <span aria-hidden="true" className="size-2 rounded-full bg-[var(--success)]" /> {o.kw.present} <span className="text-muted tabular">({present.length})</span>
+        <div className="bar mt-3 !h-2">
+          <span style={{ width: `${ats.pct}%`, background: tone, transition: "width 1s cubic-bezier(.2,.7,.2,1)" }} />
+        </div>
+      </section>
+      <div className="grid gap-3 md:grid-cols-2">
+        <section className="card p-4">
+          <h3 className="card-title mb-2.5 flex items-center gap-1.5 text-[0.8rem]">
+            <span aria-hidden="true" className="size-2 rounded-full bg-success" /> {o.kw.present} · {present.length}
           </h3>
-          {present.length ? chipList(present, "chip-success") : <p className="mt-3 text-sm text-muted">—</p>}
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="flex items-center gap-2 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)" }}>
-              <span aria-hidden="true" className="size-2 rounded-full bg-[var(--danger)]" /> {o.kw.missing} <span className="text-muted tabular">({missing.length})</span>
+          <div className="flex flex-wrap gap-1.5">
+            {present.length ? present.map((k) => <span key={k.term} className="chip chip-success">{k.term}</span>) : <p className="text-sm text-muted">—</p>}
+          </div>
+        </section>
+        <section className="card p-4">
+          <div className="mb-2.5 flex items-center justify-between">
+            <h3 className="card-title flex items-center gap-1.5 text-[0.8rem]">
+              <span aria-hidden="true" className="size-2 rounded-full bg-danger" /> {o.kw.missing} · {missing.length}
             </h3>
             {missing.length > 0 && <CopyButton text={missing.map((k) => k.term).join(", ")} label={o.kw.copy} done={o.kw.copied} />}
           </div>
-          {missing.length ? chipList(missing, "chip-danger") : <p className="mt-3 text-sm text-success">{o.kw.allFound}</p>}
-          {missing.length > 0 && <p className="hint mt-3">{o.kw.honest}</p>}
-        </div>
+          <div className="flex flex-wrap gap-1.5">
+            {missing.length ? missing.map((k) => <span key={k.term} className="chip">{k.term}</span>) : <p className="text-sm text-success">{o.kw.allFound}</p>}
+          </div>
+          {missing.length > 0 && <p className="mt-2.5 text-[0.75rem] text-muted">{o.kw.honest}</p>}
+        </section>
       </div>
+      {missing.length > 0 &&
+        (appId ? (
+          <Link href={`/app/pipeline/${appId}?tab=documents`} className="btn btn-saffron self-start !h-9">
+            <Sparkles size={14} aria-hidden="true" /> {o.kw.tailorGap}
+          </Link>
+        ) : (
+          <ActionButton action={tailorCvFor.bind(null, jobId)} className="btn btn-saffron self-start !h-9">
+            <Sparkles size={14} aria-hidden="true" /> {o.kw.tailorGap}
+          </ActionButton>
+        ))}
     </>
   );
 }

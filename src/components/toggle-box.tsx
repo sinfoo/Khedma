@@ -29,14 +29,9 @@ export function Switch({
       aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-50 ${
-        checked ? "border-transparent bg-accent" : "border-line-strong bg-surface-3"
-      }`}
+      className="switch focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-50"
     >
-      <span
-        aria-hidden="true"
-        className={`inline-block size-4.5 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-[18px]" : "translate-x-[3px]"}`}
-      />
+      <span aria-hidden="true" className="sr-only" />
     </button>
   );
 }

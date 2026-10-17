@@ -31,7 +31,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[90] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2 no-print">
+      <div className="fixed bottom-[72px] left-1/2 z-[90] flex w-[min(460px,90vw)] -translate-x-1/2 flex-col gap-2 no-print">
         <div aria-live="polite" className="sr-only">
           {items.filter((i) => i.tone !== "error").map((i) => `${i.title}. ${i.body ?? ""}`).join(" ")}
         </div>
@@ -40,22 +40,36 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         </div>
         {items.map((t) => {
           const Icon = t.tone === "success" ? CheckCircle2 : t.tone === "error" ? AlertTriangle : Info;
-          const color = t.tone === "success" ? "var(--success)" : t.tone === "error" ? "var(--danger)" : "var(--accent-text)";
+          const color = t.tone === "success" ? "var(--success)" : t.tone === "error" ? "var(--danger)" : "var(--accent)";
+          const life = t.tone === "error" ? 8 : 4.5;
           return (
-            <div key={t.id} className="card flex items-start gap-3 p-3.5 shadow-[var(--shadow-lg)]" style={{ animation: "pop .2s ease both" }}>
-              <Icon size={18} aria-hidden="true" style={{ color }} className="mt-0.5 shrink-0" />
+            <div
+              key={t.id}
+              role="status"
+              className="relative flex items-center gap-3 overflow-hidden rounded-[14px] bg-ink px-3.5 py-3 text-bg shadow-[var(--shadow-lg)]"
+              style={{ animation: "pop .22s cubic-bezier(.2,.7,.2,1) both" }}
+            >
+              <Icon size={18} aria-hidden="true" style={{ color }} className="shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{t.title}</p>
-                {t.body && <p className="text-sm text-muted mt-0.5">{t.body}</p>}
-                {t.action && (
-                  <button type="button" className="mt-2 text-sm font-semibold text-accent-text hover:underline" onClick={() => { t.action!.onClick(); dismiss(t.id); }}>
-                    {t.action.label}
-                  </button>
-                )}
+                {t.body && <p className="mt-px text-[0.8rem] opacity-75">{t.body}</p>}
               </div>
-              <button type="button" className="btn btn-ghost btn-icon btn-sm -mr-1 -mt-1" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
+              {t.action && (
+                <button
+                  type="button"
+                  className="rounded-lg bg-white/15 px-2.5 py-1.5 text-[0.8rem] font-semibold"
+                  onClick={() => {
+                    t.action!.onClick();
+                    dismiss(t.id);
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
+              <button type="button" className="grid size-7 place-items-center opacity-70 hover:opacity-100" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
                 <X size={14} aria-hidden="true" />
               </button>
+              <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px]" style={{ background: color, animation: `toast-bar ${life}s linear both` }} />
             </div>
           );
         })}

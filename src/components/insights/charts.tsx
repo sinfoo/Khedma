@@ -26,10 +26,10 @@ export function ChartCard({
   className?: string;
 }) {
   return (
-    <figure className={`card p-5 rise flex flex-col ${className}`} style={{ ["--i" as string]: i }} aria-labelledby={`${id}-h`}>
-      <h2 id={`${id}-h`} className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{title}</h2>
-      {desc && <p className="mt-0.5 text-xs text-muted">{desc}</p>}
-      <div role="img" aria-label={summary} className="mt-4 flex-1">
+    <figure className={`card flex flex-col p-[18px] rise ${className}`} style={{ ["--i" as string]: i }} aria-labelledby={`${id}-h`}>
+      <h2 id={`${id}-h`} className="card-title text-[0.9rem]">{title}</h2>
+      {desc && <p className="mt-0.5 text-[0.75rem] text-muted">{desc}</p>}
+      <div role="img" aria-label={summary} className="mt-3 flex-1">
         <div aria-hidden="true">{children}</div>
       </div>
       <details className="mt-4 text-sm">

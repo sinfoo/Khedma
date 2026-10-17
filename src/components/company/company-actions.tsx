@@ -124,7 +124,7 @@ export function ResearchTopButton({ n, remaining }: { n: number; remaining: numb
       router.refresh();
     });
   return (
-    <button type="button" className="btn btn-secondary" onClick={run} disabled={pending || !count} aria-busy={pending}>
+    <button type="button" className="btn btn-saffron" onClick={run} disabled={pending || !count} aria-busy={pending}>
       {pending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" className="text-accent-text" />}
       {pending ? c.researching : fmt(c.researchTop, { n: count })}
     </button>

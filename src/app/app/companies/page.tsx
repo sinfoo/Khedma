@@ -20,8 +20,8 @@ export default async function CompaniesPage() {
     return (
       <>
         <PageHeader title={c.title} />
-        <EmptyState icon={<Building2 size={22} aria-hidden="true" />} title={c.emptyTitle} hint={c.emptyHint}>
-          <Link href="/app/jobs/new" className="btn btn-primary">
+        <EmptyState icon={<Building2 aria-hidden="true" />} title={c.emptyTitle} hint={c.emptyHint}>
+          <Link href="/app/jobs/new" className="btn btn-primary btn-lg">
             <Plus size={16} aria-hidden="true" /> {c.goOffers}
           </Link>
         </EmptyState>
@@ -40,8 +40,8 @@ export default async function CompaniesPage() {
         lead={fmt(c.lead, { n: rows.length, open, r: researched })}
         actions={
           <>
-            <CheckOffersButton />
             <ResearchTopButton n={5} remaining={remaining} />
+            <CheckOffersButton className="btn btn-outline" />
           </>
         }
       />

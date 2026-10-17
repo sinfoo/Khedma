@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
+import { fmt } from "@/lib/i18n/dict";
 import { dayKey, getCalendar, parseMonth, reminderTargets, shiftMonth } from "@/lib/repo/insights";
-import { PageHeader } from "@/components/kit";
 import { CalendarView } from "@/components/insights/calendar-view";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -22,23 +22,25 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const next = `/app/calendar?month=${shiftMonth(month, 1)}`;
   const isThisMonth = today.startsWith(month);
 
+  const inMonth = items.filter((i) => i.day.startsWith(month));
+  const n = (k: string) => inMonth.filter((i) => i.kind === k).length;
+  const lead = fmt(m.monthLead, { i: n("interview"), r: n("reminder"), d: n("deadline") });
+  const iconBtn = "grid size-9 place-items-center rounded-[10px] border border-line bg-surface text-ink hover:bg-surface-2";
+
   return (
     <>
-      <PageHeader
-        eyebrow={m.title}
-        title={<span className="capitalize">{monthLabel}</span>}
-        lead={m.lead}
-        actions={
-          <>
-            <nav aria-label={m.title} className="flex items-center gap-1">
-              <Link href={prev} className="btn btn-secondary btn-icon" aria-label={m.prev}><ChevronLeft size={18} aria-hidden="true" /></Link>
-              <Link href="/app/calendar" className="btn btn-secondary" aria-current={isThisMonth ? "date" : undefined}>{m.today}</Link>
-              <Link href={next} className="btn btn-secondary btn-icon" aria-label={m.next}><ChevronRight size={18} aria-hidden="true" /></Link>
-            </nav>
-            <a href="/api/ics/all" className="btn btn-ghost" download><Download size={16} aria-hidden="true" /> {m.export}</a>
-          </>
-        }
-      />
+      <header className="mb-[18px] flex flex-wrap items-end justify-between gap-4 rise">
+        <div className="min-w-0">
+          <h1 className="text-[1.75rem] capitalize leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{monthLabel}</h1>
+          <p className="mt-1.5 text-muted">{lead}</p>
+        </div>
+        <nav aria-label={m.title} className="flex items-center gap-1.5">
+          <Link href={prev} className={iconBtn} aria-label={m.prev}><ChevronLeft size={16} aria-hidden="true" /></Link>
+          <Link href="/app/calendar" className="btn btn-outline !h-9" aria-current={isThisMonth ? "date" : undefined}>{m.today}</Link>
+          <Link href={next} className={iconBtn} aria-label={m.next}><ChevronRight size={16} aria-hidden="true" /></Link>
+          <a href="/api/ics/all" className="btn btn-outline ml-2 !h-9" download><CalendarPlus size={14} aria-hidden="true" /> {m.export}</a>
+        </nav>
+      </header>
       <CalendarView
         key={month}
         month={month}

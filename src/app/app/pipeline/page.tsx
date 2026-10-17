@@ -5,7 +5,7 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { listApplications } from "@/lib/db";
 import { allInterviewStarts, cadenceFor, contactCounts, localDate, pipelineStats, stageEnteredAt } from "@/lib/repo/apps";
-import { EmptyState, PageHeader, Stat } from "@/components/kit";
+import { EmptyState, PageHeader } from "@/components/kit";
 import { PipelineBoard, type BoardItem } from "@/components/pipeline-board";
 import { daysSince } from "@/components/pipeline/format";
 import { toView } from "@/components/pipeline/cadence";
@@ -50,28 +50,20 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
   return (
     <>
       <PageHeader
-        eyebrow={a.board.eyebrow}
         title={t.pipeline.title}
-        lead={a.board.lead}
+        lead={s.responseRate === null ? fmt(a.flow.leadNoRate, { active: s.active, iv: s.interviewsThisWeek }) : fmt(a.flow.lead, { active: s.active, rate: `${s.responseRate}%`, iv: s.interviewsThisWeek })}
         actions={
-          <a href="/api/ics/all" className="btn btn-secondary" download>
-            <CalendarPlus size={16} aria-hidden="true" /> {a.board.exportIcs}
+          <a href="/api/ics/all" className="btn btn-outline" download title={a.board.exportIcs}>
+            <CalendarPlus size={15} aria-hidden="true" /> {a.flow.ics}
           </a>
         }
       />
       {items.length === 0 ? (
-        <EmptyState icon={<KanbanSquare size={22} aria-hidden="true" />} title={a.board.emptyTitle} hint={a.board.emptyHint}>
-          <Link href="/app/jobs" className="btn btn-primary">{a.board.emptyCta}</Link>
+        <EmptyState icon={<KanbanSquare aria-hidden="true" />} title={a.board.emptyTitle} hint={a.board.emptyHint}>
+          <Link href="/app/jobs" className="btn btn-primary btn-lg">{a.board.emptyCta}</Link>
         </EmptyState>
       ) : (
-        <>
-          <dl className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Stat i={1} label={a.stats.active} value={s.active} hint={fmt(a.stats.activeHint, { n: items.length })} />
-            <Stat i={2} label={a.stats.responseRate} value={s.responseRate === null ? "—" : `${s.responseRate}%`} hint={fmt(a.stats.responseHint, { n: s.applied })} />
-            <Stat i={3} label={a.stats.interviewsWeek} value={s.interviewsThisWeek} hint={a.stats.weekHint} />
-          </dl>
-          <PipelineBoard items={items} initialView={sp.view === "table" ? "table" : "board"} />
-        </>
+        <PipelineBoard items={items} initialView={sp.view === "table" ? "table" : "board"} />
       )}
     </>
   );

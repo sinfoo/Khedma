@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Columns2, Eye, FileDown, FileText, Import, PencilLine, Plus, ScanSearch, Sparkles, Stethoscope, Target, Trash2, UserRound, Wand2 } from "lucide-react";
+import { Columns2, Compass, Eye, FileDown, FileText, Flag, GraduationCap, Import, MapPin, PencilLine, Plus, ScanSearch, Sparkles, Stethoscope, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -108,6 +108,9 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
   const words = wordCount(cvText);
   const suggestion = suggestHeadline(locale, d.extra, d.target_types.includes("pfe"));
   const initials = (d.name || "?").split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?";
+  const todo = strength.items.filter((i) => !i.done).sort((a, b) => b.weight - a.weight).slice(0, 2);
+  const quickWins = todo.length;
+  const quickWinGain = todo.reduce((s, i) => s + i.weight, 0);
 
   const addSkills = (found: string[]) => {
     const next = mergeSkills(d.skills, found);
@@ -148,81 +151,70 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
 
   return (
     <>
-      {/* Identity hero */}
-      <header className="card relative mb-5 overflow-hidden p-5 rise sm:p-6">
-        <div className="pattern pattern-fade" aria-hidden="true" />
-        <div className="relative grid gap-5 md:grid-cols-[auto_1fr_auto] md:items-center">
-          <div className="flex items-center gap-4">
-            <span aria-hidden="true" className="display grid size-16 shrink-0 place-items-center rounded-2xl bg-accent text-2xl text-accent-ink">
-              {initials}
-            </span>
-            <div className="min-w-0 md:hidden">
-              <h1 className="truncate text-2xl">{d.name || p2.title}</h1>
-              <p className="truncate text-sm text-muted">{d.headline || p2.lead}</p>
-            </div>
-          </div>
-          <div className="hidden min-w-0 md:block">
-            <h1 className="truncate text-[1.75rem] leading-tight">{d.name || p2.title}</h1>
-            <p className="mt-0.5 truncate text-muted">{d.headline || p2.lead}</p>
-            <ul className="mt-2 flex flex-wrap gap-1.5 text-xs" aria-label={p2.hero.facts}>
-              {d.extra.school && <li className="chip">{d.extra.school}</li>}
-              {d.extra.level && <li className="chip">{d.extra.level}</li>}
-              {d.extra.specialty && <li className="chip">{d.extra.specialty}</li>}
-              {upload && <li className="chip chip-accent">{upload.fileName}</li>}
-              {initialReview && <li className="chip chip-success">{fmt(p2.review.score, { n: initialReview.score })}</li>}
-            </ul>
-          </div>
-          <div className="flex items-center gap-4 md:flex-col md:items-end">
+      {/* Identity hero: the CV is the profile */}
+      <header className="card mb-5 grid items-center gap-[18px] px-[18px] py-4 rise md:grid-cols-[auto_1fr_auto]">
+        <span aria-hidden="true" className="display grid size-16 shrink-0 place-items-center rounded-[18px] bg-accent text-[1.4rem] text-accent-ink">
+          {initials}
+        </span>
+        <div className="min-w-0">
+          <h1 className="truncate text-[1.7rem] leading-[1.1] tracking-[-0.02em]">{d.name || p2.title}</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-[0.9rem] text-ink-2">
+            <span className="min-w-0 truncate">{d.headline || p2.lead}</span>
+            <button type="button" className="inline-flex h-6 items-center gap-1 rounded-[7px] border border-line bg-surface px-2 text-[0.72rem] font-semibold text-muted hover:text-ink" onClick={() => { setTab("about"); requestAnimationFrame(() => jumpTo("#f-headline")); }}>
+              <PencilLine size={11} aria-hidden="true" /> {t.common.edit}
+            </button>
+          </p>
+          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label={p2.hero.facts}>
+            {d.extra.school && <li className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-accent-soft px-2.5 text-[0.75rem] font-semibold text-accent-text"><GraduationCap size={12} aria-hidden="true" />{d.extra.school}</li>}
+            {d.extra.level && <li className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-saffron-soft px-2.5 text-[0.75rem] font-semibold text-saffron"><Flag size={12} aria-hidden="true" />{d.extra.level}</li>}
+            {d.extra.specialty && <li className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2.5 text-[0.75rem] font-semibold text-ink-2"><Compass size={12} aria-hidden="true" />{d.extra.specialty}</li>}
+            {d.extra.city && <li className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2.5 text-[0.75rem] font-semibold text-ink-2"><MapPin size={12} aria-hidden="true" />{d.extra.city}</li>}
+            {upload && <li className="inline-flex h-[26px] items-center gap-1.5 whitespace-nowrap rounded-full bg-surface-2 px-2.5 text-[0.75rem] font-semibold text-ink-2"><FileText size={12} aria-hidden="true" />{upload.fileName}</li>}
+          </ul>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3 rounded-[14px] bg-surface-2 py-2.5 pl-2.5 pr-3.5">
             <StrengthRing score={strength.score} label={p2.strength.title} />
-            <div className="flex flex-wrap items-center gap-2">
-              <SaveIndicator status={auto.status} at={auto.at} onRetry={() => void auto.flush()} />
-              <Link href="/app/profile/cv" className="btn btn-secondary btn-sm">
-                <FileDown size={14} aria-hidden="true" /> {p2.openTemplates}
-              </Link>
+            <div>
+              <p className="text-[0.85rem] font-semibold">{p2.strength.title}</p>
+              <p className="mt-px text-[0.75rem] text-muted">{quickWins ? fmt(p2.hero.quickWins, { n: quickWins, score: Math.min(100, strength.score + quickWinGain) }) : p2.strength.allDone}</p>
             </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <button type="button" className="btn btn-saffron" onClick={() => { setTab("cv"); setMode("review"); }}>
+              <Wand2 size={14} aria-hidden="true" /> {p2.hero.review}
+            </button>
+            <Link href="/app/profile/cv" className="btn btn-outline btn-sm !h-[34px]">
+              <FileDown size={13} aria-hidden="true" /> {p2.hero.export}
+            </Link>
           </div>
         </div>
       </header>
 
       {/* Tabs */}
-      <nav aria-label={p2.title} className="mb-5 rise" style={{ ["--i" as string]: 1 }}>
-        <ul role="tablist" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {tabs.map(({ key, label, Icon, hint }) => {
-            const on = tab === key;
-            return (
-              <li key={key} role="presentation">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  aria-controls={`panel-${key}`}
-                  id={`tab-${key}`}
-                  onClick={() => setTab(key)}
-                  className={`flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-all ${
-                    on ? "border-accent bg-accent-soft shadow-[inset_0_0_0_1px_var(--accent)]" : "border-line bg-surface hover:-translate-y-px hover:border-line-strong"
-                  }`}
-                >
-                  <Icon size={18} aria-hidden="true" className={on ? "text-accent-text" : "text-muted"} />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold">{label}</span>
-                    <span className="block truncate text-xs text-muted">{hint}</span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rise" style={{ ["--i" as string]: 1 }}>
+        <nav aria-label={p2.title} role="tablist" className="seg max-w-full overflow-x-auto">
+          {tabs.map(({ key, label, Icon, hint }) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`panel-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className="seg-btn" title={hint}>
+              <Icon size={14} aria-hidden="true" /> {label}
+            </button>
+          ))}
+        </nav>
+        <span className="flex items-center gap-2 text-[0.75rem] text-muted">
+          <SaveIndicator status={auto.status} at={auto.at} onRetry={() => void auto.flush()} />
+          <span className="tabular">{fmt(p2.cv.words, { n: words })} · {fmt(p2.cv.pages, { n: Math.max(1, Math.ceil(words / 450)) })}</span>
+        </span>
+      </div>
 
       {/* CV */}
       <section id="panel-cv" role="tabpanel" aria-labelledby="tab-cv" hidden={tab !== "cv"} className="space-y-4">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="card space-y-4 p-4 sm:p-5 rise">
+          <div className="card space-y-4 p-4 rise">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div role="group" aria-label={p2.cv.title} className="inline-flex flex-wrap rounded-xl border border-line bg-surface-2 p-0.5">
+              <div role="group" aria-label={p2.cv.title} className="seg seg-sm max-w-full overflow-x-auto">
                 {modes.map(({ key, label, Icon }) => (
-                  <button key={key} type="button" aria-pressed={mode === key} className={`btn btn-sm !border-0 ${mode === key ? "!bg-accent-soft !text-accent-text" : "btn-ghost text-muted"}`} onClick={() => setMode(key)}>
-                    <Icon size={14} aria-hidden="true" /> <span className={key === "split" ? "hidden lg:inline" : ""}>{label}</span>
+                  <button key={key} type="button" aria-pressed={mode === key} className={`seg-btn ${mode === key ? "on" : ""}`} onClick={() => setMode(key)}>
+                    <Icon size={13} aria-hidden="true" /> <span className={key === "split" ? "hidden lg:inline" : ""}>{label}</span>
                   </button>
                 ))}
               </div>
@@ -255,7 +247,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             {mode === "split" && (
               <div className="grid gap-4 lg:grid-cols-2">
                 <MarkdownEditor id="cv-md" label={p2.cv.editorLabel} value={d.cv_md} onChange={(v) => update({ cv_md: v })} describedBy="cv-meta" />
-                <div className="hidden max-h-[70vh] overflow-auto rounded-xl border border-line p-5 lg:block" aria-label={p2.cv.preview}>
+                <div className="hidden max-h-[70vh] overflow-auto rounded-[14px] border border-line bg-white px-8 py-7 text-[#1f242c] shadow-[var(--shadow)] lg:block" aria-label={p2.cv.preview}>
                   {d.cv_md.trim() ? <Markdown>{d.cv_md}</Markdown> : <p className="text-sm text-muted">{p2.cv.previewEmpty}</p>}
                 </div>
               </div>
@@ -263,7 +255,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             {mode === "write" && <MarkdownEditor id="cv-md" label={p2.cv.editorLabel} value={d.cv_md} onChange={(v) => update({ cv_md: v })} describedBy="cv-meta" />}
             {mode === "preview" &&
               (d.cv_md.trim() ? (
-                <div className="min-h-[55vh] rounded-xl border border-line p-5">
+                <div className="min-h-[55vh] rounded-[14px] border border-line bg-white px-10 py-9 text-[#1f242c] shadow-[var(--shadow)]">
                   <Markdown>{d.cv_md}</Markdown>
                 </div>
               ) : (
@@ -325,7 +317,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
 
           <aside className="space-y-4">
             <div className="card p-4 rise" style={{ ["--i" as string]: 2 }}>
-              {sectionTitle("sec-file", p2.cv.fileTitle)}
+              <h2 id="sec-file" className="card-title text-[0.9rem]">{p2.cv.fileTitle}</h2>
               <p className="mb-3 mt-1 text-xs text-muted">{p2.cv.fileLead}</p>
               <CvUpload
                 upload={upload}
@@ -521,16 +513,16 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
 
 /** Compact completeness ring for the hero. */
 function StrengthRing({ score, label }: { score: number; label: string }) {
-  const r = 26;
+  const r = 27;
   const c = 2 * Math.PI * r;
   const tone = score >= 75 ? "var(--success)" : score >= 50 ? "var(--accent)" : "var(--saffron)";
   return (
-    <span role="img" aria-label={`${label}: ${score}/100`} className="relative grid size-16 place-items-center">
-      <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--line)" strokeWidth="5" />
-        <circle cx="32" cy="32" r={r} fill="none" stroke={tone} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * score) / 100} ${c}`} transform="rotate(-90 32 32)" style={{ transition: "stroke-dasharray .6s cubic-bezier(.2,.7,.2,1)" }} />
+    <span role="img" aria-label={`${label}: ${score}/100`} className="relative grid size-14 place-items-center">
+      <svg width="56" height="56" viewBox="0 0 64 64" aria-hidden="true" className="-rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="7" />
+        <circle cx="32" cy="32" r={r} fill="none" stroke={tone} strokeWidth="7" strokeLinecap="round" strokeDasharray={`${(c * score) / 100} ${c}`} style={{ transition: "stroke-dasharray 1s cubic-bezier(.2,.7,.2,1)" }} />
       </svg>
-      <span className="absolute mono text-sm font-semibold" style={{ color: tone }}>{score}</span>
+      <span className="display absolute text-[0.95rem]">{score}</span>
     </span>
   );
 }

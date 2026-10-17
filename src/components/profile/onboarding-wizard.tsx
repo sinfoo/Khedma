@@ -6,10 +6,9 @@ import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Monitor, Moo
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
-import { Progress } from "@/components/kit";
 import { setLocale, setTheme } from "@/app/actions/prefs";
 import { aiStatus, finishOnboarding, saveProfileDraft, setOnboardingStep } from "@/app/actions/profile";
-import { CITY_SUGGESTIONS, ROLE_SUGGESTIONS, mergeSkills, suggestHeadline } from "@/lib/cv/model";
+import { ROLE_SUGGESTIONS, mergeSkills, suggestHeadline } from "@/lib/cv/model";
 import { ChipInput } from "./chip-input";
 import { CountryPicker } from "@/components/country-picker";
 import { placesToLocations } from "@/lib/geo";
@@ -90,22 +89,14 @@ export function OnboardingWizard({
 
   const suggestion = suggestHeadline(locale, d.extra, d.target_types.includes("pfe"));
 
-  return (
-    <div className="mx-auto max-w-3xl">
-      <header className="mb-6 rise">
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-accent-text">{fmt(o.stepOf, { n: step, total: STEPS.length })}</p>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="text-[1.75rem] leading-tight sm:text-[2.1rem]">{o.title}</h1>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => finish(false)}>
-            {o.skipAll}
-          </button>
-        </div>
-        <p className="mt-1.5 max-w-2xl text-muted">{o.lead}</p>
-      </header>
+  const STEP_HINTS: Record<(typeof STEPS)[number], string> = { prefs: o.prefs.hint, you: o.you.hint, cv: o.cv.hint, targets: o.targets.hint, ai: o.ai.hint };
 
-      <nav aria-label={o.progress} className="mb-5 rise" style={{ ["--i" as string]: 1 }}>
-        <Progress value={step} max={STEPS.length} label={o.progress} />
-        <ol className="mt-3 grid grid-cols-5 gap-1">
+  return (
+    <div className="mx-auto grid max-w-[980px] gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-10">
+      <aside className="lg:sticky lg:top-[84px] lg:self-start">
+        <p className="eyebrow mb-1.5 text-accent-text">{o.welcome}</p>
+        <h1 className="text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{o.title}</h1>
+        <ol aria-label={o.progress} className="mt-[22px] flex flex-col gap-1">
           {STEPS.map((s, i) => {
             const n = i + 1;
             const state = n < step ? "done" : n === step ? "current" : "todo";
@@ -116,28 +107,36 @@ export function OnboardingWizard({
                   disabled={n > step || pending}
                   aria-current={state === "current" ? "step" : undefined}
                   onClick={() => go(n, false)}
-                  className="flex w-full flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-center text-xs disabled:cursor-default enabled:hover:bg-surface-2"
+                  className={`flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2 text-left disabled:cursor-default ${state === "current" ? "bg-accent-soft" : "enabled:hover:bg-surface-2"}`}
                 >
                   <span
                     aria-hidden="true"
-                    className={`grid size-7 place-items-center rounded-full text-xs font-semibold tabular ${
-                      state === "done" ? "bg-accent text-accent-ink" : state === "current" ? "bg-accent-soft text-accent-text ring-2 ring-accent" : "bg-surface-3 text-muted"
+                    className={`mono grid size-[26px] shrink-0 place-items-center rounded-full text-[0.72rem] font-semibold transition-colors ${
+                      state === "done" ? "bg-success text-white" : state === "current" ? "bg-accent text-accent-ink" : "bg-surface-3 text-ink-2"
                     }`}
                   >
-                    {state === "done" ? <Check size={14} /> : n}
+                    {state === "done" ? <Check size={13} /> : n}
                   </span>
-                  <span className={`${state === "current" ? "font-semibold text-ink" : "text-muted"} hidden sm:block`}>{o.steps[s]}</span>
-                  <span className="sr-only sm:hidden">{o.steps[s]}</span>
+                  <span className="min-w-0">
+                    <span className={`block text-sm ${state === "current" ? "font-semibold text-ink" : state === "done" ? "font-medium text-ink-2" : "font-medium text-muted"}`}>{o.steps[s]}</span>
+                    <span className="block truncate text-[0.72rem] text-muted">{STEP_HINTS[s]}</span>
+                  </span>
                 </button>
               </li>
             );
           })}
         </ol>
-      </nav>
+        <div className="bar mt-[18px] !h-1" role="progressbar" aria-label={o.progress} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step}>
+          <span style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }} />
+        </div>
+        <button type="button" className="mt-3.5 text-[0.8rem] text-muted hover:text-ink" disabled={pending} onClick={() => finish(false)}>
+          {o.skipAll}
+        </button>
+      </aside>
 
       <form
-        className="card p-5 sm:p-7 rise"
-        style={{ ["--i" as string]: 2 }}
+        className="card flex min-h-[460px] flex-col p-5 sm:p-[30px]"
+        style={{ animation: "pop .3s cubic-bezier(.2,.7,.2,1) both" }}
         aria-labelledby="step-h"
         onSubmit={(e) => {
           e.preventDefault();
@@ -145,10 +144,11 @@ export function OnboardingWizard({
           else finish(true);
         }}
       >
-        <h2 id="step-h" ref={heading} tabIndex={-1} className="text-xl outline-none">
+        <p className="text-[0.75rem] font-semibold text-muted">{step} / {STEPS.length}</p>
+        <h2 id="step-h" ref={heading} tabIndex={-1} className="mt-1.5 text-[1.5rem] leading-tight tracking-[-0.02em] outline-none">
           {o.steps[key]}
         </h2>
-        <p className="mt-1 mb-6 text-muted">{key === "prefs" ? o.prefs.intro : key === "you" ? o.you.intro : key === "cv" ? o.cv.intro : key === "targets" ? o.targets.intro : o.ai.intro}</p>
+        <p className="mt-1.5 mb-5 text-muted">{key === "prefs" ? o.prefs.intro : key === "you" ? o.you.intro : key === "cv" ? o.cv.intro : key === "targets" ? o.targets.intro : o.ai.intro}</p>
 
         {key === "prefs" && (
           <div className="space-y-6">
@@ -305,21 +305,25 @@ export function OnboardingWizard({
 
         {key === "ai" && <AiStep />}
 
-        <p className="mt-6 text-xs text-muted">{o.resume}</p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-4">
-          <button type="button" className="btn btn-ghost" disabled={step === 1 || pending} onClick={() => go(step - 1, false)}>
-            <ArrowLeft size={16} aria-hidden="true" /> {o.back}
-          </button>
+        <p className="mt-auto pt-5 text-xs text-muted">{o.resume}</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          {step > 1 ? (
+            <button type="button" className="btn btn-outline !h-10" disabled={pending} onClick={() => go(step - 1, false)}>
+              <ArrowLeft size={15} aria-hidden="true" /> {o.back}
+            </button>
+          ) : (
+            <span />
+          )}
           <div className="flex flex-wrap gap-2">
             {step < STEPS.length && (
-              <button type="button" className="btn btn-ghost" disabled={pending} onClick={() => go(step + 1, false)}>
+              <button type="button" className="btn btn-ghost !h-10 text-muted" disabled={pending} onClick={() => go(step + 1, false)}>
                 {o.skip}
               </button>
             )}
-            <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
+            <button type="submit" className={`btn !h-10 !px-[18px] ${step < STEPS.length ? "btn-primary" : "btn-saffron"}`} disabled={pending} aria-busy={pending}>
               {pending && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
               {step < STEPS.length ? o.next : o.finish}
-              {!pending && <ArrowRight size={16} aria-hidden="true" />}
+              {!pending && <ArrowRight size={15} aria-hidden="true" />}
             </button>
           </div>
         </div>

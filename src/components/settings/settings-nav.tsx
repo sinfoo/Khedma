@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /** Sticky in-page section nav; marks the section in view with aria-current. */
-export function SettingsNav({ label, items }: { label: string; items: { id: string; label: string }[] }) {
+export function SettingsNav({ label, items }: { label: string; items: { id: string; label: string; icon?: React.ReactNode }[] }) {
   const [active, setActive] = useState(items[0]?.id);
   useEffect(() => {
     // Last section whose top has passed 30% of the viewport is the current one.
@@ -30,18 +30,19 @@ export function SettingsNav({ label, items }: { label: string; items: { id: stri
     };
   }, [items]);
   return (
-    <nav aria-label={label} className="lg:sticky lg:top-24">
-      <ul className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+    <nav aria-label={label} className="lg:sticky lg:top-[76px]">
+      <ul className="flex gap-0.5 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
         {items.map((i) => (
           <li key={i.id}>
             <a
               href={`#${i.id}`}
               aria-current={active === i.id ? "location" : undefined}
               onClick={() => setActive(i.id)}
-              className={`flex min-h-9 items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors ${
-                active === i.id ? "bg-accent-soft text-accent-text" : "text-muted hover:bg-surface-2 hover:text-ink"
+              className={`flex items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 py-[9px] text-[0.85rem] transition-colors ${
+                active === i.id ? "bg-accent-soft font-semibold text-ink" : "font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
               }`}
             >
+              {i.icon && <span className={active === i.id ? "text-accent-text" : "text-muted"} aria-hidden="true">{i.icon}</span>}
               {i.label}
             </a>
           </li>

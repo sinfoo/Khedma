@@ -9,44 +9,41 @@ import type { ChecklistItem } from "@/lib/repo/apps";
 import { saveNotes, setNextAction, toggleChecklist } from "@/app/actions/applications";
 import { useRun } from "./use-run";
 
-export function Checklist({ id, items }: { id: number; items: ChecklistItem[] }) {
+export function Checklist({ id, items, compact = false, title }: { id: number; items: ChecklistItem[]; compact?: boolean; title?: string }) {
   const { t } = useT();
   const o = t.apps2.overview;
   const [pending, run] = useRun();
   const done = items.filter((i) => i.done).length;
   return (
-    <section className="card p-5" aria-labelledby="ck-h">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="ck-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{o.checklist}</h2>
+    <section className="card p-4" aria-labelledby="ck-h">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+        <h2 id="ck-h" className="card-title text-[0.9rem]">{title ?? o.checklist}</h2>
         <span className="mono text-xs text-muted tabular">{fmt(o.progress, { done, total: items.length })}</span>
       </div>
-      <Progress value={done} max={items.length} label={o.checklist} tone={done === items.length ? "success" : "accent"} />
-      <ul className="mt-4 space-y-1" aria-busy={pending}>
+      {!compact && <Progress value={done} max={items.length} label={o.checklist} tone={done === items.length ? "success" : "accent"} />}
+      <ul className={`flex flex-col gap-2 text-[0.82rem] ${compact ? "" : "mt-3"}`} aria-busy={pending}>
         {items.map((it) => (
           <li key={it.key}>
-            <label className={`flex min-h-10 items-center gap-3 rounded-lg px-2 py-1.5 ${it.auto ? "" : "cursor-pointer hover:bg-surface-2"}`}>
-              <input
-                type="checkbox"
-                className="size-4 accent-[var(--accent)]"
-                checked={it.done}
-                disabled={it.auto || pending}
-                onChange={(e) => run(() => toggleChecklist(id, it.key, e.target.checked))}
-              />
-              <span className={`flex-1 text-sm ${it.done ? "text-muted line-through decoration-1" : ""}`}>{o.items[it.key]}</span>
-              {it.auto ? (
-                <span className="chip chip-success !py-0 text-[0.7rem]" title={o.autoHint}>
-                  <Check size={11} aria-hidden="true" /> {o.auto}
+            <label className={`flex items-center gap-2 ${it.auto ? "" : "cursor-pointer"}`}>
+              <input type="checkbox" className="peer sr-only" checked={it.done} disabled={it.auto || pending} onChange={(e) => run(() => toggleChecklist(id, it.key, e.target.checked))} />
+              <span
+                aria-hidden="true"
+                className={`grid size-[18px] shrink-0 place-items-center rounded-md border text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--ring)] ${it.done ? "border-success bg-success" : "border-line-strong bg-surface"}`}
+              >
+                {it.done && <Check size={11} />}
+              </span>
+              <span className={`flex-1 ${it.done ? "text-muted line-through decoration-1" : "text-ink-2"}`}>{o.items[it.key]}</span>
+              {it.auto && (
+                <span className="text-[0.68rem] font-semibold text-muted" title={o.autoHint}>
+                  {o.auto}
                 </span>
-              ) : it.done ? (
-                <span className="chip !py-0 text-[0.7rem]">{o.manual}</span>
-              ) : (
-                <CircleDashed size={14} aria-hidden="true" className="text-muted" />
               )}
+              {!it.auto && !it.done && <CircleDashed size={13} aria-hidden="true" className="text-muted" />}
             </label>
           </li>
         ))}
       </ul>
-      <p className="hint mt-2">{o.autoHint}</p>
+      {!compact && <p className="hint mt-2">{o.autoHint}</p>}
     </section>
   );
 }

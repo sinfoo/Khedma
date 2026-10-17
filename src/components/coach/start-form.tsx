@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Briefcase, Compass, Loader2, Play } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { TRACKS } from "@/lib/coach/bank";
@@ -12,145 +12,130 @@ export interface AppOption {
   id: number;
   title: string;
   company: string;
+  /** Next interview, when one is scheduled. */
+  interviewAt?: string | null;
 }
 
-// Radio rendered as a selectable tile; the native input keeps keyboard and screen-reader behaviour.
-function Choice({ name, value, defaultChecked, checked, onChange, disabled, children, className = "" }: {
-  disabled?: boolean;
-  name: string;
-  value: string;
-  defaultChecked?: boolean;
-  checked?: boolean;
-  onChange?: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <label
-      className={`relative flex cursor-pointer items-start gap-2 rounded-xl border border-line bg-surface px-3 py-2.5 text-sm transition-colors hover:border-line-strong has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--ring)] ${className}`}
-    >
-      <input type="radio" name={name} value={value} defaultChecked={defaultChecked} checked={checked} onChange={onChange} disabled={disabled} className="sr-only" />
-      {children}
-    </label>
-  );
-}
-
-export function StartForm({ apps, preselect, locale }: { apps: AppOption[]; preselect: number | null; locale: "fr" | "en" }) {
+/** Start in three taps: a suggested application, the kind of session, then Start. */
+export function StartForm({ apps, preselect, locale, suggestedLabel }: { apps: AppOption[]; preselect: number | null; locale: "fr" | "en"; suggestedLabel?: string }) {
   const { t } = useT();
   const c = t.coach2;
+  const s = c.start;
   const [state, action, pending] = useActionState(startSession, null);
-  const hasPre = preselect !== null && apps.some((a) => a.id === preselect);
-  const [source, setSource] = useState<"app" | "generic">(hasPre ? "app" : "generic");
+  const pre = preselect !== null && apps.some((a) => a.id === preselect) ? preselect : apps[0]?.id ?? null;
+  const [source, setSource] = useState<"app" | "generic">(pre !== null ? "app" : "generic");
+  const [appId, setAppId] = useState<number | null>(pre);
+  const [kind, setKind] = useState<(typeof KINDS)[number]>("mixed");
+  const [lang, setLang] = useState<"fr" | "en">(locale);
+  const [length, setLength] = useState<(typeof LENGTHS)[number]>(8);
+  const [level, setLevel] = useState<"1" | "2" | "3">("2");
+  const [more, setMore] = useState(false);
+  const app = apps.find((a) => a.id === appId) ?? null;
+  const minutes = Math.round(length * 2.5);
+  const title = source === "app" && app ? `${s.mockFor} ${app.company} · ${app.title}` : s.heading;
 
   return (
-    <form action={action} className="space-y-6" aria-describedby={state?.error ? "start-err" : undefined}>
-      <fieldset>
-        <legend className="label">{c.start.basedOn}</legend>
-        <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
-          <Choice name="source" value="app" checked={source === "app"} onChange={() => setSource("app")} disabled={!apps.length}>
-            <Briefcase size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />
-            <span className="font-medium">{c.start.fromApp}</span>
-          </Choice>
-          <Choice name="source" value="generic" checked={source === "generic"} onChange={() => setSource("generic")}>
-            <Compass size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-accent-text" />
-            <span className="font-medium">{c.start.generic}</span>
-          </Choice>
-        </div>
-      </fieldset>
+    <form action={action} className="card relative overflow-hidden p-[22px]" aria-describedby={state?.error ? "start-err" : undefined}>
+      <p className="eyebrow text-saffron">{suggestedLabel ?? s.suggested}</p>
+      <h2 className="mt-1.5 line-clamp-2 text-[1.5rem] leading-[1.2] tracking-[-0.02em]">{title}</h2>
+      <p className="mt-1.5 max-w-[48ch] text-[0.9rem] text-ink-2">{s.lead}</p>
 
-      {source === "app" ? (
-        <div>
-          <label htmlFor="coach-app" className="label">{c.start.application}</label>
-          {apps.length ? (
-            <>
-              <select id="coach-app" name="application" className="input mt-1.5" required defaultValue={hasPre ? String(preselect) : ""}>
-                <option value="" disabled>{c.start.chooseApp}</option>
-                {apps.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.title} — {a.company}
-                  </option>
-                ))}
-              </select>
-              <p className="hint">{c.start.postingNote}</p>
-            </>
-          ) : (
-            <p className="hint">{c.start.noApps}</p>
-          )}
-        </div>
-      ) : (
-        <fieldset>
-          <legend className="label">{c.start.track}</legend>
-          <div className="mt-1.5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3">
-            {TRACKS.map((tr, i) => (
-              <Choice key={tr} name="track" value={tr} defaultChecked={i === 2}>
-                <span className="font-medium">{c.tracks[tr]}</span>
-              </Choice>
-            ))}
-          </div>
-        </fieldset>
-      )}
+      <input type="hidden" name="source" value={source} />
+      {source === "app" && app && <input type="hidden" name="application" value={app.id} />}
+      <input type="hidden" name="kind" value={kind} />
+      <input type="hidden" name="lang" value={lang} />
+      <input type="hidden" name="length" value={length} />
+      <input type="hidden" name="level" value={level} />
 
-      <fieldset>
-        <legend className="label">{c.start.kind}</legend>
-        <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
-          {KINDS.map((k) => (
-            <Choice key={k} name="kind" value={k} defaultChecked={k === "mixed"}>
-              <span>
-                <span className="block font-medium">{c.kinds[k]}</span>
-                <span className="block text-xs text-muted">{c.kindHints[k]}</span>
-              </span>
-            </Choice>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className="grid gap-5 sm:grid-cols-3">
-        <fieldset>
-          <legend className="label">{c.start.lang}</legend>
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-            {(["fr", "en"] as const).map((l) => (
-              <Choice key={l} name="lang" value={l} defaultChecked={l === locale} className="justify-center">
-                <span className="font-medium">{c.langs[l]}</span>
-              </Choice>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend className="label">{c.start.length}</legend>
-          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-            {LENGTHS.map((n) => (
-              <Choice key={n} name="length" value={String(n)} defaultChecked={n === 8} className="justify-center">
-                <span className="mono font-semibold" aria-hidden="true">{n}</span>
-                <span className="sr-only">{fmt(c.start.lengthOpt, { n })}</span>
-              </Choice>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend className="label">{c.start.level}</legend>
-          <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-            {(["1", "2", "3"] as const).map((l) => (
-              <Choice key={l} name="level" value={l} defaultChecked={l === "2"} className="justify-center !px-1.5">
-                <span className="flex flex-col items-center leading-tight">
-                  <span aria-hidden="true" className="tracking-[-0.1em] text-accent-text">{"●".repeat(Number(l))}{"○".repeat(3 - Number(l))}</span>
-                  <span className="text-[0.7rem] font-medium">{c.levels[l]}</span>
-                </span>
-              </Choice>
-            ))}
-          </div>
-        </fieldset>
+      <div role="radiogroup" aria-label={s.kind} className="mt-[18px] grid gap-2.5 sm:grid-cols-3">
+        {KINDS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            role="radio"
+            aria-checked={kind === k}
+            onClick={() => setKind(k)}
+            className={`rounded-xl border p-3 text-left transition-colors ${kind === k ? "border-accent bg-accent-soft" : "border-line bg-surface hover:border-line-strong"}`}
+          >
+            <span className="block text-sm font-semibold text-ink">{c.kinds[k]}</span>
+            <span className="mt-0.5 block text-[0.75rem] text-muted">{c.kindHints[k]}</span>
+          </button>
+        ))}
       </div>
 
-      {state?.error && (
-        <p id="start-err" role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
-          {c.start.error}
-        </p>
+      <div className="mt-3.5 flex flex-wrap items-center gap-2 text-[0.82rem] text-muted">
+        <span role="radiogroup" aria-label={s.lang} className="seg seg-sm">
+          {(["fr", "en"] as const).map((l) => (
+            <button key={l} type="button" role="radio" aria-checked={lang === l} className={`seg-btn ${lang === l ? "on" : ""}`} onClick={() => setLang(l)}>
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </span>
+        <span role="radiogroup" aria-label={s.length} className="seg seg-sm">
+          {LENGTHS.map((n) => (
+            <button key={n} type="button" role="radio" aria-checked={length === n} className={`seg-btn ${length === n ? "on" : ""}`} onClick={() => setLength(n)}>
+              {n} q{length === n ? ` · ${Math.round(n * 2.5)} min` : ""}
+            </button>
+          ))}
+        </span>
+        <span role="radiogroup" aria-label={s.level} className="seg seg-sm">
+          {(["1", "2", "3"] as const).map((l) => (
+            <button key={l} type="button" role="radio" aria-checked={level === l} className={`seg-btn ${level === l ? "on" : ""}`} onClick={() => setLevel(l)}>
+              {c.levels[l]}
+            </button>
+          ))}
+        </span>
+      </div>
+
+      {more && (
+        <div className="mt-3.5 rounded-xl border border-line p-3" style={{ animation: "pop .18s ease both" }}>
+          <div className="seg seg-sm mb-2.5">
+            <button type="button" className={`seg-btn ${source === "app" ? "on" : ""}`} disabled={!apps.length} onClick={() => setSource("app")}>{s.fromApp}</button>
+            <button type="button" className={`seg-btn ${source === "generic" ? "on" : ""}`} onClick={() => setSource("generic")}>{s.generic}</button>
+          </div>
+          {source === "app" ? (
+            apps.length ? (
+              <>
+                <label htmlFor="coach-app" className="label">{s.application}</label>
+                <select id="coach-app" className="input !h-9 !py-0 text-sm" value={appId ?? ""} onChange={(e) => setAppId(Number(e.target.value) || null)}>
+                  {apps.map((a) => (
+                    <option key={a.id} value={a.id}>{a.title} — {a.company}</option>
+                  ))}
+                </select>
+                <p className="hint">{s.postingNote}</p>
+              </>
+            ) : (
+              <p className="hint">{s.noApps}</p>
+            )
+          ) : (
+            <fieldset>
+              <legend className="label">{s.track}</legend>
+              <div className="flex flex-wrap gap-1.5">
+                {TRACKS.map((tr, i) => (
+                  <label key={tr} className="chip min-h-8 cursor-pointer !px-3 has-checked:!border-transparent has-checked:!bg-accent-soft has-checked:!text-accent-text">
+                    <input type="radio" name="track" value={tr} defaultChecked={i === 1} className="sr-only" />
+                    {c.tracks[tr]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
+        </div>
       )}
 
-      <button type="submit" className="btn btn-primary btn-lg w-full sm:w-auto" disabled={pending || (source === "app" && !apps.length)} aria-busy={pending}>
-        {pending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-        {pending ? c.start.submitting : c.start.submit}
-      </button>
+      {state?.error && (
+        <p id="start-err" role="alert" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">{s.error}</p>
+      )}
+
+      <div className="mt-[18px] flex flex-wrap items-center gap-3">
+        <button type="submit" className="btn btn-saffron !h-[46px] !rounded-xl !px-5 !text-base" disabled={pending || (source === "app" && !app)} aria-busy={pending}>
+          {pending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Mic size={18} aria-hidden="true" />}
+          {pending ? s.submitting : fmt(s.startMin, { n: minutes })}
+        </button>
+        <button type="button" className="text-[0.85rem] font-semibold text-accent-text" aria-expanded={more} onClick={() => setMore((v) => !v)}>
+          {s.another}
+        </button>
+      </div>
     </form>
   );
 }

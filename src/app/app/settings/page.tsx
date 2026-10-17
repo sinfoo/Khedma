@@ -25,20 +25,11 @@ function version(): string {
   }
 }
 
-function SettingsSection({ id, icon, title, lead, children, i }: { id: string; icon: React.ReactNode; title: string; lead?: string; children: React.ReactNode; i: number }) {
+function SettingsSection({ id, title, lead, children, i }: { id: string; icon?: React.ReactNode; title: string; lead?: string; children: React.ReactNode; i: number }) {
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="card scroll-mt-24 p-5 rise sm:p-6" style={{ ["--i" as string]: i }}>
-      <div className="mb-5 flex items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-text" aria-hidden="true">
-          {icon}
-        </span>
-        <div>
-          <h2 id={`${id}-h`} className="text-xl leading-tight">
-            {title}
-          </h2>
-          {lead && <p className="mt-1 max-w-2xl text-sm text-muted">{lead}</p>}
-        </div>
-      </div>
+    <section id={id} aria-labelledby={`${id}-h`} className="card scroll-mt-24 p-5 rise" style={{ ["--i" as string]: i }}>
+      <h2 id={`${id}-h`} className="text-[1.15rem] tracking-[-0.01em]">{title}</h2>
+      {lead ? <p className="mb-3.5 mt-1 text-[0.85rem] text-muted">{lead}</p> : <div className="mb-3.5" />}
       {children}
     </section>
   );
@@ -66,7 +57,8 @@ export default async function SettingsPage() {
     [["G", "S"], k.goInsights],
     [["?"], k.help],
   ];
-  const sections = (["ai", "appearance", "notifications", "data", "about"] as const).map((id) => ({ id, label: st.sections[id] }));
+  const icons = { ai: <Bot size={15} />, appearance: <Palette size={15} />, notifications: <Bell size={15} />, data: <Database size={15} />, about: <Info size={15} /> };
+  const sections = (["ai", "appearance", "notifications", "data", "about"] as const).map((id) => ({ id, label: st.sections[id], icon: icons[id] }));
 
   return (
     <>
@@ -74,7 +66,7 @@ export default async function SettingsPage() {
       <ReminderNotifier />
       <div className="grid items-start gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <SettingsNav label={st.nav} items={sections} />
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0 max-w-[760px] space-y-3.5">
           <SettingsSection id="ai" i={1} icon={<Bot size={18} />} title={st.sections.ai} lead={st.ai.lead}>
             <AiEngine
               settings={{ provider: settings.provider, claude_model: settings.claude_model, ollama_url: settings.ollama_url, ollama_model: settings.ollama_model }}
@@ -106,6 +98,7 @@ export default async function SettingsPage() {
               <div className="space-y-4 text-sm">
                 <p>
                   <span className="display text-2xl">Khedma</span> <span className="chip mono ml-1">{fmt(st.about.version, { v: version() })}</span>
+                  <span className="block text-[0.8rem] text-muted">{st.about.tagline}</span>
                 </p>
                 <div>
                   <h3 className="text-sm font-semibold" style={{ fontFamily: "var(--font-sans)" }}>
@@ -124,16 +117,13 @@ export default async function SettingsPage() {
                 <h3 className="mb-2 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)" }}>
                   {st.about.shortcuts}
                 </h3>
-                <dl className="divide-y divide-line rounded-xl border border-line text-sm">
+                <dl className="grid gap-x-6 gap-y-2 text-[0.82rem]">
                   {shortcuts.map(([keys, label]) => (
-                    <div key={label} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div key={label} className="flex items-center justify-between gap-3 border-b border-line py-1.5">
                       <dt className="text-ink-2">{label}</dt>
                       <dd className="flex shrink-0 items-center gap-1">
                         {keys.map((key, i) => (
-                          <span key={i} className="contents">
-                            {i > 0 && keys[0] === "G" && <span className="text-xs text-muted">→</span>}
-                            <kbd className="kbd">{key}</kbd>
-                          </span>
+                          <kbd key={i} className="kbd">{key}</kbd>
                         ))}
                       </dd>
                     </div>

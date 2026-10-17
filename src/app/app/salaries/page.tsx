@@ -3,7 +3,8 @@ import Link from "next/link";
 import { getDict } from "@/lib/i18n/server";
 import { listJobs } from "@/lib/db";
 import { extractSalaryMentions } from "@/lib/salaries";
-import { CompanyAvatar, PageHeader } from "@/components/kit";
+import { TriangleAlert } from "lucide-react";
+import { CompanyAvatar } from "@/components/kit";
 import { SalaryExplorer } from "@/components/insights/salary-explorer";
 
 export const metadata: Metadata = { title: "Salaries" };
@@ -18,16 +19,18 @@ export default async function SalariesPage() {
 
   return (
     <>
-      <PageHeader title={m.title} lead={m.lead} />
-      <p role="note" className="mb-6 rounded-xl border border-saffron/40 bg-saffron-soft px-4 py-3 text-sm text-ink rise" style={{ ["--i" as string]: 1 }}>
-        <strong className="font-semibold">⚠ </strong>
-        {m.disclaimer}
-      </p>
+      <header className="mb-[18px] rise">
+        <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{m.title}</h1>
+        <p className="mt-1.5 flex items-start gap-2 text-muted">
+          <TriangleAlert size={14} aria-hidden="true" className="mt-1 shrink-0 text-saffron" />
+          {m.disclaimer}
+        </p>
+      </header>
 
       <SalaryExplorer />
 
-      <section className="card mt-6 p-5 rise" aria-labelledby="seen-h" style={{ ["--i" as string]: 6 }}>
-        <h2 id="seen-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.seen}</h2>
+      <section className="card mt-[18px] p-[18px] rise" aria-labelledby="seen-h" style={{ ["--i" as string]: 6 }}>
+        <h2 id="seen-h" className="eyebrow text-[0.8rem]">{m.seen}</h2>
         <p className="mt-0.5 text-xs text-muted">{m.seenDesc}</p>
         {seen.length === 0 ? (
           <p className="mt-3 text-sm text-muted">{m.seenEmpty}</p>
@@ -51,8 +54,8 @@ export default async function SalariesPage() {
         )}
       </section>
 
-      <section className="mt-6 rise" aria-labelledby="method-h" style={{ ["--i" as string]: 7 }}>
-        <h2 id="method-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{m.method}</h2>
+      <section className="mt-5 rise" aria-labelledby="method-h" style={{ ["--i" as string]: 7 }}>
+        <h2 id="method-h" className="card-title">{m.method}</h2>
         <p className="mt-1 max-w-3xl text-sm text-muted">{m.methodText}</p>
       </section>
     </>

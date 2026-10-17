@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
+import { fmt } from "@/lib/i18n/dict";
 import { getProfile, kvGet, listJobs } from "@/lib/db";
 import { getUpskillProgress, skillMatrix } from "@/lib/repo/insights";
 import type { UpskillPlan } from "@/lib/types";
@@ -88,7 +89,7 @@ export default async function UpskillPage() {
 
   return (
     <>
-      <PageHeader title={m.title} lead={m.lead} />
+      <PageHeader title={m.title} lead={jobs.length ? fmt(m.lead2, { n: jobs.length }) : m.lead} />
       {matrix.rows.length === 0 ? (
         <EmptyState icon={<GraduationCap size={22} aria-hidden="true" />} title={m.emptyTitle} hint={m.emptyHint}>
           <Link href="/app/jobs" className="btn btn-primary">{t.nav.jobs}</Link>
@@ -97,7 +98,7 @@ export default async function UpskillPage() {
       ) : (
         <UpskillBoard matrix={matrix} plan={plan} />
       )}
-      <Suspense fallback={<div className="skeleton mt-6 h-40 rounded-2xl" aria-hidden="true" />}>
+      <Suspense fallback={<div className="skeleton mt-5 h-40 rounded-[14px]" aria-hidden="true" />}>
         <EscoCard t={t} lang={locale === "fr" ? "fr" : "en"} roles={profile.target_roles} cvText={`${profile.cv_md}
 ${profile.skills.join(", ")}`} />
       </Suspense>

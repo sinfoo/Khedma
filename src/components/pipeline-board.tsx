@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useOptimistic, useState } from "react";
-import { ArrowDown, ArrowUp, CalendarClock, ChevronDown, ChevronRight, Clock, GitCompareArrows, GripVertical, Kanban, Mic, Search, Table2, Users } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarClock, ChevronDown, ChevronRight, GitCompareArrows, GripVertical, Mic, Search } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
-import { APP_STATES, JOB_TYPES, type AppState, type JobType } from "@/lib/types";
+import { APP_STATES, type AppState, type JobType } from "@/lib/types";
 import { CompanyAvatar } from "@/components/kit";
 import { ScoreRing, StateChip, scoreLabel } from "./ui";
-import { PostingLink } from "./posting-link";
 import { useStageMove } from "./pipeline/stage";
 import { shortDate } from "./pipeline/format";
 import { CadenceChip, type CadenceView } from "./pipeline/cadence";
@@ -37,39 +36,44 @@ const CLOSED: AppState[] = ["rejected", "discarded"];
 const ORDER: AppState[] = [...ACTIVE, ...CLOSED];
 type SortKey = "stage" | "score" | "updated" | "next";
 
+const DOT: Record<AppState, string> = {
+  evaluated: "var(--line-strong)",
+  applied: "var(--accent)",
+  responded: "var(--accent)",
+  interview: "var(--saffron)",
+  offer: "var(--success)",
+  hired: "var(--success)",
+  rejected: "var(--danger)",
+  discarded: "var(--muted)",
+};
+
+/** Stage board: cards move with one click (← / next stage →), drag, or the keyboard. */
 export function PipelineBoard({ items, initialView }: { items: BoardItem[]; initialView: "board" | "table" }) {
   const { t, locale } = useT();
   const b = t.apps2.board;
+  const f = t.apps2.flow;
   const [opt, setOpt] = useOptimistic(items, (state, m: { id: number; status: AppState }) => state.map((x) => (x.id === m.id ? { ...x, status: m.status } : x)));
   const [live, setLive] = useState("");
   const { move, node } = useStageMove((id, status) => setOpt({ id, status }), setLive);
   const [view, setView] = useState(initialView);
   const [q, setQ] = useState("");
-  const [type, setType] = useState("");
-  const [minScore, setMinScore] = useState(0);
   const [showClosed, setShowClosed] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "updated", dir: -1 });
   const [grab, setGrab] = useState<{ id: number; target: AppState } | null>(null);
   const [dragOver, setDragOver] = useState<AppState | null>(null);
   const [focusId, setFocusId] = useState<number | null>(null);
   const [sel, setSel] = useState<number[]>([]);
+  const [moved, setMoved] = useState("");
   const toggleSel = (id: number, on: boolean) => setSel((s) => (on ? (s.includes(id) ? s : [...s, id]) : s.filter((x) => x !== id)));
 
-  // A moved card re-mounts in its new column: give focus back to its handle.
   useEffect(() => {
     if (focusId !== null) document.getElementById(`grab-${focusId}`)?.focus();
   }, [focusId, opt]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return opt.filter(
-      (x) =>
-        (!needle || `${x.title} ${x.company}`.toLowerCase().includes(needle)) &&
-        (!type || x.type === type) &&
-        (!minScore || (x.score ?? 0) >= minScore),
-    );
-  }, [opt, q, type, minScore]);
-  const filtering = !!(q || type || minScore);
+    return opt.filter((x) => !needle || `${x.title} ${x.company}`.toLowerCase().includes(needle));
+  }, [opt, q]);
 
   const switchView = (v: "board" | "table") => {
     setView(v);
@@ -81,6 +85,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
 
   const doMove = (item: BoardItem, to: AppState) => {
     setFocusId(item.id);
+    setMoved(fmt(b.moved, { title: `${item.company} — ${item.title}`, col: t.states[to] }));
     move({ id: item.id, status: item.status, title: `${item.company} — ${item.title}` }, to);
   };
 
@@ -129,6 +134,14 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
 
   const card = (item: BoardItem) => {
     const grabbed = grab?.id === item.id;
+    const idx = ACTIVE.indexOf(item.status);
+    const prev = idx > 0 ? ACTIVE[idx - 1] : null;
+    const next = idx >= 0 && idx < ACTIVE.length - 1 ? ACTIVE[idx + 1] : null;
+    const nextLine = item.interviewAt
+      ? { icon: <Mic size={12} aria-hidden="true" />, text: fmt(b.interviewOn, { date: shortDate(item.interviewAt, locale) }), color: "var(--saffron)" }
+      : item.next_action_at
+        ? { icon: <CalendarClock size={12} aria-hidden="true" />, text: shortDate(item.next_action_at, locale), color: item.overdue ? "var(--danger)" : "var(--ink-2)" }
+        : null;
     return (
       <li
         key={item.id}
@@ -137,69 +150,52 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           e.dataTransfer.setData("text/plain", String(item.id));
           e.dataTransfer.effectAllowed = "move";
         }}
-        className={`card card-hover group p-3 ${grabbed ? "outline-2 outline-offset-2 outline-accent" : ""}`}
-        style={grabbed ? { outlineStyle: "solid" } : undefined}
+        className={`card card-shadow flex flex-col gap-2 p-3 ${grabbed ? "outline-2 outline-offset-2 outline-accent" : ""}`}
+        style={{ ...(grabbed ? { outlineStyle: "solid" } : {}), animation: "rise .4s cubic-bezier(.2,.7,.2,1) both" }}
       >
-        <div className="flex items-start gap-2.5">
-          <CompanyAvatar name={item.company} size={32} />
+        <div className="flex items-start gap-2">
+          <CompanyAvatar name={item.company} size={28} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium text-muted">{item.company}</p>
-            <Link href={`/app/pipeline/${item.id}`} className="line-clamp-2 text-sm font-semibold leading-snug hover:text-accent-text">
+            <p className="truncate text-[0.7rem] text-muted">{item.company}</p>
+            <Link href={`/app/pipeline/${item.id}`} className="line-clamp-2 text-[0.82rem] font-semibold leading-[1.3] text-ink hover:text-accent-text">
               {item.title}
             </Link>
           </div>
-          {item.score !== null && <ScoreRing value={item.score} size={34} label={scoreLabel(t, item.score)} animate={false} />}
-          <PostingLink job={{ url: item.url, title: item.title, company: item.company, location: item.location, source: item.source }} variant="ghost" iconOnly />
+          {item.score !== null && <ScoreRing value={item.score} size={28} label={scoreLabel(t, item.score)} animate={false} />}
         </div>
-        <ul className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted" aria-label={b.details}>
-          <li className="inline-flex items-center gap-1 tabular" title={fmt(b.daysInStage, { n: item.stageDays })}>
-            <Clock size={12} aria-hidden="true" />
-            <span aria-hidden="true">{fmt(b.daysShort, { n: item.stageDays })}</span>
-            <span className="sr-only">{fmt(b.daysInStage, { n: item.stageDays })}</span>
-          </li>
-          {item.next_action_at && (
-            <li className={`inline-flex items-center gap-1 ${item.overdue ? "font-semibold text-danger" : ""}`}>
-              <CalendarClock size={12} aria-hidden="true" />
-              {item.overdue && <span className="sr-only">{b.overdue}: </span>}
-              {shortDate(item.next_action_at, locale)}
-            </li>
-          )}
-          {item.interviewAt && (
-            <li className="chip chip-saffron !py-0 text-[0.7rem]">
-              <Mic size={11} aria-hidden="true" /> {fmt(b.interviewOn, { date: shortDate(item.interviewAt, locale) })}
-            </li>
-          )}
-          {item.cadence && (
-            <li>
-              <CadenceChip c={item.cadence} t={t} locale={locale} />
-            </li>
-          )}
-          {item.contacts > 0 && (
-            <li className="inline-flex items-center gap-1">
-              <Users size={12} aria-hidden="true" />
-              <span aria-hidden="true">{item.contacts}</span>
-              <span className="sr-only">{fmt(b.contacts, { n: item.contacts })}</span>
-            </li>
-          )}
-        </ul>
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <button
-            id={`grab-${item.id}`}
-            type="button"
-            className="btn btn-ghost btn-icon btn-sm cursor-grab"
-            aria-label={fmt(b.grab, { title: `${item.company} — ${item.title}` })}
-            aria-describedby="dnd-help"
-            aria-pressed={grabbed}
-            onKeyDown={(e) => onHandleKey(e, item)}
-          >
-            <GripVertical size={14} aria-hidden="true" />
-          </button>
-          <label className="sr-only" htmlFor={`mv-${item.id}`}>{fmt(b.moveLabel, { title: `${item.company} — ${item.title}` })}</label>
-          <select id={`mv-${item.id}`} className="input !h-8 !min-h-0 !py-0 !px-2 text-xs flex-1" value={item.status} onChange={(e) => doMove(item, e.target.value as AppState)}>
-            {APP_STATES.map((s) => (
-              <option key={s} value={s}>{t.states[s]}</option>
-            ))}
-          </select>
+        {nextLine && (
+          <p className="flex items-center gap-1.5 text-[0.75rem] font-semibold" style={{ color: nextLine.color }}>
+            {nextLine.icon}
+            <span className="truncate">{nextLine.text}</span>
+            {item.overdue && !item.interviewAt && <span className="sr-only">{b.overdue}</span>}
+          </p>
+        )}
+        {item.cadence && !nextLine && <CadenceChip c={item.cadence} t={t} locale={locale} />}
+        <div className="flex items-center justify-between gap-1.5 border-t border-line pt-2">
+          <span className="tabular text-[0.7rem] text-muted">{fmt(f.hereDays, { n: item.stageDays })}</span>
+          <div className="flex gap-1">
+            <button
+              id={`grab-${item.id}`}
+              type="button"
+              className="grid size-[26px] cursor-grab place-items-center rounded-[7px] text-muted hover:bg-surface-2 hover:text-ink"
+              aria-label={fmt(b.grab, { title: `${item.company} — ${item.title}` })}
+              aria-describedby="dnd-help"
+              aria-pressed={grabbed}
+              onKeyDown={(e) => onHandleKey(e, item)}
+            >
+              <GripVertical size={12} aria-hidden="true" />
+            </button>
+            {prev && (
+              <button type="button" onClick={() => doMove(item, prev)} aria-label={`${f.moveBack} · ${t.states[prev]}`} className="grid size-[26px] place-items-center rounded-[7px] border border-line bg-surface text-ink-2 hover:bg-surface-2">
+                <ArrowLeft size={12} aria-hidden="true" />
+              </button>
+            )}
+            {next && (
+              <button type="button" onClick={() => doMove(item, next)} className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-[7px] bg-accent-soft px-2 text-[0.72rem] font-semibold text-accent-text hover:brightness-95">
+                {t.states[next]} <ArrowRight size={12} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         </div>
       </li>
     );
@@ -213,28 +209,20 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
         key={state}
         aria-labelledby={`col-${state}`}
         {...dropProps(state)}
-        className={`flex min-h-24 flex-col rounded-2xl border p-2 transition-colors ${hot ? "border-accent bg-accent-soft" : "border-line bg-surface-2"} ${compact ? "" : "w-[276px] shrink-0 snap-start"}`}
+        className={`flex min-h-[360px] flex-col gap-2 rounded-[14px] border p-2 transition-colors ${hot ? "border-accent bg-accent-soft" : "border-line bg-surface-2"} ${compact ? "" : "w-[236px] shrink-0 snap-start"}`}
       >
-        <header className="flex items-center justify-between px-1.5 pb-2 pt-1">
-          <h2 id={`col-${state}`} className="flex items-center gap-2 text-sm font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
-            <StateDot state={state} />
-            {t.states[state]}
-          </h2>
-          <span className="mono text-xs text-muted">
+        <header className="flex items-center gap-2 px-1.5 pb-0.5 pt-1.5">
+          <span aria-hidden="true" className="size-2 rounded-full" style={{ background: DOT[state] }} />
+          <h2 id={`col-${state}`} className="card-title flex-1 text-[0.82rem]">{t.states[state]}</h2>
+          <span className="mono text-[0.72rem] text-muted">
             <span aria-hidden="true">{col.length}</span>
             <span className="sr-only">{fmt(t.pipeline.count, { n: col.length })}</span>
           </span>
         </header>
-        {col.length ? (
-          <ul className="space-y-2">{col.map(card)}</ul>
-        ) : (
-          <p className="grid flex-1 place-items-center rounded-xl border border-dashed border-line px-3 py-5 text-center text-xs text-muted">{b.emptyCol}</p>
-        )}
+        {col.length ? <ul className="flex flex-col gap-2">{col.map(card)}</ul> : <p className="grid flex-1 place-items-center rounded-[10px] border border-dashed border-line p-4 text-center text-[0.75rem] text-muted">{b.emptyCol}</p>}
       </section>
     );
   };
-
-  const closedCount = filtered.filter((x) => CLOSED.includes(x.status)).length;
 
   const sorted = useMemo(() => {
     const val = (x: BoardItem): number | string => {
@@ -261,73 +249,55 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
       <p id="dnd-help" className="sr-only">{b.dndHelp}</p>
       {node}
 
-      <div className="mb-4 flex flex-wrap items-end gap-3 rise" style={{ ["--i" as string]: 2 }}>
-        <div className="relative min-w-0 flex-1 basis-56">
+      <div className="mb-3 flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-0 flex-1 basis-56 sm:max-w-[320px]">
           <label htmlFor="pf-q" className="sr-only">{t.common.search}</label>
           <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-          <input id="pf-q" type="search" className="input !pl-9" placeholder={b.searchPh} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input id="pf-q" type="search" className="input !h-[38px] !border-line !py-0 !pl-9 text-sm" placeholder={b.searchPh} value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <div>
-          <label htmlFor="pf-type" className="sr-only">{t.jobs.type}</label>
-          <select id="pf-type" className="input" value={type} onChange={(e) => setType(e.target.value)}>
-            <option value="">{b.allTypes}</option>
-            {JOB_TYPES.map((k) => (
-              <option key={k} value={k}>{t.jobTypes[k]}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="pf-score" className="sr-only">{b.minScore}</label>
-          <select id="pf-score" className="input" value={minScore} onChange={(e) => setMinScore(Number(e.target.value))}>
-            <option value={0}>{b.anyScore}</option>
-            {[3, 3.5, 4, 4.5].map((s) => (
-              <option key={s} value={s}>{fmt(b.scoreAtLeast, { n: s.toFixed(1) })}</option>
-            ))}
-          </select>
-        </div>
-        <div role="group" aria-label={b.viewLabel} className="inline-flex overflow-hidden rounded-full border border-line-strong">
+        <div role="tablist" aria-label={b.viewLabel} className="seg">
           {(["board", "table"] as const).map((v) => (
-            <button key={v} type="button" aria-pressed={view === v} onClick={() => switchView(v)} className={`btn btn-sm rounded-none ${view === v ? "bg-surface-3 text-ink" : "btn-ghost"}`}>
-              {v === "board" ? <Kanban size={14} aria-hidden="true" /> : <Table2 size={14} aria-hidden="true" />}
+            <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => switchView(v)} className="seg-btn">
               {v === "board" ? b.viewBoard : b.viewTable}
             </button>
           ))}
+          <Link href={sel.length >= 2 && sel.length <= 4 ? `/app/pipeline/compare?ids=${sel.join(",")}` : "/app/pipeline?view=table"} className="seg-btn" title={sel.length < 2 ? t.apps2.compare.needTwo : undefined}>
+            {f.viewCompare}
+          </Link>
         </div>
       </div>
 
-      {filtering && filtered.length === 0 ? (
+      {q && filtered.length === 0 ? (
         <div className="card p-8 text-center">
           <p className="text-ink-2">{b.noMatch}</p>
-          <button type="button" className="btn btn-secondary btn-sm mt-4" onClick={() => { setQ(""); setType(""); setMinScore(0); }}>{b.clearFilters}</button>
+          <button type="button" className="btn btn-outline btn-sm mt-4" onClick={() => setQ("")}>{b.clearFilters}</button>
         </div>
       ) : view === "board" ? (
-        <div className="-mx-4 flex snap-x items-start gap-3 overflow-x-auto px-4 pb-4 sm:-mx-8 sm:px-8 rise" style={{ ["--i" as string]: 3 }} aria-label={t.pipeline.board} role="region" tabIndex={0}>
+        <div className="-mx-4 flex snap-x items-start gap-3 overflow-x-auto px-4 pb-3 sm:-mx-8 sm:px-8" aria-label={t.pipeline.board} role="region" tabIndex={0}>
           {ACTIVE.map((s) => column(s))}
-          <div className={`shrink-0 rounded-2xl border border-line bg-surface p-2 ${showClosed ? "w-[292px]" : "w-[180px]"}`}>
-            <button type="button" className="btn btn-ghost btn-sm w-full justify-between" aria-expanded={showClosed} onClick={() => setShowClosed((v) => !v)}>
-              <span className="inline-flex items-center gap-1.5">
+          <section className={`flex min-h-[360px] shrink-0 flex-col gap-2 rounded-[14px] border border-line bg-surface p-2 ${showClosed ? "w-[252px]" : "w-[160px]"}`}>
+            <header className="flex items-center justify-between px-1.5 pb-0.5 pt-1.5">
+              <button type="button" className="inline-flex items-center gap-1 text-[0.82rem] font-semibold text-muted hover:text-ink" aria-expanded={showClosed} onClick={() => setShowClosed((v) => !v)}>
                 {showClosed ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
                 {b.closed}
-              </span>
-              <span className="mono text-xs text-muted">{closedCount}</span>
-            </button>
+              </button>
+            </header>
             {showClosed ? (
-              <div className="mt-2 space-y-2">{CLOSED.map((s) => column(s, true))}</div>
+              <div className="flex flex-col gap-2">{CLOSED.map((s) => column(s, true))}</div>
             ) : (
-              <div className="mt-2 space-y-2">
+              <>
                 {CLOSED.map((s) => (
-                  <div key={s} {...dropProps(s)} className={`rounded-xl border border-dashed px-3 py-3 text-xs transition-colors ${dragOver === s || grab?.target === s ? "border-accent bg-accent-soft text-ink" : "border-line text-muted"}`}>
-                    <span className="flex items-center justify-between">
-                      {t.states[s]} <span className="mono">{filtered.filter((x) => x.status === s).length}</span>
-                    </span>
+                  <div key={s} {...dropProps(s)} className={`flex justify-between rounded-[10px] border border-dashed px-2.5 py-2.5 text-[0.75rem] transition-colors ${dragOver === s || grab?.target === s ? "border-accent bg-accent-soft text-ink" : "border-line text-muted"}`}>
+                    {t.states[s]} <span className="mono">{filtered.filter((x) => x.status === s).length}</span>
                   </div>
                 ))}
-              </div>
+                <p className="mt-auto p-1.5 text-[0.7rem] leading-[1.4] text-muted">{f.dropHint}</p>
+              </>
             )}
-          </div>
+          </section>
         </div>
       ) : (
-        <div className="card overflow-x-auto rise" style={{ ["--i" as string]: 3 }}>
+        <div className="card overflow-x-auto">
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm" aria-live="polite">
             <span className="text-muted">{fmt(t.apps2.compare.selected, { n: sel.length })}</span>
             {sel.length > 4 && <span className="text-xs text-danger">{t.apps2.compare.tooMany}</span>}
@@ -357,13 +327,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
               {sorted.map((x) => (
                 <tr key={x.id}>
                   <td>
-                    <input
-                      type="checkbox"
-                      className="size-4 accent-[var(--accent)]"
-                      aria-label={fmt(t.apps2.compare.select, { title: `${x.company} — ${x.title}` })}
-                      checked={sel.includes(x.id)}
-                      onChange={(e) => toggleSel(x.id, e.target.checked)}
-                    />
+                    <input type="checkbox" className="size-4 accent-[var(--accent)]" aria-label={fmt(t.apps2.compare.select, { title: `${x.company} — ${x.title}` })} checked={sel.includes(x.id)} onChange={(e) => toggleSel(x.id, e.target.checked)} />
                   </td>
                   <td>
                     <div className="flex items-center gap-2.5">
@@ -392,20 +356,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           </table>
         </div>
       )}
+      {moved && <p role="status" className="mt-3.5 text-[0.82rem] text-muted" style={{ animation: "fade .3s ease both" }}>{moved}</p>}
     </>
   );
-}
-
-const DOT: Record<AppState, string> = {
-  evaluated: "var(--line-strong)",
-  applied: "var(--accent)",
-  responded: "var(--accent)",
-  interview: "var(--saffron)",
-  offer: "var(--success)",
-  hired: "var(--success)",
-  rejected: "var(--danger)",
-  discarded: "var(--muted)",
-};
-function StateDot({ state }: { state: AppState }) {
-  return <span aria-hidden="true" className="inline-block size-2 rounded-full" style={{ background: DOT[state] }} />;
 }

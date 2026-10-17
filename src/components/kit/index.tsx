@@ -8,15 +8,18 @@ export function PageHeader({
   eyebrow,
   actions,
   back,
+  size = "md",
 }: {
   title: React.ReactNode;
   lead?: React.ReactNode;
   eyebrow?: React.ReactNode;
   actions?: React.ReactNode;
   back?: { href: string; label: string };
+  /** "lg" is the Today greeting (2.4rem); "md" every other page (2rem). */
+  size?: "md" | "lg";
 }) {
   return (
-    <header className="mb-7 rise">
+    <header className="mb-[18px]">
       {back && (
         <Link href={back.href} className="mb-3 inline-flex items-center gap-1 text-sm text-muted hover:text-ink no-print">
           <span aria-hidden="true">←</span> {back.label}
@@ -24,9 +27,9 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          {eyebrow && <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent-text mb-1.5">{eyebrow}</p>}
-          <h1 className="text-[1.75rem] sm:text-[2.1rem] leading-tight">{title}</h1>
-          {lead && <p className="text-muted mt-1.5 max-w-2xl">{lead}</p>}
+          {eyebrow && <p className="eyebrow mb-1">{eyebrow}</p>}
+          <h1 className={`leading-[1.1] tracking-[-0.025em] ${size === "lg" ? "text-[2rem] sm:text-[2.4rem]" : "text-[1.75rem] sm:text-[2rem]"}`}>{title}</h1>
+          {lead && <p className="mt-1.5 max-w-2xl text-muted">{lead}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2 no-print">{actions}</div>}
       </div>
@@ -51,10 +54,10 @@ export function Section({
 }) {
   const hid = id ? `${id}-h` : undefined;
   return (
-    <section className={`card p-5 rise ${className}`} style={{ ["--i" as string]: i }} aria-labelledby={hid}>
+    <section className={`card p-[18px] rise ${className}`} style={{ ["--i" as string]: i }} aria-labelledby={hid}>
       {(title || actions) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
-          {title && <h2 id={hid} className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{title}</h2>}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          {title && <h2 id={hid} className="card-title">{title}</h2>}
           {actions && <div className="flex items-center gap-1.5">{actions}</div>}
         </div>
       )}
@@ -123,14 +126,29 @@ export function CompanyAvatar({ name, size = 36 }: { name: string; size?: number
   );
 }
 
-export function EmptyState({ icon, title, hint, children }: { icon?: React.ReactNode; title: string; hint?: string; children?: React.ReactNode }) {
+export function EmptyState({ icon, title, hint, children }: { icon?: React.ReactNode; title: string; hint?: React.ReactNode; children?: React.ReactNode }) {
   return (
-    <div className="card relative overflow-hidden px-6 py-14 text-center rise">
-      <div className="pattern pattern-fade" aria-hidden="true" />
-      {icon && <div className="relative mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent-text">{icon}</div>}
-      <p className="relative display text-xl">{title}</p>
-      {hint && <p className="relative mx-auto mt-2 max-w-md text-muted">{hint}</p>}
-      {children && <div className="relative mt-6 flex flex-wrap justify-center gap-2.5">{children}</div>}
+    <div className="grid min-h-[50vh] place-items-center rise">
+      <div className="max-w-[560px] text-center">
+        {icon && (
+          <div aria-hidden="true" className="relative mx-auto mb-6 grid size-[120px] place-items-center">
+            <span className="absolute inset-0 rounded-full border border-dashed border-line-strong" />
+            <span className="absolute inset-[22px] rounded-full border border-dashed border-line" />
+            <span
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: "conic-gradient(from 0deg, color-mix(in oklab, var(--accent) 35%, transparent), transparent 80deg)",
+                maskImage: "radial-gradient(circle, black 0 95%, transparent 96%)",
+                animation: "sweep 3s linear infinite",
+              }}
+            />
+            <span className="relative text-accent-text [&>svg]:size-9">{icon}</span>
+          </div>
+        )}
+        <p className="display text-[1.75rem] leading-tight tracking-[-0.02em]">{title}</p>
+        {hint && <p className="mx-auto mt-2.5 max-w-md text-base leading-[1.55] text-muted">{hint}</p>}
+        {children && <div className="mt-[22px] flex flex-wrap justify-center gap-2.5">{children}</div>}
+      </div>
     </div>
   );
 }

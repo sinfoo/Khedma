@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, Inbox, Link2, Plus } from "lucide-react";
+import { Link2, Plus, Radar } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { EmptyState, PageHeader } from "@/components/kit";
 import { OffersBrowser } from "@/components/offers/offers-browser";
-import { OfferSearch } from "@/components/offers/offer-search";
+import { ScoreNewButton } from "@/components/offers/score-new-button";
 import { defaultKeywords, listSourceRows } from "@/lib/repo/sources";
 import { loadDemoJobs } from "@/app/actions/jobs";
-import { applyFilters, filtersToQuery, listOfferRows, listSources, listViews, parseFilters, unevaluated } from "@/lib/repo/offers";
+import { listOfferRows, listSources, listViews, parseFilters, unevaluated } from "@/lib/repo/offers";
 import { getProfile, stats } from "@/lib/db";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { REMOTE_CODE, countryOf } from "@/lib/geo";
@@ -27,33 +27,46 @@ export const metadata: Metadata = { title: "Offers" };
 export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">) {
   const { t } = await getDict();
   const o = t.offers2;
+  const L = o.list2;
   const sp = await searchParams;
   const f = parseFilters(sp);
-  const query = filtersToQuery(f);
   const all = listOfferRows(f.archived);
   const s = stats();
-
-  const extra = getProfileExtra();
-  const search = (
-    <OfferSearch
-      keywords={defaultKeywords(getProfile())}
-      places={{ countries: extra.places.countries, remote: extra.places.remote }}
-      sources={listSourceRows().filter((x) => x.enabled).map((x) => ({ id: x.id, label: x.label, kind: x.kind }))}
-      autoFocus={sp.focus === "search"}
-    />
-  );
+  const pending = unevaluated();
 
   if (!f.archived && all.length === 0) {
+    const kw = defaultKeywords(getProfile()).slice(0, 4).join(" · ");
+    const enabled = listSourceRows().filter((x) => x.enabled);
+    const names = enabled.slice(0, 5).map((x) => x.label).join(", ");
+    const sources = enabled.length > 5 ? `${names}… (${fmt(L.sourcesN, { n: enabled.length })})` : names || fmt(L.sourcesN, { n: 0 });
     return (
       <>
         <PageHeader title={o.title} />
-        {search}
-        <EmptyState icon={<Inbox size={22} aria-hidden="true" />} title={o.emptyTitle} hint={o.emptyHint}>
-          <Link href="/app/jobs/new" className="btn btn-secondary">
-            <Link2 size={16} aria-hidden="true" /> {o.add}
+        <EmptyState
+          icon={<Radar aria-hidden="true" />}
+          title={L.emptyTitle}
+          hint={
+            kw ? (
+              <>
+                {L.emptyHint.split("{kw}")[0]}
+                <strong className="text-ink">{kw}</strong>
+                {fmt(L.emptyHint.split("{kw}")[1] ?? "", { sources })}
+              </>
+            ) : (
+              fmt(L.emptyHintNoKw, { sources })
+            )
+          }
+        >
+          <Link href="/app/sources?scan=1" className="btn btn-saffron btn-lg">
+            <Radar size={16} aria-hidden="true" /> {L.scanBoards}
           </Link>
-          <form action={async () => { "use server"; await loadDemoJobs(); }}>
-            <button className="btn btn-secondary">{o.loadDemo}</button>
+          <Link href="/app/jobs/new" className="btn btn-outline btn-lg">
+            <Link2 size={16} aria-hidden="true" /> {L.pastePosting}
+          </Link>
+          <form action={async () => { "use server"; await loadDemoJobs(); }} className="basis-full text-center">
+            <p className="text-[0.78rem] text-muted">
+              {L.orDemo} <button className="font-semibold text-accent-text hover:underline">{L.loadDemo}</button>
+            </p>
           </form>
         </EmptyState>
       </>
@@ -64,19 +77,16 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
     <>
       <PageHeader
         title={o.title}
-        lead={fmt(o.lead, { n: s.jobs, e: s.evaluated })}
+        lead={pending.length ? fmt(o.lead2, { n: s.jobs, e: s.evaluated, u: pending.length }) : fmt(o.lead2None, { n: s.jobs, e: s.evaluated })}
         actions={
           <>
-            <a href={`/api/offers/export${query ? `?${query}` : ""}`} className="btn btn-secondary" download>
-              <Download size={16} aria-hidden="true" /> {o.export}
-            </a>
-            <Link href="/app/jobs/new" className="btn btn-secondary">
-              <Plus size={16} aria-hidden="true" /> {o.add}
+            <ScoreNewButton n={pending.length} />
+            <Link href="/app/jobs/new" className="btn btn-outline">
+              <Plus size={15} aria-hidden="true" /> {o.add}
             </Link>
           </>
         }
       />
-      {search}
       <OffersBrowser
         all={all}
         total={all.length}
@@ -85,7 +95,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
         sources={listSources()}
         countryCodes={countryCodesOf(all)}
         myCountries={getProfileExtra().places.countries}
-        pending={unevaluated()}
+        pending={pending}
         autoEvaluate={sp.evaluate === "1"}
       />
     </>

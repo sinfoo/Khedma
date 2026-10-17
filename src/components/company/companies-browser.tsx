@@ -2,31 +2,29 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, MapPin, Search, Sparkles, Star } from "lucide-react";
+import { Ban, CircleCheck, Search, Sparkles, Star } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { CompanyAvatar } from "@/components/kit";
-import { ScoreRing, fmtDate, scoreLabel } from "@/components/ui";
+import { ScoreRing, scoreLabel } from "@/components/ui";
 import type { CompanyRow } from "@/lib/company";
 
 type Sort = "open" | "fit" | "seen" | "name" | "rating";
 type Flag = "" | "blacklisted" | "researched" | "notResearched";
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
+/** Company rows: identity, open · applied, research state, average fit. Click opens the company page. */
 export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
   const { t, locale } = useT();
   const c = t.company2;
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<Sort>("open");
-  const [sector, setSector] = useState("");
   const [flag, setFlag] = useState<Flag>("");
 
-  const sectors = useMemo(() => [...new Set(rows.map((r) => r.sector || r.research?.facts.sector).filter(Boolean) as string[])].sort(), [rows]);
   const shown = useMemo(() => {
     const needle = fold(q.trim());
     const list = rows.filter((r) => {
       const sec = r.sector || r.research?.facts.sector || "";
-      if (sector && sec !== sector) return false;
       if (flag === "blacklisted" && !r.blacklisted) return false;
       if (flag === "researched" && !r.researched_at) return false;
       if (flag === "notResearched" && r.researched_at) return false;
@@ -41,93 +39,81 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
       rating: (a, b) => b.rating - a.rating || b.open - a.open,
     };
     return list.sort(by[sort]);
-  }, [rows, q, sort, sector, flag, locale]);
-
-  const active = q || sector || flag;
+  }, [rows, q, sort, flag, locale]);
 
   return (
     <>
-      <div className="card mb-5 flex flex-wrap items-end gap-3 p-3 rise" style={{ ["--i" as string]: 1 }}>
-        <div className="min-w-0 flex-1 basis-56">
-          <label className="label" htmlFor="co-q">{c.search}</label>
-          <div className="relative">
-            <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-            <input id="co-q" type="search" className="input !pl-9" value={q} onChange={(e) => setQ(e.target.value)} placeholder={c.searchPh} />
-          </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2.5">
+        <div className="relative min-w-0 flex-1 basis-56 sm:max-w-[320px]">
+          <Search size={15} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <label htmlFor="co-q" className="sr-only">{c.search}</label>
+          <input id="co-q" type="search" className="input !h-[38px] !border-line !py-0 !pl-9 text-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder={c.searchPh} />
         </div>
-        <div>
-          <label className="label" htmlFor="co-sort">{c.sort}</label>
-          <select id="co-sort" className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            {(Object.keys(c.sorts) as Sort[]).map((k) => <option key={k} value={k}>{c.sorts[k]}</option>)}
-          </select>
+        <div role="radiogroup" aria-label={t.common.filter} className="seg">
+          {(["", "researched", "notResearched", "blacklisted"] as const).map((k) => (
+            <button key={k || "all"} type="button" role="radio" aria-checked={flag === k} className={`seg-btn ${flag === k ? "on" : ""}`} onClick={() => setFlag(k)}>
+              {k === "" ? t.common.all : c.filters[k]}
+            </button>
+          ))}
         </div>
-        {sectors.length > 0 && (
-          <div>
-            <label className="label" htmlFor="co-sector">{c.filters.sector}</label>
-            <select id="co-sector" className="input" value={sector} onChange={(e) => setSector(e.target.value)}>
-              <option value="">{c.filters.allSectors}</option>
-              {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        )}
-        <div>
-          <label className="label" htmlFor="co-flag">{t.common.filter}</label>
-          <select id="co-flag" className="input" value={flag} onChange={(e) => setFlag(e.target.value as Flag)}>
-            <option value="">{t.common.all}</option>
-            <option value="researched">{c.filters.researched}</option>
-            <option value="notResearched">{c.filters.notResearched}</option>
-            <option value="blacklisted">{c.filters.blacklisted}</option>
-          </select>
-        </div>
-        {active && (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setQ(""); setSector(""); setFlag(""); }}>
-            {c.filters.clear}
-          </button>
-        )}
+        <select className="input !h-[38px] !w-auto !border-line !py-0 text-sm" aria-label={c.sort} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          {(Object.keys(c.sorts) as Sort[]).map((k) => <option key={k} value={k}>{c.sorts[k]}</option>)}
+        </select>
+        <span className="ml-auto text-[0.78rem] text-muted tabular" aria-live="polite">{fmt(c.count, { shown: shown.length, total: rows.length })}</span>
       </div>
-
-      <p className="mb-3 text-sm text-muted tabular" aria-live="polite">{fmt(c.count, { shown: shown.length, total: rows.length })}</p>
 
       {shown.length === 0 ? (
         <p className="card p-8 text-center text-muted">{c.noMatch}</p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {shown.map((r, i) => (
-            <li key={r.slug} className="rise" style={{ ["--i" as string]: Math.min(i + 2, 12) }}>
-              <Link href={`/app/companies/${r.slug}`} className="card card-hover flex h-full flex-col gap-3 p-4" aria-label={r.name}>
-                <div className="flex items-start gap-3">
-                  <CompanyAvatar name={r.name} size={44} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-ink">{r.name}</p>
-                    <p className="truncate text-xs text-muted">
-                      {(r.sector || r.research?.facts.sector) ?? ""}
-                      {(r.hq || r.locations[0]) && (
-                        <span className="inline-flex items-center gap-1">{(r.sector || r.research?.facts.sector) && " · "}<MapPin size={11} aria-hidden="true" />{r.hq || r.locations[0]}</span>
+        <ul className="flex flex-col gap-2">
+          {shown.map((r, i) => {
+            const sector = r.sector || r.research?.facts.sector;
+            const place = r.hq || r.locations[0];
+            return (
+              <li key={r.slug} className="rise" style={{ ["--i" as string]: Math.min(i, 10) }}>
+                <Link
+                  href={`/app/companies/${r.slug}`}
+                  className="card grid grid-cols-[auto_1fr_auto] items-center gap-3.5 px-3.5 py-3 transition-colors hover:border-line-strong sm:grid-cols-[auto_1fr_auto_auto]"
+                  style={{ opacity: r.blacklisted ? 0.7 : 1 }}
+                  aria-label={r.name}
+                >
+                  <CompanyAvatar name={r.name} size={40} />
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 font-semibold text-ink">
+                      <span className="truncate">{r.name}</span>
+                      {r.blacklisted && (
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-danger-soft px-[7px] py-px text-[0.68rem] font-semibold text-danger">
+                          <Ban size={10} aria-hidden="true" /> {c.doNotApply}
+                        </span>
+                      )}
+                      {r.rating > 0 && (
+                        <span className="inline-flex items-center gap-px text-saffron" aria-label={fmt(c.rate, { n: r.rating })}>
+                          {Array.from({ length: r.rating }, (_, k) => <Star key={k} size={11} aria-hidden="true" fill="currentColor" />)}
+                        </span>
                       )}
                     </p>
+                    <p className="mt-px truncate text-[0.78rem] text-muted">
+                      {[sector, place, r.skills.slice(0, 3).map((s) => s.name).join(", ")].filter(Boolean).join(" · ")}
+                    </p>
                   </div>
-                  {r.avgFit !== null && <ScoreRing value={r.avgFit} size={40} label={`${c.fit}: ${scoreLabel(t, r.avgFit)}`} animate={false} />}
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className={`chip ${r.open ? "chip-accent" : ""}`}>{r.open ? fmt(c.openOffers, { n: r.open }) : c.noOpen}</span>
-                  {r.blacklisted && <span className="chip chip-danger"><Ban size={11} aria-hidden="true" /> {c.doNotApply}</span>}
-                  {r.researched_at && <span className="chip chip-success"><Sparkles size={11} aria-hidden="true" /> {c.researched}</span>}
-                  {r.applications > 0 && <span className="chip">{fmt(c.applications, { n: r.applications })}</span>}
-                </div>
-                {r.skills.length > 0 && (
-                  <p className="truncate text-xs text-muted">{r.skills.slice(0, 5).map((s) => s.name).join(" · ")}</p>
-                )}
-                <div className="mt-auto flex items-center justify-between gap-2 text-xs text-muted">
-                  <span className="tabular">{c.lastSeen} {fmtDate(r.lastSeen, locale)}</span>
-                  {r.rating > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-saffron" aria-label={fmt(c.rate, { n: r.rating })}>
-                      {Array.from({ length: r.rating }, (_, k) => <Star key={k} size={12} aria-hidden="true" fill="currentColor" />)}
-                    </span>
+                  <div className="hidden whitespace-nowrap text-right text-[0.78rem] text-muted sm:block">
+                    <p className="font-semibold text-ink">
+                      {fmt(c.openOffers, { n: r.open })} · {fmt(c.applications, { n: r.applications })}
+                    </p>
+                    <p className={`mt-px inline-flex items-center gap-1.5 ${r.researched_at ? "text-success" : "text-saffron"}`}>
+                      {r.researched_at ? <CircleCheck size={12} aria-hidden="true" /> : <Sparkles size={12} aria-hidden="true" />}
+                      {r.researched_at ? c.researched : c.notResearched}
+                    </p>
+                  </div>
+                  {r.avgFit !== null ? (
+                    <ScoreRing value={r.avgFit} size={36} label={`${c.fit}: ${scoreLabel(t, r.avgFit)}`} animate={false} />
+                  ) : (
+                    <span className="grid size-9 place-items-center rounded-full border border-dashed border-line-strong text-[0.7rem] text-muted" aria-hidden="true">—</span>
                   )}
-                </div>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

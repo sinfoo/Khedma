@@ -8,20 +8,19 @@ import { fmt } from "@/lib/i18n/dict";
 import type { AppState } from "@/lib/types";
 import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
-import { ScoreRing, StateChip, scoreLabel } from "@/components/ui";
+import { StateChip } from "@/components/ui";
 import { useStageMove } from "./stage";
 import { ApplyLauncher } from "@/components/apply/launcher";
-import { PostingLink } from "@/components/posting-link";
 
 const STEPS: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
 
-/** Sticky workspace header: identity, score, links and a clickable stage stepper. */
+/** Workspace header: identity on the left, the stage stepper (segmented) on the right. */
 export function WorkspaceHeader({
   id,
   status,
   title,
   company,
-  score,
+  meta,
   jobId,
   postingUrl,
 }: {
@@ -29,7 +28,7 @@ export function WorkspaceHeader({
   status: AppState;
   title: string;
   company: string;
-  score: number | null;
+  meta: string;
   jobId: number;
   postingUrl: string | null;
 }) {
@@ -44,28 +43,48 @@ export function WorkspaceHeader({
   const closed = idx < 0;
 
   return (
-    <header className="no-print -mx-4 mb-5 border-b border-line bg-bg/90 px-4 pb-3 pt-1 backdrop-blur-md sm:-mx-8 sm:px-8 lg:sticky lg:top-16 lg:z-20">
+    <header className="no-print mb-4">
       <p className="sr-only" aria-live="polite">{live}</p>
       {node}
-      <Link href="/app/pipeline" className="mb-2 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
+      <Link href="/app/pipeline" className="mb-2.5 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft size={14} aria-hidden="true" /> {w.back}
       </Link>
-      <div className="flex flex-wrap items-center gap-3">
-        <CompanyAvatar name={company} size={44} />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[1.45rem] leading-tight sm:text-[1.7rem]">{title}</h1>
-          <p className="truncate text-sm text-muted">{company}</p>
+      <div className="grid items-center gap-3.5 lg:grid-cols-[auto_1fr_auto]">
+        <CompanyAvatar name={company} size={48} />
+        <div className="min-w-0">
+          <h1 className="truncate text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{title}</h1>
+          <p className="mt-0.5 truncate text-[0.85rem] text-muted">
+            {company} · {meta}
+          </p>
         </div>
-        {score !== null && <ScoreRing value={score} size={48} label={scoreLabel(t, score)} />}
-        <div className="flex items-center gap-1.5">
-          <ApplyLauncher applicationId={id} className="btn btn-primary btn-sm" />
-          <PostingLink job={{ url: postingUrl ?? "", title, company, location: "" }} variant="secondary" iconOnly />
-          <Link href={`/app/coach?application=${id}`} className="btn btn-secondary btn-sm">
-            <GraduationCap size={14} aria-hidden="true" /> <span className="hidden sm:inline">{w.prepare}</span>
-            <span className="sr-only sm:hidden">{w.prepare}</span>
-          </Link>
-          <Menu label={w.more} trigger={<MoreHorizontal size={16} aria-hidden="true" />}>
+        <div className="flex flex-wrap items-center gap-2 lg:col-start-3">
+          <ol aria-label={s.stepperLabel} className="seg seg-sm overflow-x-auto">
+            {STEPS.map((st, i) => {
+              const done = !closed && i < idx;
+              const here = st === cur;
+              return (
+                <li key={st}>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    aria-current={here ? "step" : undefined}
+                    aria-label={here ? `${t.states[st]} (${s.current})` : fmt(s.changeTo, { s: t.states[st] })}
+                    onClick={() => go(st)}
+                    className={`seg-btn ${here ? "on" : ""} ${done ? "!text-accent-text" : ""}`}
+                  >
+                    {done && <Check size={11} aria-hidden="true" />}
+                    {t.states[st]}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          {closed && <StateChip state={cur} t={t} />}
+          <Menu label={w.more} trigger={<MoreHorizontal size={16} aria-hidden="true" />} triggerClassName="btn btn-outline btn-icon btn-sm">
             <MenuItem href={`/app/jobs/${jobId}`}>{t.application.openOffer}</MenuItem>
+            <MenuItem href={`/app/coach?application=${id}`}>
+              <GraduationCap size={14} aria-hidden="true" /> {w.prepare}
+            </MenuItem>
             {postingUrl && (
               <MenuItem href={postingUrl}>
                 <ExternalLink size={14} aria-hidden="true" /> {w.posting}
@@ -76,44 +95,11 @@ export function WorkspaceHeader({
             </MenuItem>
             <MenuItem onClick={() => go("discarded")}>{fmt(s.markAs, { s: t.states.discarded })}</MenuItem>
           </Menu>
+          <span className="hidden">
+            <ApplyLauncher applicationId={id} />
+          </span>
         </div>
       </div>
-
-      <nav aria-label={s.stepperLabel} className="mt-3 overflow-x-auto">
-        <ol className="flex min-w-max items-center gap-1">
-          {STEPS.map((st, i) => {
-            const done = !closed && i < idx;
-            const here = st === cur;
-            return (
-              <li key={st} className="flex items-center gap-1">
-                {i > 0 && <span aria-hidden="true" className={`h-px w-4 ${done || here ? "bg-accent" : "bg-line-strong"}`} />}
-                <button
-                  type="button"
-                  disabled={pending}
-                  aria-current={here ? "step" : undefined}
-                  aria-label={here ? `${t.states[st]} (${s.current})` : fmt(s.changeTo, { s: t.states[st] })}
-                  onClick={() => go(st)}
-                  className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors ${
-                    here
-                      ? "border-accent bg-accent text-accent-ink"
-                      : done
-                        ? "border-accent bg-accent-soft text-accent-text hover:border-accent"
-                        : "border-line-strong text-muted hover:border-accent hover:text-ink"
-                  }`}
-                >
-                  {done && <Check size={12} aria-hidden="true" />}
-                  {t.states[st]}
-                </button>
-              </li>
-            );
-          })}
-          {closed && (
-            <li className="ml-2">
-              <StateChip state={cur} t={t} />
-            </li>
-          )}
-        </ol>
-      </nav>
     </header>
   );
 }

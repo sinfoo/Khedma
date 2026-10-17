@@ -3,10 +3,8 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Bookmark, Check, Loader2, Sparkles } from "lucide-react";
-import { CompanyAvatar } from "@/components/kit";
 import { useToast } from "@/components/kit/toast";
 import { ScoreRing, scoreLabel } from "@/components/ui";
-import { PostingLink } from "@/components/posting-link";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import type { OfferReco } from "@/lib/recommend/engine";
@@ -14,8 +12,9 @@ import { evaluateRecommended, trackRecommended } from "@/app/actions/discover";
 import { reasonText } from "./text";
 import { WhyPopover } from "./why-popover";
 
+/** One recommended offer: fit ring, why it fits, Track / Why? */
 export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
-  const { t, locale } = useT();
+  const { t } = useT();
   const m = t.discover2;
   const toast = useToast();
   const [tracked, setTracked] = useState(offer.tracked);
@@ -23,56 +22,42 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
   const [trackPending, startTrack] = useTransition();
   const [evalPending, startEval] = useTransition();
   const reasons = offer.reasons.map((r) => reasonText(t, r));
-  const deadline = offer.deadline ? new Date(offer.deadline) : null;
+  const r = 22;
+  const c = 2 * Math.PI * r;
 
   return (
-    <li className="card card-hover rise flex flex-col gap-3 p-4" style={{ ["--i" as string]: i }}>
-      <div className="flex items-start gap-3">
-        <CompanyAvatar name={offer.company} size={40} />
-        <div className="min-w-0 flex-1">
-          <Link href={`/app/jobs/${offer.id}`} className="block truncate font-medium hover:text-accent-text">
-            {offer.title}
-          </Link>
-          <p className="truncate text-xs text-muted">
-            {offer.company}
-            {offer.location && ` · ${offer.location}`}
-            {offer.remote && ` · ${t.common.remote}`}
-          </p>
-        </div>
-        {evaluation ? (
-          <ScoreRing value={evaluation.global} size={40} label={scoreLabel(t, evaluation.global)} animate={false} />
-        ) : (
-          <span
-            className="mono tabular shrink-0 rounded-lg bg-accent-soft px-2 py-1 text-xs font-semibold text-accent-text"
-            role="img"
-            aria-label={fmt(m.fitLabel, { n: offer.score })}
-          >
-            {offer.score}%
-          </span>
-        )}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="chip">{t.jobTypes[offer.type]}</span>
-        {evaluation && <span className="chip chip-accent">{fmt(m.fit, { n: offer.score })}</span>}
-        {deadline && !Number.isNaN(deadline.getTime()) && (
-          <span className="chip">{t.common.deadline}: {deadline.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-GB", { day: "numeric", month: "short" })}</span>
-        )}
-      </div>
-
-      {reasons.length > 0 && (
-        <ul className="space-y-1 text-sm text-ink-2">
-          {reasons.slice(0, 2).map((r) => (
-            <li key={r} className="flex gap-2">
-              <Check size={14} aria-hidden="true" className="mt-[3px] shrink-0 text-success" />
-              <span>{r}</span>
-            </li>
-          ))}
-        </ul>
+    <li className="card grid grid-cols-[auto_1fr] items-center gap-3.5 px-4 py-3.5 sm:grid-cols-[auto_1fr_auto] rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
+      {evaluation ? (
+        <ScoreRing value={evaluation.global} size={52} label={scoreLabel(t, evaluation.global)} animate={false} />
+      ) : (
+        <span role="img" aria-label={fmt(m.fitLabel, { n: offer.score })} className="relative grid size-[52px] place-items-center">
+          <svg viewBox="0 0 52 52" width="52" height="52" className="-rotate-90" aria-hidden="true">
+            <circle cx="26" cy="26" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="5" />
+            <circle cx="26" cy="26" r={r} fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(c * offer.score) / 100} ${c}`} style={{ transition: "stroke-dasharray 1s cubic-bezier(.2,.7,.2,1)" }} />
+          </svg>
+          <span className="mono absolute text-[0.75rem] font-semibold">{offer.score}%</span>
+        </span>
       )}
-
-      <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-        <PostingLink job={{ url: offer.url, title: offer.title, company: offer.company, location: offer.location }} variant="ghost" />
+      <div className="min-w-0">
+        <Link href={`/app/jobs/${offer.id}`} className="block truncate text-[0.95rem] font-semibold text-ink hover:text-accent-text">
+          {offer.title}
+        </Link>
+        <p className="mt-px truncate text-[0.78rem] text-muted">
+          {offer.company}
+          {offer.location && ` · ${offer.location}`}
+          {offer.remote && ` · ${t.common.remote}`} · {t.jobTypes[offer.type]}
+        </p>
+        {reasons.length > 0 && (
+          <p className="mt-1.5 flex flex-wrap gap-1.5">
+            {reasons.slice(0, 2).map((x) => (
+              <span key={x} className="chip chip-success !py-px text-[0.72rem]">
+                <Check size={10} aria-hidden="true" /> {x}
+              </span>
+            ))}
+          </p>
+        )}
+      </div>
+      <div className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3">
         {tracked ? (
           <span className="chip chip-success"><Check size={12} aria-hidden="true" /> {m.offer.tracked}</span>
         ) : (
@@ -92,28 +77,28 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
               })
             }
           >
-            {trackPending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Bookmark size={14} aria-hidden="true" />}
+            {trackPending ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Bookmark size={13} aria-hidden="true" />}
             {m.offer.track}
           </button>
         )}
         {!evaluation && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-outline btn-sm"
             disabled={evalPending}
             aria-busy={evalPending}
             aria-label={`${m.offer.evaluate}: ${offer.title}`}
             onClick={() =>
               startEval(async () => {
-                const r = await evaluateRecommended(offer.id);
-                if (r.ok && r.global !== undefined && r.verdict && r.engine) {
-                  setEvaluation({ global: r.global, verdict: r.verdict, engine: r.engine });
-                  toast.success(fmt(m.offer.evaluated, { score: r.global.toFixed(1) }));
+                const x = await evaluateRecommended(offer.id);
+                if (x.ok && x.global !== undefined && x.verdict && x.engine) {
+                  setEvaluation({ global: x.global, verdict: x.verdict, engine: x.engine });
+                  toast.success(fmt(m.offer.evaluated, { score: x.global.toFixed(1) }));
                 } else toast.error(t.common.error);
               })
             }
           >
-            {evalPending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />}
+            {evalPending ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Sparkles size={13} aria-hidden="true" />}
             {evalPending ? m.offer.evaluating : m.offer.evaluate}
           </button>
         )}
