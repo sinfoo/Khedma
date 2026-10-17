@@ -21,14 +21,16 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
   const profile = getProfile();
   const extra = getProfileExtra();
   // Employers whose link is a careers page (not a bare homepage) can be tracked in one click.
+  // A native form submit before hydration lands here with ?q=; run it as the typed search.
+  const typed = typeof sp.q === "string" ? sp.q.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean) : [];
   const suggestions = TN_COMPANIES.filter((c) => /career|carri|job|emploi|recrut/i.test(c.url)).map((c) => ({ name: c.name, url: c.url }));
   return (
     <>
       <ScanPanel
-        keywords={defaultKeywords(profile, cvForMatching().text)}
+        keywords={typed.length ? typed : defaultKeywords(profile, cvForMatching().text)}
         places={{ countries: extra.places.countries, remote: extra.places.remote }}
         sources={rows.filter((x) => x.enabled).map((x) => ({ id: x.id, label: x.label, kind: x.kind }))}
-        autoStart={sp.scan === "1"}
+        autoStart={sp.scan === "1" || typed.length > 0}
       />
       <SourcesList sources={rows.filter((s) => !s.company)} auto={getAutoScan()} />
       <div className="mt-8 space-y-8">

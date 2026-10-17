@@ -45,7 +45,7 @@ export interface ScanRequest {
   includeSenior?: boolean;
 }
 
-export type ScanOutcome = { kind: "done"; done: ScanDone } | { kind: "skipped" } | { kind: "busy" } | { kind: "error"; error: string };
+export type ScanOutcome = { kind: "done"; done: ScanDone } | { kind: "skipped" } | { kind: "busy" } | { kind: "cancelled" } | { kind: "error"; error: string };
 
 /** Client for POST /api/sources/scan: reads the NDJSON stream into the plan, per-run status and the live job list. */
 export function useScan() {
@@ -56,10 +56,12 @@ export function useScan() {
   const [jobs, setJobs] = useState<FoundJob[]>([]);
   const [total, setTotal] = useState(0);
   const busy = useRef(false);
+  const ctrl = useRef<AbortController | null>(null);
 
   const start = useCallback(async (opts: ScanRequest = {}): Promise<ScanOutcome> => {
     if (busy.current) return { kind: "busy" };
     busy.current = true;
+    ctrl.current = new AbortController();
     let done: ScanDone | null = null;
     let error: string | undefined;
     try {
@@ -67,6 +69,7 @@ export function useScan() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(opts),
+        signal: ctrl.current.signal,
       });
       if (res.status === 204) return { kind: "skipped" };
       if (res.status === 409) return { kind: "busy" };
@@ -110,9 +113,11 @@ export function useScan() {
         }
       }
     } catch (e) {
+      if ((e as Error).name === "AbortError") return { kind: "cancelled" };
       error = (e as Error).message;
     } finally {
       busy.current = false;
+      ctrl.current = null;
       setRunning(false);
     }
     if (done) return { kind: "done", done };
@@ -122,7 +127,8 @@ export function useScan() {
   const finished = plan ? plan.runs.filter((r) => ["done", "error"].includes(status[r.key]?.state ?? "")).length : 0;
   const dropped: Record<string, number> = {};
   for (const r of plan?.runs ?? []) for (const [k, n] of Object.entries(status[r.key]?.dropped ?? {})) dropped[k] = (dropped[k] ?? 0) + n;
-  return { start, running, status, total, finished, plan, jobs, dropped };
+  const stop = useCallback(() => ctrl.current?.abort(), []);
+  return { start, stop, running, status, total, finished, plan, jobs, dropped };
 }
 
 /**

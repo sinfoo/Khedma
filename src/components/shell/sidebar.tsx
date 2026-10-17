@@ -132,6 +132,7 @@ export function Sidebar({ data }: { data: ShellData }) {
       {/* This week, at a glance */}
       <Link
         href="/app"
+        aria-label={s.thisWeek}
         className="rail-hide mx-3 mb-2.5 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5 text-ink transition-colors hover:border-line-strong"
       >
         <span role="img" aria-label={fmt(s.weekGoal, { done: data.goal.done, n: data.goal.target })} className="relative grid size-[34px] shrink-0 place-items-center">

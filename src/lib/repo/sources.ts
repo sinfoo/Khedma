@@ -289,6 +289,8 @@ export interface ScanRequest {
   types?: JobType[];
   negatives?: string[];
   includeSenior?: boolean;
+  /** Aborted when the client cancels: sources not started yet are skipped, the run is still recorded. */
+  signal?: AbortSignal;
 }
 
 declare global {
@@ -376,6 +378,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       const t0 = Date.now();
       let res: Awaited<ReturnType<typeof scanTiered>>;
       try {
+        if (opts.signal?.aborted) throw new Error("cancelled");
         res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide: filter.decide });
       } catch (e) {
         res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };

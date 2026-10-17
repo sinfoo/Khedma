@@ -18,7 +18,7 @@ import { ActionButton } from "@/components/action-button";
 import { FormattedDescription } from "@/components/offers/description";
 import { AskOffer } from "@/components/offers/ask-offer";
 import { CopyButton, NewOfferPrompt, OfferMenu, StarToggle } from "@/components/offers/offer-actions";
-import { runEvaluation, tailorCvFor, trackJob } from "@/app/actions/jobs";
+import { runEvaluation, tailorCvFor } from "@/app/actions/jobs";
 import { cvForMatching, findDuplicates, listEvaluationHistory } from "@/lib/repo/offers";
 import { atsKeywords } from "@/lib/ai/offers";
 
@@ -108,13 +108,9 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
             </ActionButton>
           )}
-          {job.application ? (
+          {job.application && (
             <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-outline !h-9">
               <FileText size={14} aria-hidden="true" /> {o.tailorCv}
-            </ActionButton>
-          ) : (
-            <ActionButton action={trackJob.bind(null, job.id)} className="btn btn-outline !h-9">
-              <Bookmark size={14} aria-hidden="true" /> {t.jobs.track}
             </ActionButton>
           )}
           <PostingLink job={job} size="md" variant="secondary" />

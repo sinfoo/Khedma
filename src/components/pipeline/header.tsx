@@ -52,7 +52,7 @@ export function WorkspaceHeader({
       <div className="grid items-center gap-3.5 lg:grid-cols-[auto_1fr_auto]">
         <CompanyAvatar name={company} size={48} />
         <div className="min-w-0">
-          <h1 className="truncate text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{title}</h1>
+          <h1 className="line-clamp-2 text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{title}</h1>
           <p className="mt-0.5 truncate text-[0.85rem] text-muted">
             {company} · {meta}
           </p>

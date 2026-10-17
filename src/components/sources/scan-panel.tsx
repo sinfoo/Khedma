@@ -21,6 +21,7 @@ import {
   SearchCheck,
   Settings2,
   Sparkles,
+  Square,
   UserSearch,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
@@ -67,7 +68,7 @@ export function ScanPanel({
   const m = t.sources2.scan2;
   const toast = useToast();
   const router = useRouter();
-  const { start, running, status, total, finished, plan, jobs, dropped } = useScan();
+  const { start, stop, running, status, total, finished, plan, jobs, dropped } = useScan();
   const [kw, setKw] = useState(keywords.join(", "));
   const [countries, setCountries] = useState<string[]>(places.countries);
   const [remote, setRemote] = useState<Remote>(places.remote);
@@ -106,6 +107,7 @@ export function ScanPanel({
         setDone(r.done);
         router.refresh();
       } else if (r.kind === "busy") toast.info(t.sources2.busy);
+      else if (r.kind === "cancelled") toast.info(m.stopped);
       else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
     });
   };
@@ -156,10 +158,16 @@ export function ScanPanel({
           <p className="mt-1.5 text-muted">{lead}</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" className="btn btn-saffron" disabled={busy || preview.runs.length === 0} aria-busy={busy} onClick={run}>
-            {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Radar size={15} aria-hidden="true" />}
-            {busy ? m.scanning : finishedAll ? m.scanAgain : m.scan}
-          </button>
+          {running ? (
+            <button type="button" className="btn btn-outline" onClick={stop}>
+              <Square size={15} aria-hidden="true" /> {m.stop}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-saffron" disabled={busy || preview.runs.length === 0} aria-busy={busy} onClick={run}>
+              {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Radar size={15} aria-hidden="true" />}
+              {busy ? m.scanning : finishedAll ? m.scanAgain : m.scan}
+            </button>
+          )}
           <a href="#catalog" className="btn btn-outline">
             <Plus size={15} aria-hidden="true" /> {m.addSource}
           </a>
@@ -180,6 +188,8 @@ export function ScanPanel({
 
             {!scanning && (
                   <form
+                    action="/app/sources"
+                    method="get"
                     className="mx-[18px] mt-[18px] rounded-xl bg-surface-2 px-4 py-3"
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -188,7 +198,7 @@ export function ScanPanel({
                   >
                     <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
                     <div className="flex gap-1.5">
-                      <input id="scan-kw" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
+                      <input id="scan-kw" name="q" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
                       <button type="submit" className="btn btn-saffron !h-10" disabled={busy || preview.runs.length === 0}>
                         <Radar size={15} aria-hidden="true" /> {m.scan}
                       </button>
@@ -360,6 +370,8 @@ export function ScanPanel({
           scanning={scanning}
           done={finishedAll ? done : null}
           dropped={droppedTotal}
+          droppedBy={dropped}
+          skipped={(plan?.skipped.length ?? 0) + (plan?.skippedBlacklist ?? 0)}
           errors={sums.errors}
           elapsed={elapsed}
           finished={finished}
@@ -374,7 +386,7 @@ export function ScanPanel({
 // ---------- live feed ----------
 type Local = { tracked?: boolean; appId?: number | null; score?: number | null; dismissed?: boolean };
 
-function Feed({ jobs, scanning, done, dropped, errors, elapsed, finished, total, onScanAgain }: { jobs: FoundJob[]; scanning: boolean; done: ScanDone | null; dropped: number; errors: number; elapsed: number; finished: number; total: number; onScanAgain: () => void }) {
+function Feed({ jobs, scanning, done, dropped, droppedBy, skipped, errors, elapsed, finished, total, onScanAgain }: { jobs: FoundJob[]; scanning: boolean; done: ScanDone | null; dropped: number; droppedBy: Record<string, number>; skipped: number; errors: number; elapsed: number; finished: number; total: number; onScanAgain: () => void }) {
   const { t } = useT();
   const m = t.sources2.scan2;
   const toast = useToast();
@@ -422,6 +434,14 @@ function Feed({ jobs, scanning, done, dropped, errors, elapsed, finished, total,
           <div className="min-w-0 flex-1">
             <h2 className="text-[1.15rem] tracking-[-0.01em]">{done.added === 0 ? m.titleDoneNone : done.added === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: done.added })}</h2>
             <p className="mt-0.5 text-[0.8rem] text-muted">{fmt(m.summary, { listed: jobs.length + done.duplicates + dropped, dupes: done.duplicates, dropped, errors: errors || done.errors, s: elapsed })}</p>
+            {(dropped > 0 || skipped > 0) && (
+              <p className="mt-0.5 text-[0.75rem] text-muted">
+                {[
+                  ...Object.entries(droppedBy).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${t.sources2.radar.reasons[k as keyof typeof t.sources2.radar.reasons] ?? k} ${n}`),
+                  skipped ? fmt(m.sourcesSkipped, { n: skipped }) : "",
+                ].filter(Boolean).join(" · ")}
+              </p>
+            )}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {unscored.length > 0 && (

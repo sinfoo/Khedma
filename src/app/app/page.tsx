@@ -276,7 +276,8 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
       eyebrow = f.urgency === "cold" ? m.cold : f.angle === "thankyou" ? m.replyDue : m.followupDue;
       const head = f.urgency === "cold" ? fmt(c.todayCold, { company: f.company }) : f.urgency === "urgent" ? fmt(c.todayUrgent, { company: f.company }) : f.angle === "thankyou" ? fmt(c.todayThanks, { company: f.company }) : fmt(c.todayTitle, { company: f.company });
       title = <Link href={f.href} className="hover:text-accent-text">{head}</Link>;
-      meta = [f.title, fmt(m.waiting, { n: f.days }), f.followups ? fmt(c.sent, { n: f.followups }) : ""].filter(Boolean).join(" · ");
+      // A reply came in when the angle is "thankyou": "no answer for N days" would contradict it.
+      meta = [f.title, f.angle === "thankyou" ? "" : fmt(m.waiting, { n: f.days }), f.followups ? fmt(c.sent, { n: f.followups }) : ""].filter(Boolean).join(" · ");
       action =
         f.urgency === "cold" ? (
           <Link href={f.href} className="btn btn-outline !h-9">{m.openApp}</Link>

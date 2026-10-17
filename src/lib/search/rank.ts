@@ -62,8 +62,9 @@ export function scoreJob(job: Pick<NewJob, "title" | "company" | "description" |
 
   // CV skills (12): distinct profile/CV skills named in the posting.
   if (ctx.skills?.length) {
-    const text = fold(`${job.title} ${job.description ?? ""}`.slice(0, 8000));
-    const hits = ctx.skills.filter((k) => k && text.includes(fold(k)));
+    const text = ` ${fold(`${job.title} ${job.description ?? ""}`.slice(0, 8000)).replace(/[^a-z0-9+#.]+/g, " ")} `;
+    // Whole-word match so "C" or "R" cannot hit every posting; one-letter skills are skipped.
+    const hits = ctx.skills.filter((k) => k.length >= 2 && text.includes(` ${fold(k).replace(/[^a-z0-9+#.]+/g, " ").trim()} `));
     if (hits.length) {
       score += Math.min(3, hits.length) * 4;
       why.push(`skills:${hits.slice(0, 3).join(",")}`);

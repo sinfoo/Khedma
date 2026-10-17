@@ -163,7 +163,7 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
           >
             {nextLocale.toUpperCase()}
           </button>
-          <Link href="/app/sources?scan=1" className="btn btn-saffron ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
+          <Link href="/app/sources?scan=1" aria-label={s.scanCta} title={s.scanCta} className="btn btn-saffron ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
             <Radar size={15} aria-hidden="true" className={scanning ? "animate-[spin_3s_linear_infinite]" : ""} />
             <span className="hidden md:inline">{s.scanCta}</span>
           </Link>

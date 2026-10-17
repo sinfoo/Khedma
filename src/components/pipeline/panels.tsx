@@ -70,9 +70,15 @@ export function InterviewsPanel({ appId, interviews, today }: { appId: number; i
           <a href={`/api/ics/interview/${iv.id}`} className="btn btn-ghost btn-sm" download>
             <CalendarPlus size={14} aria-hidden="true" /> {a.ics}
           </a>
-          <Link href={`/app/coach?application=${appId}`} className="btn btn-ghost btn-sm">
-            <GraduationCap size={14} aria-hidden="true" /> {a.prepare}
-          </Link>
+          {iv.starts_at.slice(0, 10) < today ? (
+            <Link href={`/app/coach/debrief/new?application=${appId}`} className={`btn btn-sm ${iv.outcome ? "btn-ghost" : "btn-saffron"}`}>
+              <GraduationCap size={14} aria-hidden="true" /> {a.debrief}
+            </Link>
+          ) : (
+            <Link href={`/app/coach?application=${appId}`} className="btn btn-ghost btn-sm">
+              <GraduationCap size={14} aria-hidden="true" /> {a.prepare}
+            </Link>
+          )}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEdit(iv)}>
             <Pencil size={14} aria-hidden="true" /> {t.common.edit}
           </button>

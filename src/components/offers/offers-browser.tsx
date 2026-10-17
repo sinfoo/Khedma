@@ -218,10 +218,11 @@ export function OffersBrowser({
 
   // Header "Score N new" button (server-rendered) asks through a window event.
   useEffect(() => {
-    const on = () => void evaluate(pending);
+    // Rows matching the current filters go first, so a narrowed list gets its scores long before the rest.
+    const on = () => void evaluate([...pending.filter((p) => visibleIds.has(p.id)), ...pending.filter((p) => !visibleIds.has(p.id))]);
     window.addEventListener("khedma:score-pending", on);
     return () => window.removeEventListener("khedma:score-pending", on);
-  }, [evaluate, pending]);
+  }, [evaluate, pending, visibleIds]);
 
   // ---------- keyboard: j/k move, x select, s star (Enter is native on the focused link) ----------
   useEffect(() => {

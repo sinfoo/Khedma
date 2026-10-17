@@ -49,6 +49,7 @@ export async function POST(req: Request) {
           types: types.length ? types : undefined,
           negatives: negatives.length ? negatives : undefined,
           includeSenior,
+          signal: req.signal,
         });
         if (!run) send({ type: "error", error: "A scan is already running" });
         else revalidatePath("/app", "layout");
