@@ -29,7 +29,13 @@ export async function POST(req: Request) {
   if (scanBusy()) return Response.json({ error: "A scan is already running" }, { status: 409 });
 
   const enc = new TextEncoder();
+  // req.signal fires once the streamed response starts, so it cannot mean "user pressed Stop".
+  // The stream's cancel() is the real signal: the browser aborted the fetch.
+  const stopped = new AbortController();
   const stream = new ReadableStream<Uint8Array>({
+    cancel() {
+      stopped.abort();
+    },
     async start(controller) {
       const send = (e: ScanEvent | { type: "error"; error: string }) => {
         try {
@@ -49,7 +55,7 @@ export async function POST(req: Request) {
           types: types.length ? types : undefined,
           negatives: negatives.length ? negatives : undefined,
           includeSenior,
-          signal: req.signal,
+          signal: stopped.signal,
         });
         if (!run) send({ type: "error", error: "A scan is already running" });
         else revalidatePath("/app", "layout");
