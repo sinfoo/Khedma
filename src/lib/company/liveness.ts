@@ -32,6 +32,11 @@ export const CLOSED_MARKERS: RegExp[] = [
   /candidatures? (sont|est) (closes?|fermees?|cloturees?)/,
   /offre que vous (recherchez|cherchez) n'(existe|est) plus/,
   /(plus|pas) de candidatures? (acceptees?|possibles?)/,
+  // From freehire's liveness probe (MIT): German, "not found" pages, and applications-closed variants.
+  /diese stelle (ist )?(nicht mehr|bereits) besetzt/,
+  /job (listing )?not found/,
+  /the page you are looking for doesn.t exist/,
+  /this job post is closed/,
 ];
 
 export interface Classified {

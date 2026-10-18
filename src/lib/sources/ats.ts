@@ -5,7 +5,7 @@ import { decodeEntities, htmlToText, pickMeta } from "./html";
 import { getText, mapLimit, prettySlug } from "./http";
 import { importFromUrl, validatePublicUrl } from "./url";
 
-export type AtsKind = "greenhouse" | "lever" | "ashby" | "rss" | "careers";
+export type AtsKind = "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "rss" | "careers";
 
 export interface Detected {
   kind: AtsKind;
@@ -16,6 +16,8 @@ export interface Detected {
 }
 
 const SLUG_RE = /^[a-z0-9][a-z0-9._-]{0,80}$/;
+/** Product subdomains that are never a company board (freehire rejects the same labels). */
+const SUB_RESERVED = new Set(["app", "dashboard", "admin", "api", "support", "help", "blog", "docs", "www"]);
 const HTML_ACCEPT = "text/html, application/xhtml+xml;q=0.9, */*;q=0.5";
 
 /** Recognise an ATS from the URL alone (no network). */
@@ -43,8 +45,13 @@ export function detectAtsUrl(raw: string): Detected | null {
   if ((m = /^([a-z0-9-]+)\.teamtailor\.com$/.exec(host))) return { kind: "rss", handle: `https://${host}/jobs.rss`, label: prettySlug(m[1]), ats: "Teamtailor" };
   // ponytail: no dedicated readers for these yet; their public pages are read like any careers page.
   if ((m = /^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "Workday" };
-  if (/^(careers|jobs)\.smartrecruiters\.com$/.test(host) && ok) return { kind: "careers", handle: u.toString(), label: prettySlug(slug), ats: "SmartRecruiters" };
-  if ((m = /^([a-z0-9-]+)\.recruitee\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "Recruitee" };
+  // Readers ported from freehire's board recogniser: board = first path segment or the subdomain.
+  if (/^(careers|jobs)\.smartrecruiters\.com$/.test(host) && ok) return { kind: "smartrecruiters", handle: slug, label: prettySlug(slug), ats: "SmartRecruiters" };
+  if (host === "api.smartrecruiters.com" && seg[0] === "v1" && seg[1] === "companies" && seg[2] && SLUG_RE.test(seg[2])) return { kind: "smartrecruiters", handle: seg[2], label: prettySlug(seg[2]), ats: "SmartRecruiters" };
+  if (host === "apply.workable.com" && ok && slug !== "j" && slug !== "api") return { kind: "workable", handle: slug, label: prettySlug(slug), ats: "Workable" };
+  if ((m = /^([a-z0-9-]+)\.recruitee\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "recruitee", handle: m[1], label: prettySlug(m[1]), ats: "Recruitee" };
+  if ((m = /^([a-z0-9-]+)\.jobs\.personio\.(com|de)$/.exec(host))) return { kind: "personio", handle: m[1], label: prettySlug(m[1]), ats: "Personio" };
+  if ((m = /^([a-z0-9-]+)\.pinpointhq\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "pinpoint", handle: m[1], label: prettySlug(m[1]), ats: "Pinpoint" };
   if ((m = /^([a-z0-9-]+)\.bamboohr\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "BambooHR" };
   return null;
 }
@@ -57,6 +64,11 @@ const EMBEDS: [RegExp, AtsKind, string][] = [
   [/jobs\.ashbyhq\.com\/([a-z0-9._-]+)/i, "ashby", "Ashby"],
   [/api\.lever\.co\/v0\/postings\/([a-z0-9._-]+)/i, "lever", "Lever"],
   [/jobs(?:\.eu)?\.lever\.co\/([a-z0-9._-]+)/i, "lever", "Lever"],
+  [/apply\.workable\.com\/(?!j\/|api\/)([a-z0-9._-]+)/i, "workable", "Workable"],
+  [/(?:careers|jobs)\.smartrecruiters\.com\/([a-z0-9._-]+)/i, "smartrecruiters", "SmartRecruiters"],
+  [/\/\/([a-z0-9-]+)\.recruitee\.com/i, "recruitee", "Recruitee"],
+  [/\/\/([a-z0-9-]+)\.jobs\.personio\.(?:com|de)/i, "personio", "Personio"],
+  [/\/\/([a-z0-9-]+)\.pinpointhq\.com/i, "pinpoint", "Pinpoint"],
 ];
 const NOT_SLUGS = new Set(["embed", "v0", "v1", "js", "api", "jobs", "boards"]);
 

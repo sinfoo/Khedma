@@ -44,7 +44,7 @@ export interface SearchPlan {
 /** Worldwide boards that only list remote work. */
 export const REMOTE_BOARDS: ReadonlySet<string> = new Set(["remoteok", "jobicy", "himalayas", "remotive", "aijobs", "findwork", "weworkremotely"]);
 /** Company career boards: country-less, they always run when the user has them. */
-export const COMPANY_KINDS: ReadonlySet<string> = new Set(["greenhouse", "lever", "ashby", "rss", "careers"]);
+export const COMPANY_KINDS: ReadonlySet<string> = new Set(["greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "rss", "careers"]);
 // LinkedIn's guest search is rate-limited: one request per keyword per country.
 const MAX_LINKEDIN = 4;
 

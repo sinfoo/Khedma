@@ -5,6 +5,7 @@ import { mapLimit } from "./http";
 import * as greenhouse from "./greenhouse";
 import * as lever from "./lever";
 import * as ashby from "./ashby";
+import * as more from "./ats-more";
 import * as rss from "./rss";
 import * as keejob from "./keejob";
 import * as tanitjobs from "./tanitjobs";
@@ -66,6 +67,11 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   greenhouse: { list: (h) => greenhouse.scan(h) },
   lever: { list: (h) => lever.scan(h) },
   ashby: { list: (h) => ashby.scan(h) },
+  workable: { list: (h) => more.workable(h) },
+  smartrecruiters: { list: (h) => more.smartRecruiters(h), detail: more.smartRecruitersDetail, detailGapMs: 150 },
+  recruitee: { list: (h) => more.recruitee(h) },
+  personio: { list: (h) => more.personio(h) },
+  pinpoint: { list: (h) => more.pinpoint(h) },
   rss: { list: (h) => rss.scan(h) },
   keejob: { list: keejob.scan, detail: keejob.detail },
   tanitjobs: { list: tanitjobs.scan, detail: tanitjobs.detail },

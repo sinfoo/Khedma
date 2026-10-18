@@ -21,7 +21,8 @@ export function guessType(title: string, description = ""): JobType {
   const pfe = /\bpfe\b|projet de fin d'?etudes?|final year project|graduation project/;
   if (pfe.test(t) || /fin d'?etudes?/.test(t)) return "pfe";
   if (/\balternan|apprenti|apprenticeship|work-?study/.test(t)) return "alternance";
-  if (/\bstage|\bstagiaire|\bintern(ship)?s?\b/.test(t)) return pfe.test(all) ? "pfe" : "stage";
+  // werkstudent / praktikum / working student / co-op: freehire's internship vocabulary.
+  if (/\bstage|\bstagiaire|\bintern(ship)?s?\b|\bwerkstudent|\bpraktik(um|ant)|\bworking student\b|\bco-?op\b/.test(t)) return pfe.test(all) ? "pfe" : "stage";
   if (/\bfreelance|\bfreelancer|\bindependant/.test(t)) return "freelance";
   // Title was not decisive; look at the body with the same priorities.
   // Bare "stage" is skipped here: in English bodies it usually means "early-stage".
@@ -122,11 +123,16 @@ export function matchesKeywords(text: string, keywords: string[]): boolean {
   return kws.some((k) => hay.includes(` ${k}`));
 }
 
+const MONTHS = "janvier|fevrier|mars|avril|mai|juin|juillet|aout|septembre|octobre|novembre|decembre|january|february|march|april|may|june|july|august|september|october|november|december|spring|summer|autumn|fall|winter|printemps|ete|automne|hiver";
+const DATE_TAIL = new RegExp(String.raw`\s+[-–—|]\s*(?:(?:${MONTHS})\s*(?:20\d\d)?|20\d\d)\s*$`);
+
 /** Cross-source duplicate key: same company + same title, ignoring accents, case, (H/F) and punctuation. */
 export function dedupeKey(company: string, title: string): string {
   const clean = (s: string) =>
     fold(s)
       .replace(/\(?\b[hf]\s*\/\s*[hf]\b\)?/g, " ")
+      // "… - janvier 2027" / "… | Summer 2027": a dated repost of the same role (freehire strips the trailing clause).
+      .replace(DATE_TAIL, "")
       .replace(/[^a-z0-9#+]+/g, " ")
       .replace(/\b(sarl|suarl|sa|sas|sasu|ltd|llc|inc|gmbh|srl|spa)\b/g, " ")
       .replace(/\s+/g, " ")

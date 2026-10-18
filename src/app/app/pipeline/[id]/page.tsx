@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, PackageCheck, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -29,6 +30,7 @@ import { MessagesPanel } from "@/components/pipeline/messages";
 import { ReplyClassifier } from "@/components/pipeline/reply-classifier";
 import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { MarkSentButton } from "@/components/pipeline/mark-sent";
+import { ApplyFormCard } from "@/components/pipeline/apply-form-card";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
 import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
@@ -237,6 +239,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 </span>
               </Link>
             </div>
+            <Suspense fallback={null}>
+              <ApplyFormCard url={job.url} />
+            </Suspense>
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
