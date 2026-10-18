@@ -18,6 +18,7 @@ import {
   localDate,
 } from "@/lib/repo/apps";
 import { EngineChip } from "@/components/ui";
+import { hostClass } from "@/lib/sources/trust";
 import { ActionButton } from "@/components/action-button";
 import { DocEditor } from "@/components/doc-editor";
 import { WorkspaceHeader } from "@/components/pipeline/header";
@@ -42,6 +43,9 @@ const AFTER_TABS: Tab[] = ["messages", "interviews", "contacts", "reminders", "t
 const PAST_APPLIED: AppState[] = ["applied", "responded", "interview", "offer", "hired"];
 type Step = "tailor" | "letter" | "review" | "after";
 const STEPS: Step[] = ["tailor", "letter", "review", "after"];
+// ponytail: tiny string hash so the editor remounts on new content, not on every stage change.
+const hash = (s: string | null) => [...(s ?? "")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0);
+const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 const words = (x: string | null) => (x ?? "").replace(/[#>*_`|[\]()-]+/g, " ").split(/\s+/).filter(Boolean).length;
 
 export async function generateMetadata({ params }: PageProps<"/app/pipeline/[id]">): Promise<Metadata> {
@@ -78,6 +82,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const source = override ? { text: override.cv_override_text!, format: "text" as const } : { text: cvSrc.text, format: cvSrc.format };
   const hasCv = source.text.trim().length >= 50;
   const contacts = listContacts(app.id);
+  const contactEmail = contacts.find((c) => c.email)?.email ?? null;
+  const applyEmail = contactEmail ?? (job.description?.match(EMAIL) ?? []).find((e) => !/no-?reply/i.test(e)) ?? null;
   const interviews = listInterviews(app.id);
   const reminders = listReminders(app.id);
   const events = listEvents(app.id);
@@ -189,12 +195,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               <h2 className="mb-1 text-[1.15rem] tracking-[-0.01em]">{F.howToApply}</h2>
               <p className="mb-3 text-[0.82rem] text-muted">{F.howToApplyLead}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {contacts.find((c) => c.email) ? (
-                  <a href={`mailto:${contacts.find((c) => c.email)!.email}?subject=${encodeURIComponent(job.title)}`} className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
+                {applyEmail ? (
+                  <a href={`mailto:${applyEmail}?subject=${encodeURIComponent(fmt(F.mailSubject, { title: job.title }))}&body=${encodeURIComponent(fmt(F.mailBody, { title: job.title, name: getProfile().name }))}`} className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
                     <Mail size={18} aria-hidden="true" className="text-accent-text" />
-                    <span>
+                    <span className="min-w-0">
                       <span className="block text-[0.85rem] font-semibold">{F.email}</span>
-                      <span className="block text-[0.72rem] text-muted">{contacts.find((c) => c.email)!.email} · {F.emailHint}</span>
+                      <span className="block truncate text-[0.72rem] text-muted">{applyEmail} · {contactEmail ? F.emailHint : F.emailFromPosting}</span>
                     </span>
                   </a>
                 ) : (
@@ -211,7 +217,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                     <ExternalLink size={18} aria-hidden="true" className="text-accent-text" />
                     <span>
                       <span className="block text-[0.85rem] font-semibold">{F.portal}</span>
-                      <span className="block truncate text-[0.72rem] text-muted">{new URL(job.url).host} · {F.portalHint}</span>
+                      <span className="block text-[0.72rem] text-muted">{new URL(job.url).host} · {hostClass(job.url) === "portal" ? F.portalBoardHint : F.portalHint}</span>
                     </span>
                   </a>
                 ) : (
@@ -250,7 +256,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           <div className="grid items-start gap-[18px] xl:grid-cols-[minmax(0,1fr)_320px]">
             {doc === "cv" ? (
               <DocEditor
-                key={`cv-${app.updated_at}`}
+                key={`cv-${hash(app.cv_md)}`}
                 value={app.cv_md}
                 saveAction={saveDoc.bind(null, app.id, "cv")}
                 generateAction={generateDoc.bind(null, app.id, "cv")}
@@ -265,7 +271,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               />
             ) : (
               <DocEditor
-                key={`letter-${app.updated_at}`}
+                key={`letter-${hash(app.cover_letter_md)}`}
                 value={app.cover_letter_md}
                 saveAction={saveDoc.bind(null, app.id, "letter")}
                 generateAction={generateDoc.bind(null, app.id, "letter")}

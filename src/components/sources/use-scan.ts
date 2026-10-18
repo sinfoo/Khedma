@@ -128,7 +128,7 @@ export function useScan() {
   const dropped: Record<string, number> = {};
   for (const r of plan?.runs ?? []) for (const [k, n] of Object.entries(status[r.key]?.dropped ?? {})) dropped[k] = (dropped[k] ?? 0) + n;
   const stop = useCallback(() => ctrl.current?.abort(), []);
-  return { start, stop, running, status, total, finished, plan, jobs, dropped };
+  return { start, stop, restore: setJobs, running, status, total, finished, plan, jobs, dropped };
 }
 
 /**

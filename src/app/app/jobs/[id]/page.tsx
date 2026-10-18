@@ -93,6 +93,9 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
         </div>
 
+        {d !== null && d < 0 && (
+          <p role="note" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[0.82rem] text-danger no-print">{fmt(o.expiredWarn, { date: fmtDate(job.deadline!, locale) })}</p>
+        )}
         <div className="mt-3.5 flex flex-wrap items-center gap-2 no-print">
           {job.application?.applied_at ? (
             <Link href={`/app/pipeline/${job.application.id}`} className="btn btn-primary !h-9">

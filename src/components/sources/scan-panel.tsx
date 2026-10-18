@@ -52,6 +52,8 @@ const STRONG = 4;
  * The scan is the page: a radar stage (idle / running) that folds away when done,
  * and a live feed of kept offers with one recommended action per row.
  */
+const FEED_KEY = "khedma:last-scan";
+
 export function ScanPanel({
   keywords,
   places,
@@ -70,7 +72,7 @@ export function ScanPanel({
   const m = t.sources2.scan2;
   const toast = useToast();
   const router = useRouter();
-  const { start, stop, running, status, total, finished, plan, jobs, dropped } = useScan();
+  const { start, stop, restore, running, status, total, finished, plan, jobs, dropped } = useScan();
   const [kw, setKw] = useState(keywords.join(", "));
   const [countries, setCountries] = useState<string[]>(places.countries);
   const [remote, setRemote] = useState<Remote>(places.remote);
@@ -114,6 +116,29 @@ export function ScanPanel({
       else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
     });
   };
+
+  // Opening an offer and coming back must not lose the results: keep the last finished scan for this tab.
+  useEffect(() => {
+    if (autoStart) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(FEED_KEY) ?? "null") as { jobs: FoundJob[]; done: ScanDone } | null;
+      if (!saved) return;
+      restore(saved.jobs);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage only exists after hydration
+      setDone(saved.done);
+    } catch {
+      // private mode or bad JSON: start empty
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!done || running) return;
+    try {
+      sessionStorage.setItem(FEED_KEY, JSON.stringify({ jobs, done }));
+    } catch {
+      // storage full or blocked: nothing to keep
+    }
+  }, [done, running, jobs]);
 
   const kicked = useRef(false);
   useEffect(() => {

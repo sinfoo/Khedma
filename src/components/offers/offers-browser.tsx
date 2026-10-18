@@ -175,6 +175,12 @@ export function OffersBrowser({
 
   // ---------- sequential evaluation ----------
   const [progress, setProgress] = useState<{ i: number; n: number; title: string } | null>(null);
+  useEffect(() => {
+    if (!progress) return;
+    const hold = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", hold);
+    return () => window.removeEventListener("beforeunload", hold);
+  }, [progress]);
   const cancel = useRef(false);
   const running = useRef(false);
   const evaluate = useCallback(
@@ -437,11 +443,12 @@ function Fit({ r }: { r: OfferRow }) {
       </span>
     );
   return (
-    <span className="flex min-w-0 items-center gap-2" role="img" aria-label={scoreLabel(t, r.score)}>
+    <span className="flex min-w-0 items-center gap-2" role="img" aria-label={`${scoreLabel(t, r.score)}${r.verdict ? ` · ${t.verdicts[r.verdict]}` : ""}${r.engine === "heuristic" ? ` · ${t.offers2.list2.estimateHint}` : ""}`}>
       <span className="bar !w-[42px] shrink-0">
         <span style={{ width: `${((r.score - 1) / 4) * 100}%`, background: scoreColor(r.score) }} />
       </span>
       <span className="mono text-[0.82rem] font-semibold">{r.score.toFixed(1)}</span>
+      {r.engine === "heuristic" && <span className="chip !h-5 !px-1.5 !py-0 text-[0.65rem] text-muted" title={t.offers2.list2.estimateHint}>{t.offers2.list2.estimate}</span>}
       {r.verdict && (
         <span className="truncate text-[0.72rem] font-semibold" style={{ color: VERDICT_FG[r.verdict] }}>
           {t.verdicts[r.verdict]}
