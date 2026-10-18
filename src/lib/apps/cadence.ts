@@ -113,7 +113,11 @@ export function computeCadence(input: CadenceInput, now: Date, cfg = DEFAULT_CAD
     // interview: thank-you within a day of the interview (or of entering the stage), then every 3 days
     const iv = parseTs(input.lastInterviewAt) ?? null;
     const anchor = iv && iv.getTime() <= now.getTime() ? iv : start;
-    if (last && last.getTime() >= anchor.getTime()) {
+    if (iv && iv.getTime() > now.getTime()) {
+      nextDue = plusDays(iv, cfg.interview_thankyou);
+      urgency = "waiting";
+      angle = "thankyou";
+    } else if (last && last.getTime() >= anchor.getTime()) {
       nextDue = plusDays(last, cfg.responded_subsequent);
       urgency = daysSinceLast! >= cfg.responded_subsequent ? "overdue" : "waiting";
       angle = "reply";

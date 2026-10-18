@@ -217,8 +217,9 @@ export async function markMessageSent(id: number, type: string, subject: string)
   if (!isMessageType(type) && !isDraftVariant(type)) return fail("invalid");
   const { t } = await getDict();
   const label = isMessageType(type) ? t.apps2.messages.types[type as MessageType] : t.apps2.cadence.variants[type];
-  logEvent(id, "followup", `${label}${subject.trim() ? ` · ${clamp(subject, 200)}` : ""}`);
-  if (type === "followup" || isDraftVariant(type)) completeFollowups(id);
+  const isFollowup = type === "followup" || isDraftVariant(type);
+  logEvent(id, isFollowup ? "followup" : "message", `${label}${subject.trim() ? ` · ${clamp(subject, 200)}` : ""}`);
+  if (isFollowup) completeFollowups(id);
   refresh();
   return { ok: true };
 }

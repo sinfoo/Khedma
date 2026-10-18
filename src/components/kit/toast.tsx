@@ -12,6 +12,9 @@ interface Toast {
   action?: { label: string; onClick: () => void };
 }
 
+// Seconds on screen: an Undo needs time to be reached by keyboard or screen reader.
+const life = (t: Omit<Toast, "id">) => (t.action ? 10 : t.tone === "error" ? 8 : 4.5);
+
 const Ctx = createContext<((t: Omit<Toast, "id">) => void) | null>(null);
 
 /** App-wide toasts. Announced politely (errors assertively) to screen readers. */
@@ -23,7 +26,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (t: Omit<Toast, "id">) => {
       const id = ++seq.current;
       setItems((xs) => [...xs.slice(-3), { ...t, id }]);
-      setTimeout(() => dismiss(id), t.tone === "error" ? 8000 : 4500);
+      setTimeout(() => dismiss(id), life(t) * 1000);
     },
     [dismiss],
   );
@@ -41,7 +44,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {items.map((t) => {
           const Icon = t.tone === "success" ? CheckCircle2 : t.tone === "error" ? AlertTriangle : Info;
           const color = t.tone === "success" ? "var(--success)" : t.tone === "error" ? "var(--danger)" : "var(--accent)";
-          const life = t.tone === "error" ? 8 : 4.5;
           return (
             <div
               key={t.id}
@@ -69,7 +71,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <button type="button" className="grid size-7 place-items-center opacity-70 hover:opacity-100" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
                 <X size={14} aria-hidden="true" />
               </button>
-              <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px]" style={{ background: color, animation: `toast-bar ${life}s linear both` }} />
+              <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px]" style={{ background: color, animation: `toast-bar ${life(t)}s linear both` }} />
             </div>
           );
         })}

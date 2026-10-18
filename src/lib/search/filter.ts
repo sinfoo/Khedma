@@ -90,11 +90,13 @@ export interface TitleMatch {
 export function titleMatch(title: string, positives: Positive[]): TitleMatch | null {
   const folded = fold(title);
   const toks = titleTokens(title);
+  // "stage" or "pfe" alone means "any internship"; next to a real role it must not let every title through.
+  const specific = positives.some((p) => p.matcher || p.tokens.length);
   let best: TitleMatch | null = null;
   for (const p of positives) {
     let m: TitleMatch | null = null;
     if (p.matcher) m = p.matcher(folded) ? { score: 1, hits: [bare(p.raw)] } : null;
-    else if (!p.tokens.length) m = { score: 0, hits: [] };
+    else if (!p.tokens.length) m = specific ? null : { score: 0, hits: [] };
     else if (folded.includes(fold(p.raw))) m = { score: 1, hits: [p.raw] };
     else {
       const hits = p.tokens.filter((t) => toks.has(t));

@@ -52,7 +52,7 @@ export function parseFilters(p: Params): OfferFilters {
     source: get(p, "source").slice(0, 30),
     dup: get(p, "dup") === "1",
     archived: get(p, "archived") === "1",
-    sort: SORTS.includes(sort) ? sort : "newest",
+    sort: SORTS.includes(sort) ? sort : "score",
   };
 }
 
@@ -71,7 +71,7 @@ export function filtersToQuery(f: OfferFilters): string {
   if (f.source) p.set("source", f.source);
   if (f.dup) p.set("dup", "1");
   if (f.archived) p.set("archived", "1");
-  if (f.sort !== "newest") p.set("sort", f.sort);
+  if (f.sort !== "score") p.set("sort", f.sort);
   return p.toString();
 }
 
@@ -97,6 +97,9 @@ export interface OfferRow {
   dup: { id: number; title: string; newer: boolean } | null;
 }
 
+const today = () => new Date().toLocaleDateString("sv");
+const dkey = (d: string | null) => (!d ? "9" : d.slice(0, 10) < today() ? `8${d}` : `0${d}`);
+
 export function applyFilters(rows: OfferRow[], f: OfferFilters): OfferRow[] {
   const q = fold(f.q);
   const out = rows.filter((r) => {
@@ -120,7 +123,8 @@ export function applyFilters(rows: OfferRow[], f: OfferFilters): OfferRow[] {
   const by: Record<Sort, (a: OfferRow, b: OfferRow) => number> = {
     newest: (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id,
     score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || b.id - a.id,
-    deadline: (a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") || b.id - a.id,
+    // Live deadlines first (soonest on top), then expired ones, then none.
+    deadline: (a, b) => dkey(a.deadline).localeCompare(dkey(b.deadline)) || b.id - a.id,
     company: (a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title),
   };
   return out.sort(by[f.sort]);

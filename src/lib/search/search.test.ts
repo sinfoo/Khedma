@@ -256,3 +256,11 @@ test("filter: typed keywords alone decide the role, stale targets do not widen t
   assert.equal(f.decide(job({ title: "Stage UI/UX designer", location: "Tunis" })).keep, true);
   assert.equal(f.decide(job({ title: "Stage développeur full stack", location: "Tunis" })).keep, false);
 });
+
+test("generic type words do not open the title gate next to a real role", () => {
+  const pos = compilePositives(["designer", "stage", "pfe"]);
+  assert.equal(titleMatch("Comptable junior", pos), null);
+  assert.ok(titleMatch("Stage UI designer", pos));
+  // Typed alone, "stage" still means any internship.
+  assert.ok(titleMatch("Comptable junior", compilePositives(["stage"])));
+});

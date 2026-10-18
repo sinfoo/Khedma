@@ -70,7 +70,7 @@ test("filters: parse clamps input and round-trips to a canonical query", () => {
   assert.deepEqual(f.types, ["pfe"]);
   assert.deepEqual(f.verdicts, ["apply", "none"]);
   assert.equal(f.min, 5);
-  assert.equal(f.sort, "newest");
+  assert.equal(f.sort, "score");
   assert.equal(f.tracked, "");
   assert.equal(filtersToQuery(f), "type=pfe&verdict=apply%2Cnone&min=5&remote=1");
 });

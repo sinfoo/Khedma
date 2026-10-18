@@ -172,7 +172,8 @@ export async function logOutreach(id: number, kind: "recruiter" | "linkedin", bo
   if (kind !== "recruiter" && kind !== "linkedin") return fail("invalid");
   const text = clamp(body, 4000);
   if (!text) return fail("invalid");
-  logEvent(id, "followup", `${kind}: ${text.slice(0, 400)}`);
+  // Outreach is a first contact, not a follow-up: it must not push the application toward "cold".
+  logEvent(id, "message", `${kind}: ${text.slice(0, 400)}`);
   refresh();
   return { ok: true };
 }

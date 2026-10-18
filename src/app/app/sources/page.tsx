@@ -10,7 +10,7 @@ import { clipToken } from "@/lib/clip";
 import { CATALOG } from "@/lib/sources/catalog";
 import { TN_COMPANIES } from "@/lib/recommend/companies";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { defaultKeywords, getAutoScan, getSearchPrefs, listRuns, listSourceRows } from "@/lib/repo/sources";
+import { defaultKeywords, searchCountries, getAutoScan, getSearchPrefs, listRuns, listSourceRows } from "@/lib/repo/sources";
 import { cvForMatching } from "@/lib/repo/offers";
 
 export const metadata: Metadata = { title: "Sources" };
@@ -28,7 +28,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
     <>
       <ScanPanel
         keywords={typed.length ? typed : defaultKeywords(profile, cvForMatching().text)}
-        places={{ countries: extra.places.countries, remote: extra.places.remote }}
+        places={{ countries: searchCountries(extra.places.countries, rows), remote: extra.places.remote }}
         sources={rows.filter((x) => x.enabled).map((x) => ({ id: x.id, label: x.label, kind: x.kind }))}
         autoStart={sp.scan === "1" || typed.length > 0}
       />

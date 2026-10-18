@@ -132,8 +132,15 @@ export function defaultKeywords(profile: Profile, cvText = profile.cv_md): strin
   const kinds = profile.target_types.filter((t) => t === "stage" || t === "pfe" || t === "alternance");
   // "Développeur full stack" -> "développeur", "Data analyst" -> "data".
   const roles = profile.target_roles.map((r) => r.trim().split(/\s+/)[0]).filter((w) => w && w.length >= 3);
-  const skills = cvSkills(profile, cvText).slice(0, 3);
+  // "c" or "r" as a board query matches everything.
+  const skills = cvSkills(profile, cvText).filter((k) => k.length >= 2).slice(0, 3);
   return [...new Set([...roles, ...skills, ...kinds].map((k) => k.toLowerCase()))].slice(0, 6);
+}
+
+/** Profile countries plus the country of every enabled saved board: a board the user switched on is never skipped. */
+export function searchCountries(base: string[], rows: SourceRow[] = listSourceRows()): string[] {
+  const own = rows.filter((s) => s.enabled && !s.company).map((s) => CATALOG.find((c) => c.kind === s.kind)?.country as string | undefined);
+  return [...new Set([...base, ...own.filter((c): c is string => !!c && c !== "INT")])];
 }
 
 // ---------- auto-scan ----------
@@ -344,7 +351,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const keywords = opts.keywords ?? [];
     const cvText = cvForMatching().text;
     const skills = cvSkills(profile, cvText);
-    const countries = opts.countries?.length ? opts.countries : extra.places.countries;
+    const countries = opts.countries?.length ? opts.countries : searchCountries(extra.places.countries, all);
     const places = { countries, cities: countries.includes("TN") ? extra.places.cities : [], remote: opts.remote ?? extra.places.remote };
     const missingEnv = CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind);
     const plan = opts.ids?.length
@@ -374,11 +381,11 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     let duplicates = 0;
 
     const detail = await mapLimit(runs, 3, async (run): Promise<RunSourceDetail> => {
+      if (opts.signal?.aborted) return { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: 0, matched: 0, kept: 0, added: 0, known: 0, dropped: {}, ms: 0 };
       emit({ type: "source", key: run.key, id: run.sourceId, status: "running" });
       const t0 = Date.now();
       let res: Awaited<ReturnType<typeof scanTiered>>;
       try {
-        if (opts.signal?.aborted) throw new Error("cancelled");
         res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide: filter.decide });
       } catch (e) {
         res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };
@@ -425,7 +432,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
 
     // Liveness: the best new offers are opened once; closed ones are archived with the check as the note.
     let closed: number[] = [];
-    const top = [...found].sort((a, b) => b.relevance - a.relevance).slice(0, LIVENESS_TOP);
+    const top = opts.signal?.aborted ? [] : [...found].sort((a, b) => b.relevance - a.relevance).slice(0, LIVENESS_TOP);
     if (top.length) {
       try {
         const checks = await checkJobs(top.map((j) => j.id));

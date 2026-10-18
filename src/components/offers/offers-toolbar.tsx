@@ -266,7 +266,7 @@ export function OffersToolbar({
             )}
           {group(
             L.sort,
-            <select className="input !h-7 !w-auto !py-0 text-[0.78rem]" aria-label={o.sort} value={f.sort} onChange={(e) => setParams({ sort: e.target.value === "newest" ? null : e.target.value })}>
+            <select className="input !h-7 !w-auto !py-0 text-[0.78rem]" aria-label={o.sort} value={f.sort} onChange={(e) => setParams({ sort: e.target.value === "score" ? null : e.target.value })}>
               {(["newest", "score", "deadline", "company"] as const).map((s) => (
                 <option key={s} value={s}>{o.sorts[s]}</option>
               ))}

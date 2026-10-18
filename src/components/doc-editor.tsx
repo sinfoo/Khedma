@@ -79,7 +79,7 @@ export function DocEditor({
   }, [mode, select]);
 
   const generate = () => {
-    if (dirty && !window.confirm(d.discardConfirm)) return;
+    if ((dirty || value?.trim()) && !window.confirm(dirty ? d.discardConfirm : d.replaceConfirm)) return;
     startGen(async () => {
       try {
         const r = await generateAction();

@@ -84,3 +84,10 @@ test("checkFollowup flags banned openers and long drafts", () => {
   assert.deepEqual(checkFollowup(Array(151).fill("mot").join(" ")), ["too_long"]);
   assert.deepEqual(checkFollowup("Bonjour, suite à ma candidature du 1er octobre, je souhaitais partager un projet."), []);
 });
+
+test("interview: no thank-you is due before a future interview", () => {
+  const c = computeCadence({ ...base, status: "interview", stageEnteredAt: "2026-10-10 09:00:00", lastInterviewAt: "2026-10-15T10:00:00" }, now);
+  assert.equal(c.urgency, "waiting");
+  assert.equal(c.angle, "thankyou");
+  assert.ok(c.nextDue && c.nextDue > "2026-10-15", String(c.nextDue));
+});
