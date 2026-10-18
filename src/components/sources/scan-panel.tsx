@@ -35,11 +35,10 @@ import { contactSearchUrl } from "@/lib/links";
 import { JOB_TYPES, type JobType } from "@/lib/types";
 import { planSearch, type Remote } from "@/lib/search/plan";
 import { DEFAULT_PREFS, type SearchPrefs } from "@/lib/search/prefs";
-import { CATALOG } from "@/lib/sources/catalog";
 import { loadSearchPrefs } from "@/app/actions/sources";
 import { evaluateOffer, trackOffers } from "@/app/actions/jobs";
 import { SearchPrefsForm } from "./search-prefs";
-import { useAutoScan, useScan, type FoundJob, type ScanDone, type SourceStatus } from "./use-scan";
+import { useScan, type FoundJob, type ScanDone, type SourceStatus } from "./use-scan";
 
 interface Src {
   id: number;
@@ -58,8 +57,11 @@ export function ScanPanel({
   places,
   sources,
   autoStart,
+  typed = false,
 }: {
   keywords: string[];
+  /** Keywords came from the user (a ?q= link), not from the CV. */
+  typed?: boolean;
   places: { countries: string[]; remote: Remote };
   sources: Src[];
   autoStart: boolean;
@@ -102,7 +104,8 @@ export function ScanPanel({
     setDone(null);
     setElapsed(0);
     startPrepare(async () => {
-      const r = await start({ keywords: terms, countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
+      const untouched = !typed && terms.join(",").toLowerCase() === keywords.slice(0, 6).join(",").toLowerCase();
+      const r = await start({ keywords: untouched ? undefined : terms, countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
       if (r.kind === "done") {
         setDone(r.done);
         router.refresh();
@@ -111,11 +114,6 @@ export function ScanPanel({
       else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
     });
   };
-  useAutoScan(start, (d) => {
-    setDone(d);
-    toast.success(fmt(t.sources2.auto.ran, { n: d.added }));
-    router.refresh();
-  });
 
   const kicked = useRef(false);
   useEffect(() => {
@@ -146,7 +144,7 @@ export function ScanPanel({
   const kept = jobs.length;
   const pct = total ? Math.round((finished / total) * 100) : 0;
 
-  const title = scanning ? fmt(m.titleRunning, { n: total }) : finishedAll ? (done!.added === 0 ? m.titleDoneNone : done!.added === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: done!.added })) : m.titleIdle;
+  const title = scanning ? fmt(m.titleRunning, { n: total }) : finishedAll ? (jobs.length === 0 ? m.titleDoneNone : jobs.length === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: jobs.length })) : m.titleIdle;
   const lead = scanning ? m.leadRunning : finishedAll ? m.leadDone : m.leadIdle;
   const sweepOn = scanning;
 
@@ -208,7 +206,7 @@ export function ScanPanel({
                         const on = countries.includes(code);
                         const c = countryByCode(code);
                         return (
-                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? cs.filter((x) => x !== code) : [...cs, code]))}>
+                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? (cs.length > 1 ? cs.filter((x) => x !== code) : cs) : [...cs, code]))}>
                             {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
                           </button>
                         );
@@ -432,13 +430,14 @@ function Feed({ jobs, scanning, done, dropped, droppedBy, skipped, errors, elaps
             <CircleCheck size={20} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="text-[1.15rem] tracking-[-0.01em]">{done.added === 0 ? m.titleDoneNone : done.added === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: done.added })}</h2>
+            <h2 className="text-[1.15rem] tracking-[-0.01em]">{jobs.length === 0 ? m.titleDoneNone : jobs.length === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: jobs.length })}</h2>
             <p className="mt-0.5 text-[0.8rem] text-muted">{fmt(m.summary, { listed: jobs.length + done.duplicates + dropped, dupes: done.duplicates, dropped, errors: errors || done.errors, s: elapsed })}</p>
-            {(dropped > 0 || skipped > 0) && (
+            {(dropped > 0 || skipped > 0 || !!done.closed) && (
               <p className="mt-0.5 text-[0.75rem] text-muted">
                 {[
                   ...Object.entries(droppedBy).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${t.sources2.radar.reasons[k as keyof typeof t.sources2.radar.reasons] ?? k} ${n}`),
                   skipped ? fmt(m.sourcesSkipped, { n: skipped }) : "",
+                  done.closed ? fmt(m.closedRemoved, { n: done.closed }) : "",
                 ].filter(Boolean).join(" · ")}
               </p>
             )}

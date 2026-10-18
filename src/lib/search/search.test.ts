@@ -264,3 +264,8 @@ test("generic type words do not open the title gate next to a real role", () => 
   // Typed alone, "stage" still means any internship.
   assert.ok(titleMatch("Comptable junior", compilePositives(["stage"])));
 });
+
+test("a paused saved board keeps the catalog default of its kind off", () => {
+  const p = planSearch({ keywords: [], countries: ["TN"], remote: "no", defaultKeywords: ["pfe"], enabledSources: [{ id: 9, kind: "keejob", label: "Keejob", handle: "", enabled: false }] });
+  assert.ok(!p.runs.some((r) => r.kind === "keejob"), p.runs.map((r) => r.key).join(","));
+});

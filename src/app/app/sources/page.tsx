@@ -31,6 +31,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         places={{ countries: searchCountries(extra.places.countries, rows), remote: extra.places.remote }}
         sources={rows.filter((x) => x.enabled).map((x) => ({ id: x.id, label: x.label, kind: x.kind }))}
         autoStart={sp.scan === "1" || typed.length > 0}
+        typed={typed.length > 0}
       />
       <SourcesList sources={rows.filter((s) => !s.company)} auto={getAutoScan()} />
       <div className="mt-8 space-y-8">

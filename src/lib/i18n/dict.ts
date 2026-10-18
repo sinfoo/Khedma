@@ -72,7 +72,7 @@ const en = {
     freelance: "Freelance",
   } satisfies Record<JobType, string>,
   states: {
-    evaluated: "Evaluated",
+    evaluated: "To apply",
     applied: "Applied",
     responded: "Responded",
     interview: "Interview",
@@ -395,7 +395,7 @@ const fr: CoreDict = {
     freelance: "Freelance",
   },
   states: {
-    evaluated: "Évaluée",
+    evaluated: "À postuler",
     applied: "Candidature envoyée",
     responded: "Réponse reçue",
     interview: "Entretien",

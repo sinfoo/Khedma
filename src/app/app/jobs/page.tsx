@@ -89,6 +89,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
         }
       />
       <OffersBrowser
+        key={JSON.stringify(f)}
         all={all}
         total={all.length}
         filters={f}

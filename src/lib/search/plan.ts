@@ -87,7 +87,8 @@ export function planSearch(input: {
 
   const saved = (input.enabledSources ?? []).filter((s) => s.enabled !== false && isProviderKind(s.kind));
   // A saved board of a kind replaces the catalog's default run of that kind (category, city and keywords chosen by the user).
-  const savedKinds = new Set(saved.map((s) => s.kind));
+  // Paused boards count too: switching Keejob off must not bring the default Keejob run back.
+  const savedKinds = new Set((input.enabledSources ?? []).filter((s) => isProviderKind(s.kind) && !s.company).map((s) => s.kind));
 
   for (const e of catalog) {
     if (!autoRunnable(e) || savedKinds.has(e.kind)) continue;

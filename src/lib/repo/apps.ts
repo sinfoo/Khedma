@@ -77,6 +77,10 @@ export function stageEffects(from: AppState, to: AppState, s: StageInput, now: D
       if (!r.nextActionAt) r.nextActionAt = r.followupDue;
     }
   }
+  if (to === "evaluated") {
+    r.appliedAt = null;
+    r.nextActionAt = null;
+  }
   r.askInterview = to === "interview";
   r.askReason = to === "rejected";
   return r;
@@ -333,6 +337,7 @@ export function applyStageChange(id: number, to: AppState, followupTitle: string
     d.prepare("UPDATE applications SET status=?, applied_at=?, next_action_at=?, updated_at=datetime('now') WHERE id=?").run(to, fx.appliedAt, fx.nextActionAt, id);
     snapshot.eventIds.push(logEvent(id, "status", to));
     if (fx.followupDue) snapshot.reminderId = addReminder({ application_id: id, title: followupTitle, due_at: fx.followupDue, kind: "followup" });
+    if (to === "evaluated") d.prepare("UPDATE reminders SET done = 1 WHERE application_id = ? AND kind = 'followup' AND done = 0").run(id);
     d.exec("COMMIT");
   } catch (e) {
     d.exec("ROLLBACK");

@@ -166,8 +166,8 @@ export function OffersBrowser({
             label: o.undo,
             onClick: () =>
               startAction(async () => {
-                await undoDelete(token);
-                toast.success(o.toastUndone);
+                if (await undoDelete(token)) toast.success(o.toastUndone);
+                else toast.error(o.undoExpired);
               }),
           }
         : undefined);

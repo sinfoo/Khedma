@@ -229,7 +229,7 @@ export function buildFilter(o: FilterOptions): JobFilter {
   const fromLevels: JobType[] = prefs?.levels?.length ? [...(prefs.levels.includes("intern") ? INTERN_TYPES : []), ...(prefs.levels.some((l) => l !== "intern") ? (["emploi"] as JobType[]) : [])] : [];
   const types = (o.types?.length ? o.types : fromLevels.length ? fromLevels : o.profile.target_types).filter(Boolean);
   const internOnly = types.length > 0 && types.every((t) => INTERN_TYPES.includes(t));
-  const entryOnly = !internOnly && !!prefs?.levels?.length && !prefs.levels.includes("mid");
+  const entryOnly = !o.types?.length && !internOnly && !!prefs?.levels?.length && !prefs.levels.includes("mid");
   const chosen = o.places.countries.filter((c) => c !== REMOTE_CODE);
   const rules = locationRules(o.places);
   rules.block_hard.push(...(prefs?.locationReject ?? []));

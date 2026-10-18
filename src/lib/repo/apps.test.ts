@@ -134,3 +134,9 @@ test("diffLines marks added and removed lines", () => {
   const ops2 = diffLines("a\nx\nc", "a\nc\ny");
   assert.deepEqual(ops2.filter((o) => o.type !== "same").map((o) => `${o.type}:${o.text}`), ["del:x", "add:y"]);
 });
+
+test("stageEffects: moving back to To apply clears the sent date and next action", () => {
+  const fx = stageEffects("applied", "evaluated", { appliedAt: "2026-10-01T09:00:00Z", nextActionAt: "2026-10-08", hasOpenFollowup: true }, NOW);
+  assert.equal(fx.appliedAt, null);
+  assert.equal(fx.nextActionAt, null);
+});

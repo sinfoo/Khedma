@@ -61,7 +61,15 @@ export async function logFollowup(appId: number) {
 export async function evaluatePending(): Promise<number> {
   const profile = getProfile();
   const todo = listJobs().filter((j) => !j.evaluation).slice(0, 5);
-  for (const j of todo) insertEvaluation(await evaluateJob(j, profile));
+  let n = 0;
+  for (const j of todo) {
+    try {
+      insertEvaluation(await evaluateJob(j, profile));
+      n++;
+    } catch (e) {
+      console.warn("[evaluate] skipped", j.id, (e as Error).message);
+    }
+  }
   revalidatePath("/app", "layout");
-  return todo.length;
+  return n;
 }
