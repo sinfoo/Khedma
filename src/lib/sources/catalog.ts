@@ -5,7 +5,7 @@ export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures",
-  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "rss", "careers",
+  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "rss", "careers",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -181,6 +181,8 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "recruitee", name: "Recruitee", country: "INT", method: "api", site: "https://recruitee.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "personio", name: "Personio", country: "INT", method: "api", site: "https://www.personio.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "pinpoint", name: "Pinpoint", country: "INT", method: "api", site: "https://www.pinpointhq.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "workday", name: "Workday", country: "INT", method: "api", site: "https://www.workday.com", handle: { type: "url", placeholder: "https://acme.wd5.myworkdayjobs.com/External" }, keywords: false },
+  { kind: "teamtailor", name: "Teamtailor", country: "INT", method: "html", site: "https://www.teamtailor.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "rss", name: "RSS / Atom", country: "INT", method: "rss", site: "", handle: { type: "url", placeholder: "https://…/jobs.rss" }, keywords: false },
   { kind: "careers", name: "Page carrières", country: "INT", method: "html", site: "", handle: { type: "url", placeholder: "https://…/careers" }, keywords: false },
 ];

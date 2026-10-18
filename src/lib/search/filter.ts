@@ -120,12 +120,12 @@ export const SALES_NEGATIVES = [
   "word:vendeur", "word:vendeuse", "televente", "teleconseiller", "teleconseillere", "word:telesales", "word:comptable", "word:recruteur", "word:recruiter",
   "ressources humaines", "word:marketing", "word:juriste", "customer success", "word:caissier", "word:caissiere",
 ];
-const INTERN_TITLE = /\b(stage|stagiaire|intern|internship|pfe|alternan|apprenti|werkstudent|praktik)/;
+export const INTERN_TITLE = /\b(stage|stagiaire|intern|internship|pfe|alternan|apprenti|werkstudent|praktik)/;
 const BIZDEV = /(sales|business)\s+develop/;
 // "5+ ans", "7 years", "3 ans minimum" in a title; in a body only when framed as a requirement.
-const YEARS_TITLE = /\b([3-9]|1\d)\s*\+?\s*(ans|years?|yrs)\b/;
-const YEARS_BODY = /\b(minimum|min\.?|at least|au moins|plus de|more than|over)\s+(de\s+)?([3-9]|1\d)\s*\+?\s*(ans|years?)\b|\b([3-9]|1\d)\s*\+?\s*(ans|years?)\s*(minimum|d'?experience|of experience|experience|exp\b)/;
-const JUNIOR = /\b(junior|debutant|debutante|graduate|entry[- ]level|jeune diplome|fresh grad|new grad)\b/;
+export const YEARS_TITLE = /\b([3-9]|1\d)\s*\+?\s*(ans|years?|yrs)\b/;
+export const YEARS_BODY = /\b(minimum|min\.?|at least|au moins|plus de|more than|over)\s+(de\s+)?([3-9]|1\d)\s*\+?\s*(ans|years?)\b|\b([3-9]|1\d)\s*\+?\s*(ans|years?)\s*(minimum|d'?experience|of experience|experience|exp\b)/;
+export const JUNIOR = /\b(junior|debutant|debutante|graduate|entry[- ]level|jeune diplome|fresh grad|new grad)\b/;
 
 // ---------- location tiers ----------
 export interface LocationRules {

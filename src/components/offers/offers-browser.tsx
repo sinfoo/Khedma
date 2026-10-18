@@ -17,6 +17,7 @@ import type { SavedView } from "@/lib/repo/offers";
 import { applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
 import { applyTo, archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
 import { OffersToolbar } from "./offers-toolbar";
+import { EvergreenChip } from "./evergreen-chip";
 
 type Patch = { ids: number[]; patch?: Partial<OfferRow>; remove?: boolean };
 type View = "table" | "cards";
@@ -553,6 +554,7 @@ function TableRow(p: RowProps) {
               {r.company} · {o.list2.via} {r.source} · {fmtDate(r.created_at, p.locale)}
             </span>
             <DupChip r={r} />
+            <EvergreenChip reasons={r.evergreen} t={t} />
           </p>
         </div>
       </div>
@@ -613,6 +615,7 @@ function OfferCard(p: RowProps & { i: number }) {
         {r.location && <span className="inline-flex items-center gap-1"><MapPin size={13} aria-hidden="true" />{r.location}</span>}
         {r.remote && <span className="inline-flex items-center gap-1 text-accent-text"><Wifi size={13} aria-hidden="true" />{t.offers2.remote}</span>}
         <DupChip r={r} />
+        <EvergreenChip reasons={r.evergreen} t={t} />
       </div>
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <Score r={r} size={34} />

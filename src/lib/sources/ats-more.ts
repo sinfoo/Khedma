@@ -1,10 +1,11 @@
-// Keyless employer job systems (ported from freehire, MIT): Workable, SmartRecruiters, Recruitee, Personio, Pinpoint.
+// Keyless employer job systems (ported from freehire, MIT): Workable, SmartRecruiters, Recruitee, Personio, Pinpoint, Workday, Teamtailor.
 // Each lists one company's own board, so offers link to the employer's form, not an aggregator.
 import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
-import { decodeEntities, htmlToText } from "./html";
+import { decodeEntities, htmlToText, pickJsonLdJobPosting } from "./html";
 import { getJson, getText, prettySlug } from "./http";
+import { fromJsonLd, validatePublicUrl } from "./url";
 
 type Scan = { jobs: NewJob[]; error?: string };
 const join = (...parts: (string | null | undefined)[]) => parts.map((p) => p?.trim()).filter(Boolean).join(", ");
@@ -193,4 +194,129 @@ export async function pinpoint(handle: string): Promise<Scan> {
   const slug = slugOf(handle);
   const { data, error } = await getJson<PinpointPayload>(`https://${encodeURIComponent(slug)}.pinpointhq.com/postings.json`);
   return data ? { jobs: mapPinpoint(data, slug) } : { jobs: [], error };
+}
+
+// ---------- Workday: POST listing pages, description from the per-posting detail ----------
+// Board = "host/site" (acme.wd5.myworkdayjobs.com/External) or "host/tenant/site" on the shared
+// wdN.myworkdaysite.com hosts; a pasted careers URL works too (locale segments are skipped).
+interface WdBoard { host: string; tenant: string; site: string; publicPath: string }
+const WD_HOST = /^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$|^wd\d+\.myworkdaysite\.com$/;
+const LOCALE_SEG = /^[a-z]{2}(-[a-z]{2})?$/i;
+export function parseWorkdayBoard(handle: string): WdBoard | null {
+  const [host, ...rest] = handle.trim().replace(/^https?:\/\//i, "").split(/[?#]/)[0].split("/").filter(Boolean);
+  const h = host?.toLowerCase() ?? "";
+  const m = WD_HOST.exec(h);
+  if (!m) return null;
+  const segs = rest.filter((s) => !LOCALE_SEG.test(s));
+  if (m[1]) return segs[0] ? { host: h, tenant: m[1], site: segs[0], publicPath: segs[0] } : null;
+  // wd1.myworkdaysite.com/recruiting/<tenant>/<site>
+  const [tenant, site] = segs[0] === "recruiting" ? segs.slice(1) : segs;
+  return tenant && site ? { host: h, tenant, site, publicPath: `recruiting/${tenant}/${site}` } : null;
+}
+
+/** "Posted Today" / "Posted Yesterday" / "Posted 3 Days Ago" -> a date; "30+ Days Ago" is too vague. */
+export function workdayPostedOn(s: string | undefined, now = Date.now()): string | null {
+  const t = (s ?? "").toLowerCase();
+  const n = /(\d+)\s*days? ago/.exec(t);
+  const days = t.includes("today") ? 0 : t.includes("yesterday") ? 1 : n && !t.includes("+") ? Number(n[1]) : null;
+  return days === null ? null : new Date(now - days * 86_400_000).toISOString().slice(0, 10);
+}
+
+interface WdPosting { title?: string; externalPath?: string; locationsText?: string; postedOn?: string }
+export function mapWorkday(postings: WdPosting[], b: WdBoard): NewJob[] {
+  return postings
+    .filter((p) => p.title && p.externalPath)
+    .map((p) => ({
+      ...job({ title: p.title!, company: prettySlug(b.tenant), location: p.locationsText ?? "", url: `https://${b.host}/${b.publicPath}${p.externalPath}`, source: "workday", description: "" }),
+      posted_at: workdayPostedOn(p.postedOn),
+    }));
+}
+export async function workday(handle: string): Promise<Scan> {
+  const b = parseWorkdayBoard(handle);
+  if (!b) return { jobs: [], error: "Not a Workday careers URL (expected https://<company>.wdN.myworkdayjobs.com/<site>)" };
+  const api = `https://${b.host}/wday/cxs/${b.tenant}/${b.site}/jobs`;
+  const all: WdPosting[] = [];
+  // Some boards report the real total only on the first page and 0 after it, so latch the first non-zero one.
+  let total = -1;
+  // ponytail: 25 pages of 20 per board; freehire walks facets past Workday's 2000 cap, a student's tracked employer never needs it.
+  for (let page = 0; page < 25; page++) {
+    const { data, error } = await getJson<{ total?: number; jobPostings?: WdPosting[] }>(api, { body: JSON.stringify({ appliedFacets: {}, limit: 20, offset: all.length, searchText: "" }) });
+    if (!data) return all.length ? { jobs: mapWorkday(all, b) } : { jobs: [], error };
+    const got = data.jobPostings ?? [];
+    all.push(...got);
+    if (total < 0 && (data.total ?? 0) > 0) total = data.total!;
+    if (!got.length || (total >= 0 && all.length >= total)) break;
+  }
+  return { jobs: mapWorkday(all, b) };
+}
+interface WdDetail { jobPostingInfo?: { jobDescription?: string; location?: string; startDate?: string; timeType?: string; remoteType?: string } }
+/** Only offers that passed the filter and are not stored yet reach here. */
+export async function workdayDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const [board, path] = j.url.replace(/^https:\/\//, "").split(/(?=\/job\/)/);
+  const b = path ? parseWorkdayBoard(board) : null;
+  if (!b) return null;
+  const { data } = await getJson<WdDetail>(`https://${b.host}/wday/cxs/${b.tenant}/${b.site}${path}`);
+  const info = data?.jobPostingInfo;
+  if (!info) return null;
+  const description = htmlToText(info.jobDescription ?? "");
+  return {
+    description,
+    location: info.location || j.location,
+    remote: j.remote || /remote/i.test(info.remoteType ?? ""),
+    posted_at: normalizeDate(info.startDate) ?? j.posted_at,
+    type: guessType(`${j.title} ${info.timeType ?? ""}`, description),
+    tags: extractTags(j.title, description),
+  };
+}
+
+// ---------- Teamtailor: paged HTML listing, description from each posting's JSON-LD ----------
+const HTML = "text/html, application/xhtml+xml;q=0.9, */*;q=0.5";
+/** Board = subdomain ("acme" for acme.teamtailor.com) or a custom careers host ("careers.acme.com"). */
+const ttHost = (handle: string) => {
+  const h = handle.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+  return h.includes(".") ? h : `${h}.teamtailor.com`;
+};
+/** Posting links (/jobs/<id>-slug) on one listing page, titled by the link's title attribute or first text. */
+export function teamtailorLinks(html: string, host: string): { url: string; title: string }[] {
+  const out = new Map<string, string>();
+  for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"']*\/jobs\/\d+[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    let u: URL;
+    try {
+      u = new URL(decodeEntities(m[1]), `https://${host}/`);
+    } catch {
+      continue;
+    }
+    if (u.hostname !== host) continue;
+    const url = `https://${host}${u.pathname}`;
+    const text = /title\s*=\s*["']([^"']+)["']/i.exec(m[2])?.[1] ?? />\s*([^<>]*\S)\s*</.exec(`>${m[2]}<`)?.[1] ?? "";
+    const title = decodeEntities(text).trim() || prettySlug(u.pathname.split("/").pop()!.replace(/^\d+-?/, ""));
+    if (title && !out.get(url)) out.set(url, title);
+  }
+  return [...out.entries()].map(([url, title]) => ({ url, title }));
+}
+const ttJobs = (links: Map<string, string>, company: string) =>
+  [...links].map(([url, title]) => job({ title, company, location: "", url, source: "teamtailor", description: "" }));
+export async function teamtailor(handle: string): Promise<Scan> {
+  const host = ttHost(handle);
+  const { url, error } = validatePublicUrl(`https://${host}/jobs`);
+  if (!url) return { jobs: [], error };
+  const company = prettySlug(host.replace(/^(careers|jobs|career)\./, "").split(".")[0]);
+  const seen = new Map<string, string>();
+  // ponytail: 20 listing pages; freehire's ceiling is 1000, no student-tracked board comes close.
+  for (let page = 1; page <= 20; page++) {
+    const res = await getText(`https://${host}/jobs?page=${page}`, HTML);
+    if (res.error) return seen.size ? { jobs: ttJobs(seen, company) } : { jobs: [], error: res.error };
+    const before = seen.size;
+    for (const l of teamtailorLinks(res.text, host)) if (!seen.has(l.url)) seen.set(l.url, l.title);
+    if (seen.size === before) break;
+  }
+  return { jobs: ttJobs(seen, company) };
+}
+/** Only offers that passed the filter and are not stored yet reach here. */
+export async function teamtailorDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const { text } = await getText(j.url, HTML);
+  const ld = text ? pickJsonLdJobPosting(text) : null;
+  if (!ld) return null;
+  const { title, location, remote, description, type, tags, posted_at, deadline } = fromJsonLd(ld, j.url);
+  return { title, location, remote, description, type, tags, posted_at, deadline };
 }

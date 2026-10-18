@@ -72,6 +72,8 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   recruitee: { list: (h) => more.recruitee(h) },
   personio: { list: (h) => more.personio(h) },
   pinpoint: { list: (h) => more.pinpoint(h) },
+  workday: { list: (h) => more.workday(h), detail: more.workdayDetail, detailGapMs: 250 },
+  teamtailor: { list: (h) => more.teamtailor(h), detail: more.teamtailorDetail },
   rss: { list: (h) => rss.scan(h) },
   keejob: { list: keejob.scan, detail: keejob.detail },
   tanitjobs: { list: tanitjobs.scan, detail: tanitjobs.detail },

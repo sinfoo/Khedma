@@ -184,7 +184,7 @@ test("ATS detection from URLs", () => {
   assert.deepEqual(detectAtsUrl("https://jobs.lever.co/qonto"), { kind: "lever", handle: "qonto", label: "Qonto", ats: "Lever" });
   assert.equal(detectAtsUrl("https://jobs.eu.lever.co/qonto/abc")?.kind, "lever");
   assert.deepEqual(detectAtsUrl("https://jobs.ashbyhq.com/supabase"), { kind: "ashby", handle: "supabase", label: "Supabase", ats: "Ashby" });
-  assert.deepEqual(detectAtsUrl("https://acme.teamtailor.com/jobs"), { kind: "rss", handle: "https://acme.teamtailor.com/jobs.rss", label: "Acme", ats: "Teamtailor" });
+  assert.deepEqual(detectAtsUrl("https://acme.teamtailor.com/jobs"), { kind: "teamtailor", handle: "acme", label: "Acme", ats: "Teamtailor" });
   assert.equal(detectAtsUrl("https://acme.wd5.myworkdayjobs.com/en-US/careers")?.ats, "Workday");
   assert.equal(detectAtsUrl("https://careers.smartrecruiters.com/Acme")?.ats, "SmartRecruiters");
   assert.equal(detectAtsUrl("https://acme.recruitee.com/")?.ats, "Recruitee");

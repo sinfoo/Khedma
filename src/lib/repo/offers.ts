@@ -5,13 +5,16 @@ import type { Evaluation } from "@/lib/types";
 import { extractTags, guessType } from "@/lib/sources";
 import { fold, guessRemote } from "@/lib/sources/classify";
 import { getCvSource } from "@/lib/cv/source";
+import { dedupeKey } from "@/lib/sources/classify";
+import { postingCounts } from "@/lib/search/store";
+import { evergreenReasons } from "@/lib/evergreen";
 
 // ---------- filters (pure, client-safe) ----------
 export { VERDICTS, SORTS, parseFilters, filtersToQuery, applyFilters } from "../offers-filter";
 export type { Sort, OfferFilters, OfferRow } from "../offers-filter";
 import { type OfferFilters, type OfferRow, applyFilters } from "../offers-filter";
 
-const toRow = (j: JobWithMeta, dup: OfferRow["dup"]): OfferRow => ({
+const toRow = (j: JobWithMeta, dup: OfferRow["dup"], postings = 0): OfferRow => ({
   id: j.id,
   title: j.title,
   company: j.company,
@@ -31,6 +34,7 @@ const toRow = (j: JobWithMeta, dup: OfferRow["dup"]): OfferRow => ({
   appId: j.application?.id ?? null,
   status: j.application?.status ?? null,
   dup,
+  evergreen: evergreenReasons(j.description, postings),
 });
 
 /** All offers in the archived/active bucket, with duplicate flags. Filtering is done in memory. */
@@ -38,7 +42,8 @@ const toRow = (j: JobWithMeta, dup: OfferRow["dup"]): OfferRow => ({
 export function listOfferRows(archived = false): OfferRow[] {
   const jobs = listJobs({ archived });
   const dups = findDuplicates(jobs);
-  return jobs.map((j) => toRow(j, dups.get(j.id) ?? null));
+  const postings = postingCounts();
+  return jobs.map((j) => toRow(j, dups.get(j.id) ?? null, postings.get(dedupeKey(j.company, j.title))));
 }
 
 export function listOffers(f: OfferFilters): OfferRow[] {

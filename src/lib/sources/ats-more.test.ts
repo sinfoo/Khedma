@@ -30,3 +30,30 @@ test("dated reposts share one duplicate key; distinct roles do not", async () =>
   assert.notEqual(dedupeKey("Acme", "Développeur Java - Tunis"), dedupeKey("Acme", "Développeur PHP - Tunis"));
   assert.equal(guessType("Werkstudent Data Engineering"), "stage");
 });
+
+test("workday boards: URL parsing, listing map and relative dates", async () => {
+  const { parseWorkdayBoard, mapWorkday, workdayPostedOn } = await import("./ats-more");
+  const b = parseWorkdayBoard("https://nvidia.wd5.myworkdayjobs.com/en-US/NVIDIAExternalCareerSite/job/x");
+  assert.deepEqual(b, { host: "nvidia.wd5.myworkdayjobs.com", tenant: "nvidia", site: "NVIDIAExternalCareerSite", publicPath: "NVIDIAExternalCareerSite" });
+  assert.equal(parseWorkdayBoard("wd1.myworkdaysite.com/recruiting/snapchat/snap")?.publicPath, "recruiting/snapchat/snap");
+  assert.equal(parseWorkdayBoard("https://evil.example.com/site"), null);
+  const jobs = mapWorkday([{ title: "Software Intern", externalPath: "/job/Paris/Software-Intern_R1", locationsText: "Paris", postedOn: "Posted 3 Days Ago" }], b!);
+  assert.equal(jobs[0].url, "https://nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite/job/Paris/Software-Intern_R1");
+  assert.equal(jobs[0].source, "workday");
+  const now = Date.parse("2026-10-18T12:00:00Z");
+  assert.equal(workdayPostedOn("Posted 3 Days Ago", now), "2026-10-15");
+  assert.equal(workdayPostedOn("Posted 30+ Days Ago", now), null);
+  assert.equal(detectAtsUrl("https://acme.wd3.myworkdayjobs.com/fr-FR/Careers")?.handle, "acme.wd3.myworkdayjobs.com/Careers");
+});
+
+test("teamtailor listing links carry the title; careers URLs are recognised", async () => {
+  const { teamtailorLinks } = await import("./ats-more");
+  const html = `<a href="https://acme.teamtailor.com/jobs/123-data-intern" class="x"><span title="Data Intern">Data Intern</span><span>Paris</span></a>
+    <a href="/jobs/456-backend-developer"><div><span>Backend Developer</span></div></a>
+    <a href="https://other.teamtailor.com/jobs/9-x">X</a><a href="/jobs">All jobs</a>`;
+  assert.deepEqual(teamtailorLinks(html, "acme.teamtailor.com"), [
+    { url: "https://acme.teamtailor.com/jobs/123-data-intern", title: "Data Intern" },
+    { url: "https://acme.teamtailor.com/jobs/456-backend-developer", title: "Backend Developer" },
+  ]);
+  assert.equal(detectAtsUrl("https://acme.teamtailor.com/jobs")?.kind, "teamtailor");
+});

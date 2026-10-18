@@ -2,6 +2,7 @@
 import { REMOTE_CODE, countryOf } from "./geo";
 import { JOB_TYPES, type Evaluation, type JobType } from "./types";
 import { fold } from "./sources/classify";
+import type { EvergreenReason } from "./evergreen";
 
 export const VERDICTS = ["apply_now", "apply", "maybe", "skip"] as const;
 export const SORTS = ["newest", "score", "deadline", "company"] as const;
@@ -95,6 +96,7 @@ export interface OfferRow {
   appId: number | null;
   status: string | null;
   dup: { id: number; title: string; newer: boolean } | null;
+  evergreen: EvergreenReason[];
 }
 
 const today = () => new Date().toLocaleDateString("sv");

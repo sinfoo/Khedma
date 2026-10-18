@@ -21,6 +21,12 @@ import { CopyButton, NewOfferPrompt, OfferMenu, StarToggle } from "@/components/
 import { applyTo, runEvaluation, tailorCvFor } from "@/app/actions/jobs";
 import { cvForMatching, findDuplicates, listEvaluationHistory } from "@/lib/repo/offers";
 import { atsKeywords } from "@/lib/ai/offers";
+import { matchBreakdown, type MatchBreakdown } from "@/lib/match";
+import { MatchCard } from "@/components/offers/match-card";
+import { EvergreenChip } from "@/components/offers/evergreen-chip";
+import { evergreenReasons } from "@/lib/evergreen";
+import { getSearchPrefs, postingCounts } from "@/lib/search/store";
+import { dedupeKey } from "@/lib/sources/classify";
 
 const TABS = ["overview", "fit", "keywords", "ask"] as const;
 type Tab = (typeof TABS)[number];
@@ -88,6 +94,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
                   <Copy size={12} aria-hidden="true" /> {fmt(o.dupOf, { title: dup.title })}
                 </Link>
               )}
+              <EvergreenChip reasons={evergreenReasons(job.description, postingCounts().get(dedupeKey(job.company, job.title)) ?? 0)} t={t} full />
             </p>
           </div>
           {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
@@ -187,6 +194,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           appId={job.application?.id ?? null}
           marginals={getTriageMarginals()}
           gates={eligibilityGates(job, getProfile(), getProfileExtra().langs)}
+          match={matchBreakdown(job, getProfile(), cv.text, getSearchPrefs().levels)}
           t={t}
           locale={locale}
         />
@@ -270,10 +278,11 @@ function KeywordReport({ ats, t, fileName, appId, jobId }: { ats: ReturnType<typ
   );
 }
 
-function FitTab({ jobId, ev, appId, marginals, gates, t, locale }: { jobId: number; ev: Evaluation | null; appId: number | null; marginals: boolean; gates: Gate[]; t: Dict; locale: Locale }) {
+function FitTab({ jobId, ev, appId, marginals, gates, match, t, locale }: { jobId: number; ev: Evaluation | null; appId: number | null; marginals: boolean; gates: Gate[]; match: MatchBreakdown; t: Dict; locale: Locale }) {
   const o = t.offers2;
   if (!ev)
     return (
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
       <section className="card relative overflow-hidden px-6 py-12 text-center rise">
         <div className="pattern pattern-fade" aria-hidden="true" />
         <div className="relative mx-auto mb-4 grid size-12 place-items-center rounded-2xl bg-accent-soft text-accent-text">
@@ -285,6 +294,8 @@ function FitTab({ jobId, ev, appId, marginals, gates, t, locale }: { jobId: numb
           <Sparkles size={16} aria-hidden="true" /> {o.evaluate}
         </ActionButton>
       </section>
+      <MatchCard match={match} t={t} />
+      </div>
     );
 
   const history = listEvaluationHistory(jobId);
@@ -319,6 +330,8 @@ function FitTab({ jobId, ev, appId, marginals, gates, t, locale }: { jobId: numb
         </div>
         <EvaluationV2 ev={ev} jobId={jobId} appId={appId} marginals={marginals} gates={gates} />
       </div>
+      <div className="space-y-6">
+      <MatchCard match={match} t={t} />
       <section className="card p-5 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="hist-h">
         <h2 id="hist-h" className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)" }}>{o.history}</h2>
         {history.length <= 1 ? (
@@ -344,6 +357,7 @@ function FitTab({ jobId, ev, appId, marginals, gates, t, locale }: { jobId: numb
           </ol>
         )}
       </section>
+      </div>
     </div>
   );
 }

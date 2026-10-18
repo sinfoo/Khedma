@@ -19,6 +19,18 @@ export function ensureSearchSchema(): void {
     `ALTER TABLE jobs ADD COLUMN trust_score INTEGER;
      ALTER TABLE jobs ADD COLUMN trust_flags TEXT NOT NULL DEFAULT '[]';`,
   );
+  // Every posting URL seen per role, so a role reposted under new URLs can be counted (the dedupe skips the copies).
+  migrate("search:003-sightings", "CREATE TABLE IF NOT EXISTS job_sightings (key TEXT NOT NULL, url TEXT NOT NULL, PRIMARY KEY (key, url)) WITHOUT ROWID;");
+}
+
+/** Distinct posting URLs per role (dedupeKey), from stored offers and copies the dedupe skipped. */
+export function postingCounts(): Map<string, number> {
+  ensureSearchSchema();
+  const urls = new Map<string, Set<string>>();
+  const add = (key: string, url: string) => urls.set(key, (urls.get(key) ?? new Set()).add(url));
+  for (const r of db().prepare("SELECT key, url FROM job_sightings").all() as Row[]) add(r.key as string, r.url as string);
+  for (const r of db().prepare("SELECT company, title, url FROM jobs").all() as Row[]) add(dedupeKey(r.company as string, r.title as string), r.url as string);
+  return new Map([...urls].map(([k, v]) => [k, v.size]));
 }
 
 export function setRelevance(jobId: number, score: number, why: string[]): void {
@@ -111,9 +123,16 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
     if (!r.archived || dead || recent) keys.add(historyKey(job, settings.dedup_include_location));
   }
   const seen = new Set<string>();
+  const sight = d.prepare("INSERT OR IGNORE INTO job_sightings (key, url) VALUES (?, ?)");
+  const note = (j: NewJob) => sight.run(dedupeKey(j.company, j.title), j.url);
   return {
-    has: (j) => urls.has(j.url) || keys.has(historyKey(j, settings.dedup_include_location)),
+    has: (j) => {
+      const hit = urls.has(j.url) || keys.has(historyKey(j, settings.dedup_include_location));
+      if (hit) note(j);
+      return hit;
+    },
     add: (j) => {
+      note(j);
       urls.add(j.url);
       keys.add(historyKey(j, settings.dedup_include_location));
     },

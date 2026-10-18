@@ -4,8 +4,9 @@ import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { decodeEntities, htmlToText, pickMeta } from "./html";
 import { getText, mapLimit, prettySlug } from "./http";
 import { importFromUrl, validatePublicUrl } from "./url";
+import { parseWorkdayBoard } from "./ats-more";
 
-export type AtsKind = "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "rss" | "careers";
+export type AtsKind = "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "workday" | "teamtailor" | "rss" | "careers";
 
 export interface Detected {
   kind: AtsKind;
@@ -42,9 +43,9 @@ export function detectAtsUrl(raw: string): Detected | null {
   if (/^jobs(\.eu)?\.lever\.co$/.test(host) && ok) return { kind: "lever", handle: slug, label: prettySlug(slug), ats: "Lever" };
   if (host === "api.lever.co" && seg[0] === "v0" && seg[1] === "postings" && seg[2] && SLUG_RE.test(seg[2])) return { kind: "lever", handle: seg[2], label: prettySlug(seg[2]), ats: "Lever" };
   if (host === "jobs.ashbyhq.com" && ok) return { kind: "ashby", handle: slug, label: prettySlug(slug), ats: "Ashby" };
-  if ((m = /^([a-z0-9-]+)\.teamtailor\.com$/.exec(host))) return { kind: "rss", handle: `https://${host}/jobs.rss`, label: prettySlug(m[1]), ats: "Teamtailor" };
-  // ponytail: no dedicated readers for these yet; their public pages are read like any careers page.
-  if ((m = /^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "Workday" };
+  if ((m = /^([a-z0-9-]+)\.teamtailor\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "teamtailor", handle: m[1], label: prettySlug(m[1]), ats: "Teamtailor" };
+  const wd = /myworkday(jobs|site)\.com$/.test(host) ? parseWorkdayBoard(`${host}${u.pathname}`) : null;
+  if (wd) return { kind: "workday", handle: `${wd.host}/${wd.publicPath.replace(/^recruiting\//, "")}`, label: prettySlug(wd.tenant), ats: "Workday" };
   // Readers ported from freehire's board recogniser: board = first path segment or the subdomain.
   if (/^(careers|jobs)\.smartrecruiters\.com$/.test(host) && ok) return { kind: "smartrecruiters", handle: slug, label: prettySlug(slug), ats: "SmartRecruiters" };
   if (host === "api.smartrecruiters.com" && seg[0] === "v1" && seg[1] === "companies" && seg[2] && SLUG_RE.test(seg[2])) return { kind: "smartrecruiters", handle: seg[2], label: prettySlug(seg[2]), ats: "SmartRecruiters" };
@@ -69,11 +70,16 @@ const EMBEDS: [RegExp, AtsKind, string][] = [
   [/\/\/([a-z0-9-]+)\.recruitee\.com/i, "recruitee", "Recruitee"],
   [/\/\/([a-z0-9-]+)\.jobs\.personio\.(?:com|de)/i, "personio", "Personio"],
   [/\/\/([a-z0-9-]+)\.pinpointhq\.com/i, "pinpoint", "Pinpoint"],
+  [/\/\/([a-z0-9-]+)\.teamtailor\.com/i, "teamtailor", "Teamtailor"],
 ];
 const NOT_SLUGS = new Set(["embed", "v0", "v1", "js", "api", "jobs", "boards"]);
 
 /** Find an embedded ATS (links, iframes, board scripts) or a jobs RSS feed in a careers page. */
 export function detectAtsInHtml(html: string): Detected | null {
+  // Workday boards keep their case-sensitive site name, so they skip the lower-cased slug check below.
+  const wd = /https?:\/\/([a-z0-9-]+\.wd\d+\.myworkdayjobs\.com\/[^"'\s<>?#]+)/i.exec(html);
+  const board = wd ? parseWorkdayBoard(wd[1]) : null;
+  if (board) return { kind: "workday", handle: `${board.host}/${board.site}`, label: prettySlug(board.tenant), ats: "Workday" };
   for (const [re, kind, ats] of EMBEDS) {
     const m = re.exec(html);
     const slug = m?.[1]?.toLowerCase();

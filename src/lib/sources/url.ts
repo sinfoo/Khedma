@@ -29,7 +29,7 @@ const str = (v: unknown): string => (typeof v === "string" ? v : "");
 const obj = (v: unknown): Json => (v && typeof v === "object" && !Array.isArray(v) ? (v as Json) : {});
 const first = (v: unknown): unknown => (Array.isArray(v) ? v[0] : v);
 
-function fromJsonLd(ld: Json, url: string): NewJob {
+export function fromJsonLd(ld: Json, url: string): NewJob {
   const title = str(ld.title) || str(ld.name);
   const company = str(obj(ld.hiringOrganization).name);
   const addr = obj(obj(first(ld.jobLocation)).address);
