@@ -18,8 +18,8 @@ import {
   localDate,
 } from "@/lib/repo/apps";
 import { EngineChip } from "@/components/ui";
-import { DocEditor } from "@/components/doc-editor";
 import { ActionButton } from "@/components/action-button";
+import { DocEditor } from "@/components/doc-editor";
 import { WorkspaceHeader } from "@/components/pipeline/header";
 import { Checklist, NotesCard } from "@/components/pipeline/overview";
 import { SourceBar } from "@/components/pipeline/documents";
@@ -27,9 +27,10 @@ import { CvDropzone } from "@/components/pipeline/dropzone";
 import { MessagesPanel } from "@/components/pipeline/messages";
 import { ReplyClassifier } from "@/components/pipeline/reply-classifier";
 import { CadenceBanner, toView } from "@/components/pipeline/cadence";
+import { MarkSentButton } from "@/components/pipeline/mark-sent";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
-import { generateDoc, generatePrep, moveApplication, saveDoc } from "@/app/actions/applications";
+import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
 import { listStories } from "@/lib/repo/coach";
 import { mapStories } from "@/lib/coach/logic";
 import { likelyConcerns } from "@/lib/coach/concerns";
@@ -170,9 +171,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                     <div className="flex gap-1">
                       <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{F.edit}</Link>
                       {text?.trim() && (
-                        <a href={`/api/applications/${app.id}/export?doc=${k}&format=docx`} className="btn btn-outline btn-icon btn-sm !h-7 !w-7 text-ink-2" aria-label={F.download} download>
-                          <Download size={13} aria-hidden="true" />
-                        </a>
+                        <>
+                          <a href={`/print/${app.id}?doc=${k}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlPdf, { doc: label })} title={fmt(F.dlPdf, { doc: label })}>
+                            <Download size={13} aria-hidden="true" /> PDF
+                          </a>
+                          <a href={`/api/applications/${app.id}/export?doc=${k}&format=docx`} className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlDocx, { doc: label })} title={fmt(F.dlDocx, { doc: label })} download>
+                            DOCX
+                          </a>
+                        </>
                       )}
                     </div>
                   </li>
@@ -232,11 +238,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <section className="card p-4">
               <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
               <p className="text-[0.78rem] leading-relaxed text-muted">{F.afterApplyText}</p>
-              {!applied && (
-                <ActionButton action={async () => { "use server"; await moveApplication(app.id, "applied"); }} className="btn btn-primary btn-sm mt-3 w-full">
-                  <CircleCheck size={14} aria-hidden="true" /> {F.markApplied}
-                </ActionButton>
-              )}
+
             </section>
           </aside>
         </div>
@@ -276,7 +278,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 downloads={{ docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
               />
             )}
-            <aside className="flex flex-col gap-3.5">
+            <aside className="no-print flex flex-col gap-3.5">
               {doc === "cv" && <AtsPanel t={t} before={hasCv ? atsCheck(job, source.text) : null} after={app.cv_md ? atsCheck(job, app.cv_md) : null} />}
               <Checklist id={app.id} items={checklist.items} compact title={F.beforeSend} />
               <Link href={`/app/coach?application=${app.id}`} className="inline-flex items-center gap-1.5 px-1 text-[0.8rem] font-semibold">
@@ -398,7 +400,15 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <ArrowLeft size={14} aria-hidden="true" /> {F.back}
           </Link>
         )}
-        {step !== "after" && (
+        {step === "review" && !applied ? (
+          <MarkSentButton
+            id={app.id}
+            status={app.status}
+            title={`${job.company} — ${job.title}`}
+            missing={[...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(app.cover_letter_md?.trim() ? [] : ["letter" as const])]}
+            afterHref={stepHref("after")}
+          />
+        ) : step !== "after" && (
           <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>
             {step === "review" ? F.steps.after.label : F.next} <ArrowRight size={14} aria-hidden="true" />
           </Link>

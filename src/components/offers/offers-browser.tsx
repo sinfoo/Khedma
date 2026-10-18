@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlarmClock, Archive, ArchiveRestore, Copy, ExternalLink, FileText, MapPin, MoreHorizontal, Sparkles, Star, Trash2, Wifi, X, Bookmark } from "lucide-react";
+import { AlarmClock, Archive, ArchiveRestore, Copy, ExternalLink, FileText, MapPin, MoreHorizontal, Sparkles, Star, Trash2, Wifi, X, Bookmark, Send } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -15,7 +15,7 @@ import { ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreColor, scor
 import type { AppState } from "@/lib/types";
 import type { SavedView } from "@/lib/repo/offers";
 import { applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
-import { archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
+import { applyTo, archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
 import { OffersToolbar } from "./offers-toolbar";
 
 type Patch = { ids: number[]; patch?: Partial<OfferRow>; remove?: boolean };
@@ -261,6 +261,7 @@ export function OffersBrowser({
     onEvaluate: () => void evaluate([{ id: r.id, title: r.title }]),
     onTrack: () => track([r.id]),
     onTailor: () => startAction(async () => await tailorCvFor(r.id)),
+    onApply: () => startAction(async () => await applyTo(r.id)),
     onArchive: () => archive([r.id]),
     onDelete: () => setConfirmIds([r.id]),
     archivedView: filters.archived,
@@ -391,6 +392,7 @@ interface RowProps {
   onEvaluate: () => void;
   onTrack: () => void;
   onTailor: () => void;
+  onApply: () => void;
   onArchive: () => void;
   onDelete: () => void;
   archivedView: boolean;
@@ -488,6 +490,7 @@ function RowMenu(p: RowProps) {
       <Menu label={fmt(o.rowActions, { title: r.title })} trigger={<MoreHorizontal size={16} aria-hidden="true" />}>
         <MenuItem href={`/app/jobs/${r.id}`}><ExternalLink size={14} aria-hidden="true" /> {o.open}</MenuItem>
         <MenuItem onClick={p.onEvaluate}><Sparkles size={14} aria-hidden="true" /> {r.score !== null ? o.reevaluate : o.evaluate}</MenuItem>
+        <MenuItem onClick={p.onApply}><Send size={14} aria-hidden="true" /> {o.apply}</MenuItem>
         <MenuItem onClick={p.onTailor}><FileText size={14} aria-hidden="true" /> {o.tailorCv}</MenuItem>
         {r.appId && r.appId > 0 ? (
           <MenuItem href={`/app/pipeline/${r.appId}`}><Bookmark size={14} aria-hidden="true" /> {o.openApplication}</MenuItem>

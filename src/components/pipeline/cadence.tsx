@@ -50,7 +50,7 @@ export function CadenceBanner({ id, c, t, locale }: { id: number; c: CadenceView
   const long = c.urgency === "waiting" ? fmt(m.urgencyLong.waiting, { date: shortDate(c.nextDue, locale) }) : m.urgencyLong[c.urgency];
   const draft = c.urgency === "overdue" || c.urgency === "urgent" ? c.angle : null;
   return (
-    <aside className={`mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 text-sm ${tone}`} aria-label={m.urgency[c.urgency]}>
+    <aside className={`no-print mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 text-sm ${tone}`} aria-label={m.urgency[c.urgency]}>
       <CadenceChip c={c} t={t} locale={locale} showWaiting />
       <span className="text-ink-2">{long}</span>
       {c.followupCount > 0 && <span className="mono text-xs text-muted tabular">{fmt(m.sent, { n: c.followupCount })}</span>}

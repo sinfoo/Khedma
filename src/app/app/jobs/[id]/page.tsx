@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PostingLink } from "@/components/posting-link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Bookmark, Copy, FileText, Pencil, Sparkles } from "lucide-react";
+import { ArrowLeft, Bookmark, Copy, FileText, Pencil, Send, Sparkles } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
 import { getJob, getProfile, listJobs, withMeta } from "@/lib/db";
@@ -18,7 +18,7 @@ import { ActionButton } from "@/components/action-button";
 import { FormattedDescription } from "@/components/offers/description";
 import { AskOffer } from "@/components/offers/ask-offer";
 import { CopyButton, NewOfferPrompt, OfferMenu, StarToggle } from "@/components/offers/offer-actions";
-import { runEvaluation, tailorCvFor } from "@/app/actions/jobs";
+import { applyTo, runEvaluation, tailorCvFor } from "@/app/actions/jobs";
 import { cvForMatching, findDuplicates, listEvaluationHistory } from "@/lib/repo/offers";
 import { atsKeywords } from "@/lib/ai/offers";
 
@@ -94,13 +94,17 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
         </div>
 
         <div className="mt-3.5 flex flex-wrap items-center gap-2 no-print">
-          {job.application ? (
+          {job.application?.applied_at ? (
             <Link href={`/app/pipeline/${job.application.id}`} className="btn btn-primary !h-9">
               <Bookmark size={14} aria-hidden="true" /> {o.openApplication}
             </Link>
+          ) : job.application ? (
+            <Link href={`/app/pipeline/${job.application.id}?tab=overview`} className="btn btn-primary !h-9">
+              <Send size={14} aria-hidden="true" /> {o.apply}
+            </Link>
           ) : (
-            <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-primary !h-9">
-              <Bookmark size={14} aria-hidden="true" /> {o.trackTailor}
+            <ActionButton action={applyTo.bind(null, job.id)} className="btn btn-primary !h-9">
+              <Send size={14} aria-hidden="true" /> {o.apply}
             </ActionButton>
           )}
           {!ev && (
@@ -108,7 +112,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
             </ActionButton>
           )}
-          {job.application && (
+          {!job.application?.applied_at && (
             <ActionButton action={tailorCvFor.bind(null, job.id)} className="btn btn-outline !h-9">
               <FileText size={14} aria-hidden="true" /> {o.tailorCv}
             </ActionButton>

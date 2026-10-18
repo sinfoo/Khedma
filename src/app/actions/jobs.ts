@@ -153,6 +153,14 @@ export async function trackJob(jobId: number) {
   redirect(`/app/pipeline/${app.id}`);
 }
 
+/** "Apply": track if needed, then open the workspace on its review & apply step. */
+export async function applyTo(jobId: number) {
+  if (!getJob(Number(jobId))) return;
+  const app = ensureApplication(Number(jobId));
+  refresh();
+  redirect(`/app/pipeline/${app.id}?tab=overview`);
+}
+
 /** Track if needed, then open the application's documents tab for CV tailoring. */
 export async function tailorCvFor(jobId: number) {
   if (!getJob(Number(jobId))) return;

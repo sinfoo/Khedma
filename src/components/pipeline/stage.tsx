@@ -155,7 +155,7 @@ export function useStageMove(onOptimistic?: (id: number, status: AppState) => vo
   const [schedule, setSchedule] = useState<{ item: MovableItem; slot: string } | null>(null);
   const [reject, setReject] = useState<MovableItem | null>(null);
 
-  const move = (item: MovableItem, to: AppState) => {
+  const move = (item: MovableItem, to: AppState, onDone?: () => void) => {
     if (item.status === to) return;
     start(async () => {
       onOptimistic?.(item.id, to);
@@ -179,6 +179,7 @@ export function useStageMove(onOptimistic?: (id: number, status: AppState) => vo
             } else toast.error(t.common.error, u.error);
           }),
       });
+      onDone?.();
       if (r.askInterview) setSchedule({ item, slot: defaultSlot() });
       if (r.askReason) setReject(item);
     });
