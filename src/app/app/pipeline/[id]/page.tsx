@@ -31,6 +31,7 @@ import { ReplyClassifier } from "@/components/pipeline/reply-classifier";
 import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { MarkSentButton } from "@/components/pipeline/mark-sent";
 import { ApplyFormCard } from "@/components/pipeline/apply-form-card";
+import { PackButton } from "@/components/pipeline/pack-button";
 import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
 import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
@@ -169,6 +170,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           <section className="flex flex-col gap-3">
             <div className="card p-[18px]">
               <h2 className="mb-3 text-[1.15rem] tracking-[-0.01em]">{F.pack}</h2>
+              {!(app.cv_md?.trim() && app.cover_letter_md?.trim()) && <PackButton id={app.id} />}
               <ul className="flex flex-col gap-2">
                 {([["cv", app.cv_md, F.packCv], ["letter", app.cover_letter_md, F.packLetter]] as const).map(([k, text, label]) => (
                   <li key={k} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-line bg-bg-elev px-3 py-2.5">
@@ -306,7 +308,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           {applied && (
             <div className="mb-3.5 flex flex-wrap items-center gap-3 rounded-xl bg-success-soft px-3.5 py-3 text-success" style={{ animation: "pop .3s ease both" }}>
               <CircleCheck size={18} aria-hidden="true" />
-              <p className="min-w-0 flex-1 text-sm font-semibold">{fmt(F.appliedOn, { date: shortDate(app.applied_at ?? app.updated_at, locale) })}</p>
+              <p className="min-w-0 flex-1 text-sm">
+                <span className="font-semibold">{fmt(F.appliedOn, { date: shortDate(app.applied_at ?? app.updated_at, locale) })}</span>
+                {app.status === "applied" && app.next_action_at && <span className="block text-[0.8rem] text-ink-2">{fmt(F.appliedNext, { date: shortDate(app.next_action_at, locale) })}</span>}
+              </p>
               <Link href="/app/pipeline" className="text-[0.8rem] font-semibold text-success">{F.seePipeline}</Link>
             </div>
           )}
@@ -411,6 +416,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
           <Link href={stepHref(STEPS[STEPS.indexOf(step) - 1])} className="btn btn-outline !h-10">
             <ArrowLeft size={14} aria-hidden="true" /> {F.back}
           </Link>
+        )}
+        {step === "letter" && !app.cover_letter_md?.trim() && (
+          <Link href={stepHref("review")} className="btn btn-ghost !h-10 text-ink-2">{F.skipStep}</Link>
         )}
         {step === "review" && !applied ? (
           <MarkSentButton

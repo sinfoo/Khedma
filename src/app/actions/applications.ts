@@ -163,6 +163,17 @@ export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Re
   }
 }
 
+/** "Prepare my pack": writes whichever of the CV and letter is still missing, both at once. */
+export async function generatePack(id: number): Promise<Result<{ written: number }>> {
+  const app = exists(id) ? getApplication(id) : null;
+  if (!app) return fail("notFound");
+  const kinds = (["cv", "letter"] as const).filter((k) => !(k === "cv" ? app.cv_md : app.cover_letter_md)?.trim());
+  const results = await Promise.all(kinds.map((k) => generateDoc(id, k)));
+  const bad = results.find((r) => !r.ok);
+  if (bad && !results.some((r) => r.ok)) return bad as { ok: false; error: string };
+  return { ok: true, written: results.filter((r) => r.ok).length };
+}
+
 export async function clearCvOverride(id: number): Promise<Result> {
   if (!exists(id)) return fail("notFound");
   setExtras(id, { cv_override_text: null, cv_override_name: null, cv_override_at: null });
