@@ -14,7 +14,7 @@ import { addProviderSource } from "@/app/actions/sources";
 const COUNTRY_ORDER: CatalogCountry[] = ["TN", "FR", "DE", "CH", "GB", "CA", "US", "JP", "INT"];
 
 /** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. `missingEnv` = kinds whose API key is not set. */
-export function Catalog({ existing, keywords = [], missingEnv = [], onAdded }: { existing: string[]; keywords?: string[]; missingEnv?: string[]; onAdded: (id: number, name: string) => void }) {
+export function Catalog({ existing, keywords = [], missingEnv = [], countries, onAdded }: { existing: string[]; keywords?: string[]; missingEnv?: string[]; /** Target countries: their boards and worldwide ones show first, the rest fold away. */ countries?: string[]; onAdded: (id: number, name: string) => void }) {
   const { t } = useT();
   const s2 = t.sources2;
   const [adding, setAdding] = useState<CatalogEntry | null>(null);
@@ -23,6 +23,8 @@ export function Catalog({ existing, keywords = [], missingEnv = [], onAdded }: {
     return { code, title: `${c ? `${c.flag} ` : ""}${s2.country[code]}`, entries: CATALOG.filter((e) => e.country === code) };
   }).filter((g) => g.entries.length);
   const q = keywords.slice(0, 3).join(" ");
+  const mine = (code: string) => !countries || code === "INT" || countries.includes(code);
+  const others = groups.filter((g) => !mine(g.code));
   return (
     <section aria-labelledby="catalog-h" className="rise" style={{ ["--i" as string]: 6 }}>
       <div className="mb-4">
@@ -31,7 +33,28 @@ export function Catalog({ existing, keywords = [], missingEnv = [], onAdded }: {
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">{s2.catalogLead}</p>
       </div>
-      {groups.map(({ code, title, entries }) => (
+      {groups.filter((g) => mine(g.code)).map(renderGroup)}
+      {others.length > 0 && (
+        <details className="group mb-6">
+          <summary className="mb-3 cursor-pointer text-sm font-semibold text-ink-2">{fmt(s2.scan2.manage.otherCountries, { n: others.reduce((a, g) => a + g.entries.length, 0) })}</summary>
+          {others.map(renderGroup)}
+        </details>
+      )}
+      {adding && (
+        <AddDialog
+          entry={adding}
+          onClose={() => setAdding(null)}
+          onAdded={(id, name) => {
+            setAdding(null);
+            onAdded(id, name);
+          }}
+        />
+      )}
+    </section>
+  );
+
+  function renderGroup({ code, title, entries }: (typeof groups)[number]) {
+    return (
         <div key={code} className="mb-6">
           <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={{ fontFamily: "var(--font-sans)" }}>
             {title}
@@ -85,19 +108,8 @@ export function Catalog({ existing, keywords = [], missingEnv = [], onAdded }: {
             })}
           </ul>
         </div>
-      ))}
-      {adding && (
-        <AddDialog
-          entry={adding}
-          onClose={() => setAdding(null)}
-          onAdded={(id, name) => {
-            setAdding(null);
-            onAdded(id, name);
-          }}
-        />
-      )}
-    </section>
-  );
+    );
+  }
 }
 
 function AddDialog({ entry, onClose, onAdded }: { entry: CatalogEntry; onClose: () => void; onAdded: (id: number, name: string) => void }) {

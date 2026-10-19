@@ -119,9 +119,11 @@ export function updateSourceRow(id: number, p: Partial<Pick<SourceRow, "label" |
 
 /** Skills the profile lists plus the ones found in the CV text, profile order first. */
 const LANGUAGE_WORDS = new Set(["arabic", "arabe", "french", "francais", "français", "english", "anglais", "german", "allemand", "spanish", "espagnol", "italian", "italien"]);
+// Soft skills sit in most CVs and most postings: as board queries or relevance boosts they match everything.
+const SOFT_SKILLS = new Set(["communication", "creativity", "créativité", "creativite", "teamwork", "team work", "travail en équipe", "travail en equipe", "leadership", "autonomy", "autonomie", "rigueur", "curiosity", "curiosité", "adaptability", "adaptabilité", "problem solving", "problem-solving", "esprit d'équipe", "organisation", "time management"]);
 export function cvSkills(profile: Profile, cvText = profile.cv_md): string[] {
-  // Spoken languages are listed as skills by some profiles; they make poor board queries.
-  return [...new Set([...profile.skills, ...extractSkills(cvText)].map((k) => k.trim()).filter((k) => k && !LANGUAGE_WORDS.has(k.toLowerCase())))];
+  // Spoken languages and soft skills are listed as skills by many profiles; they make poor board queries.
+  return [...new Set([...profile.skills, ...extractSkills(cvText)].map((k) => k.trim()).filter((k) => k && !LANGUAGE_WORDS.has(k.toLowerCase()) && !SOFT_SKILLS.has(k.toLowerCase())))];
 }
 
 /**

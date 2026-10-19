@@ -193,9 +193,9 @@ export function ScanPanel({
               {busy ? m.scanning : m.scanAgain}
             </button>
           ) : null}
-          <a href="#catalog" className="btn btn-outline">
+          <Link href="/app/sources/manage#catalog" className="btn btn-outline">
             <Plus size={15} aria-hidden="true" /> {m.addSource}
-          </a>
+          </Link>
         </div>
       </header>
 

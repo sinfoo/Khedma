@@ -53,7 +53,7 @@ export async function addProviderSource(input: { kind: string; label?: string; h
   if ("error" in s) return { ok: false, error: s.error as "kind" | "handle" };
   const newId = createSourceRow(s);
   if (!newId) return { ok: false, error: "duplicate" };
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
   return { ok: true, id: newId };
 }
 
@@ -65,7 +65,7 @@ export async function updateSourceSettings(sourceId: number, input: { label?: st
     ...(input.keywords !== undefined ? { keywords: parseKeywords(input.keywords) } : {}),
     ...(input.keep_all !== undefined ? { keep_all: !!input.keep_all } : {}),
   });
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
 }
 
 /** Kept for older callers: FormData-based add of an API/RSS source. */
@@ -77,20 +77,20 @@ export async function toggleSource(sourceId: number, enabled: boolean) {
   const n = id(sourceId);
   if (!n) return;
   updateSource(n, { enabled: !!enabled });
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
 }
 
 export async function removeSource(sourceId: number) {
   const n = id(sourceId);
   if (!n) return;
   deleteSource(n);
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
 }
 
 export async function loadSuggestedSources(set: "tn" | "intl" | "all" = "all") {
   if (set !== "intl") for (const s of SUGGESTED_TN_SOURCES) createSourceRow({ ...s, keywords: [], keep_all: false });
   if (set !== "tn") for (const s of SUGGESTED_SOURCES) addSource(s as Pick<Source, "kind" | "label" | "handle">);
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
 }
 
 /** Non-streaming scan of one source (the page uses the streaming route; this stays for other callers). */
@@ -114,7 +114,7 @@ export async function getAutoScanState() {
 export async function setAutoScan(enabled: boolean, hours: number) {
   const h = AUTO_HOURS.includes(hours as (typeof AUTO_HOURS)[number]) ? hours : 6;
   saveAutoScan({ enabled: !!enabled, hours: h });
-  revalidatePath("/app/sources");
+  revalidatePath("/app/sources", "layout");
 }
 
 /** Tracked company from a careers URL (ATS auto-detected). `name` overrides the detected label. */
@@ -122,7 +122,7 @@ export async function addTrackedCompany(url: string, name?: string) {
   const u = String(url ?? "").trim().slice(0, 1000);
   if (!u) return { ok: false as const, error: "invalid" as const };
   const r = await trackCompany(u, name ? String(name).slice(0, 80) : undefined);
-  if (r.ok) revalidatePath("/app/sources");
+  if (r.ok) revalidatePath("/app/sources", "layout");
   return r;
 }
 
