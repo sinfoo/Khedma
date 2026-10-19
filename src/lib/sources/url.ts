@@ -5,6 +5,27 @@ import { getText } from "./http";
 
 const MAX_DESC = 12_000;
 
+// Apply-form pages of a posting (freehire's CanonicalPostingURL, MIT): "/apply" and "/application" are the same
+// offer as the posting page, so one canonical URL keeps the dedupe from storing it twice.
+const APPLY_SUFFIX: [RegExp, string][] = [
+  [/^jobs\.ashbyhq\.com$/, "/application"],
+  [/^jobs(\.eu)?\.lever\.co$/, "/apply"],
+  [/^(apply|jobs)\.workable\.com$/, "/apply"],
+];
+export function canonicalPostingUrl(raw: string): string {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return raw;
+  }
+  const suffix = APPLY_SUFFIX.find(([re]) => re.test(u.hostname.toLowerCase()))?.[1];
+  const path = u.pathname.replace(/\/$/, "");
+  if (!suffix || !path.toLowerCase().endsWith(suffix) || path.length === suffix.length) return raw;
+  u.pathname = path.slice(0, -suffix.length);
+  return u.toString();
+}
+
 /** Reject non-http(s) and private/loopback hosts so a pasted URL cannot probe the local network. */
 export function validatePublicUrl(raw: string): { url?: URL; error?: string } {
   let u: URL;
@@ -83,7 +104,8 @@ export async function importFromUrl(raw: string): Promise<{ job?: NewJob; text: 
   const text = htmlToText(html).slice(0, MAX_DESC);
   try {
     const ld = pickJsonLdJobPosting(html);
-    const job = ld ? fromJsonLd(ld, url.toString()) : fromHtml(html, url);
+    const parsed = ld ? fromJsonLd(ld, url.toString()) : fromHtml(html, url);
+    const job = { ...parsed, url: canonicalPostingUrl(parsed.url) };
     if (!job.title) return { text, error: "Could not find a job title on that page" };
     // JS-rendered pages have almost no body text; the JSON-LD description is the better raw copy then.
     return { job, text: text.length >= job.description.length ? text : job.description };

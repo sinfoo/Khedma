@@ -4,8 +4,8 @@ import { countryByCode, countryOf, REMOTE_CODE } from "../geo";
 export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
-  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures",
-  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "rss", "careers",
+  "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
+  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "join", "softgarden", "successfactors", "icims", "rss", "careers",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -13,7 +13,7 @@ export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS
 /** Sites Khedma cannot read (login, JavaScript or bot walls): shown as ready-made search links only. */
 export const LINK_KINDS = [
   "indeed", "google", "stepstone", "xing", "glassdoor", "ziprecruiter", "wellfound",
-  "francetravail", "hellowork", "apec", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
+  "francetravail", "hellowork", "apec", "wttj", "bayt", "landingjobs", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
@@ -183,6 +183,17 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "pinpoint", name: "Pinpoint", country: "INT", method: "api", site: "https://www.pinpointhq.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "workday", name: "Workday", country: "INT", method: "api", site: "https://www.workday.com", handle: { type: "url", placeholder: "https://acme.wd5.myworkdayjobs.com/External" }, keywords: false },
   { kind: "teamtailor", name: "Teamtailor", country: "INT", method: "html", site: "https://www.teamtailor.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "bamboohr", name: "BambooHR", country: "INT", method: "api", site: "https://www.bamboohr.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "breezy", name: "Breezy HR", country: "INT", method: "api", site: "https://breezy.hr", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "join", name: "JOIN", country: "DE", method: "api", site: "https://join.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "softgarden", name: "softgarden", country: "DE", method: "html", site: "https://softgarden.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "successfactors", name: "SAP SuccessFactors", country: "INT", method: "html", site: "https://www.sap.com/products/hcm.html", handle: { type: "slug", placeholder: "jobs.acme.com" }, keywords: false },
+  { kind: "icims", name: "iCIMS", country: "INT", method: "html", site: "https://www.icims.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "thehub", name: "The Hub", country: "INT", method: "html", site: "https://thehub.io", handle: none, keywords: true },
+  { kind: "hackernews", name: "Hacker News – Who is hiring?", country: "INT", method: "api", site: "https://news.ycombinator.com", handle: none, keywords: false },
+  link("wttj", "Welcome to the Jungle", "FR", "https://www.welcometothejungle.com", (q, loc) => `https://www.welcometothejungle.com/fr/jobs?query=${enc(q)}&aroundQuery=${enc(loc)}`),
+  link("bayt", "Bayt", "INT", "https://www.bayt.com", (q) => `https://www.bayt.com/en/international/jobs/${slug(q) || "internship"}-jobs/`),
+  link("landingjobs", "Landing.jobs", "INT", "https://landing.jobs", (q) => `https://landing.jobs/jobs?search=${enc(q)}`),
   { kind: "rss", name: "RSS / Atom", country: "INT", method: "rss", site: "", handle: { type: "url", placeholder: "https://…/jobs.rss" }, keywords: false },
   { kind: "careers", name: "Page carrières", country: "INT", method: "html", site: "", handle: { type: "url", placeholder: "https://…/careers" }, keywords: false },
 ];

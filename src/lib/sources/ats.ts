@@ -6,7 +6,7 @@ import { getText, mapLimit, prettySlug } from "./http";
 import { importFromUrl, validatePublicUrl } from "./url";
 import { parseWorkdayBoard } from "./ats-more";
 
-export type AtsKind = "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "workday" | "teamtailor" | "rss" | "careers";
+export type AtsKind = "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "workday" | "teamtailor" | "bamboohr" | "breezy" | "join" | "softgarden" | "successfactors" | "icims" | "rss" | "careers";
 
 export interface Detected {
   kind: AtsKind;
@@ -53,7 +53,11 @@ export function detectAtsUrl(raw: string): Detected | null {
   if ((m = /^([a-z0-9-]+)\.recruitee\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "recruitee", handle: m[1], label: prettySlug(m[1]), ats: "Recruitee" };
   if ((m = /^([a-z0-9-]+)\.jobs\.personio\.(com|de)$/.exec(host))) return { kind: "personio", handle: m[1], label: prettySlug(m[1]), ats: "Personio" };
   if ((m = /^([a-z0-9-]+)\.pinpointhq\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "pinpoint", handle: m[1], label: prettySlug(m[1]), ats: "Pinpoint" };
-  if ((m = /^([a-z0-9-]+)\.bamboohr\.com$/.exec(host))) return { kind: "careers", handle: u.toString(), label: prettySlug(m[1]), ats: "BambooHR" };
+  if ((m = /^([a-z0-9-]+)\.bamboohr\.com$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "bamboohr", handle: m[1], label: prettySlug(m[1]), ats: "BambooHR" };
+  if ((m = /^([a-z0-9-]+)\.breezy\.hr$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "breezy", handle: m[1], label: prettySlug(m[1]), ats: "Breezy" };
+  if (host === "join.com" && seg[0] === "companies" && seg[1] && SLUG_RE.test(seg[1])) return { kind: "join", handle: seg[1], label: prettySlug(seg[1]), ats: "JOIN" };
+  if ((m = /^([a-z0-9-]+)\.softgarden\.io$/.exec(host)) && !SUB_RESERVED.has(m[1])) return { kind: "softgarden", handle: m[1], label: prettySlug(m[1]), ats: "softgarden" };
+  if ((m = /^careers-([a-z0-9-]+)\.icims\.com$/.exec(host))) return { kind: "icims", handle: m[1], label: prettySlug(m[1]), ats: "iCIMS" };
   return null;
 }
 
@@ -71,6 +75,11 @@ const EMBEDS: [RegExp, AtsKind, string][] = [
   [/\/\/([a-z0-9-]+)\.jobs\.personio\.(?:com|de)/i, "personio", "Personio"],
   [/\/\/([a-z0-9-]+)\.pinpointhq\.com/i, "pinpoint", "Pinpoint"],
   [/\/\/([a-z0-9-]+)\.teamtailor\.com/i, "teamtailor", "Teamtailor"],
+  [/\/\/([a-z0-9-]+)\.bamboohr\.com\/careers/i, "bamboohr", "BambooHR"],
+  [/\/\/([a-z0-9-]+)\.breezy\.hr/i, "breezy", "Breezy"],
+  [/join\.com\/companies\/([a-z0-9._-]+)/i, "join", "JOIN"],
+  [/\/\/([a-z0-9-]+)\.softgarden\.io/i, "softgarden", "softgarden"],
+  [/\/\/careers-([a-z0-9-]+)\.icims\.com/i, "icims", "iCIMS"],
 ];
 const NOT_SLUGS = new Set(["embed", "v0", "v1", "js", "api", "jobs", "boards"]);
 
@@ -114,6 +123,8 @@ export async function detectAts(raw: string): Promise<Detected | { error: string
   const label = labelFor(url, res.text);
   const embedded = detectAtsInHtml(res.text);
   if (embedded) return { ...embedded, label: embedded.label || label };
+  // SuccessFactors career sites live on the employer's own host; their pages load SAP's rmk assets.
+  if (/rmkcdn\.successfactors\.com|career\d*\.successfactors\.(com|eu)/i.test(res.text)) return { kind: "successfactors", handle: url.hostname, label, ats: "SAP SuccessFactors" };
   return { kind: "careers", handle: url.toString(), label };
 }
 

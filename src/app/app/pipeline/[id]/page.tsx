@@ -19,7 +19,7 @@ import {
   localDate,
 } from "@/lib/repo/apps";
 import { EngineChip } from "@/components/ui";
-import { hostClass } from "@/lib/sources/trust";
+import { employerLink, hostClass } from "@/lib/sources/trust";
 import { ActionButton } from "@/components/action-button";
 import { DocEditor } from "@/components/doc-editor";
 import { WorkspaceHeader } from "@/components/pipeline/header";
@@ -85,6 +85,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const hasCv = source.text.trim().length >= 50;
   const contacts = listContacts(app.id);
   const contactEmail = contacts.find((c) => c.email)?.email ?? null;
+  const employerUrl = employerLink(job.url, job.description ?? "");
   const applyEmail = contactEmail ?? (job.description?.match(EMAIL) ?? []).find((e) => !/no-?reply/i.test(e)) ?? null;
   const interviews = listInterviews(app.id);
   const reminders = listReminders(app.id);
@@ -215,11 +216,11 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </Link>
                 )}
                 {/^https?:\/\//.test(job.url) ? (
-                  <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
+                  <a href={employerUrl ?? job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
                     <ExternalLink size={18} aria-hidden="true" className="text-accent-text" />
                     <span>
                       <span className="block text-[0.85rem] font-semibold">{F.portal}</span>
-                      <span className="block text-[0.72rem] text-muted">{new URL(job.url).host} · {hostClass(job.url) === "portal" ? F.portalBoardHint : F.portalHint}</span>
+                      <span className="block text-[0.72rem] text-muted">{new URL(employerUrl ?? job.url).host} · {employerUrl ? F.portalEmployerHint : hostClass(job.url) === "portal" ? F.portalBoardHint : F.portalHint}</span>
                     </span>
                   </a>
                 ) : (

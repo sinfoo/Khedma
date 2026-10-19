@@ -1,4 +1,5 @@
-// Keyless employer job systems (ported from freehire, MIT): Workable, SmartRecruiters, Recruitee, Personio, Pinpoint, Workday, Teamtailor.
+// Keyless employer job systems (ported from freehire, MIT): Workable, SmartRecruiters, Recruitee, Personio, Pinpoint, Workday, Teamtailor,
+// BambooHR, Breezy, JOIN, softgarden, SAP SuccessFactors, iCIMS; plus the thehub.io and Hacker News "Who is hiring?" boards.
 // Each lists one company's own board, so offers link to the employer's form, not an aggregator.
 import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
@@ -313,10 +314,289 @@ export async function teamtailor(handle: string): Promise<Scan> {
   return { jobs: ttJobs(seen, company) };
 }
 /** Only offers that passed the filter and are not stored yet reach here. */
-export async function teamtailorDetail(j: NewJob): Promise<Partial<NewJob> | null> {
-  const { text } = await getText(j.url, HTML);
+export const teamtailorDetail = (j: NewJob) => ldDetail(j);
+
+/** Detail from a posting page's schema.org JobPosting (Teamtailor, Breezy, softgarden, iCIMS, thehub…). */
+export async function ldDetail(j: NewJob, page = j.url): Promise<Partial<NewJob> | null> {
+  const { text } = await getText(page, HTML);
   const ld = text ? pickJsonLdJobPosting(text) : null;
   if (!ld) return null;
-  const { title, location, remote, description, type, tags, posted_at, deadline } = fromJsonLd(ld, j.url);
-  return { title, location, remote, description, type, tags, posted_at, deadline };
+  const { title, company, location, remote, description, type, tags, posted_at, deadline } = fromJsonLd(ld, j.url);
+  // iCIMS writes "UNAVAILABLE" for unknown address parts.
+  return { title, company, location: location.split(", ").filter((p) => p !== "UNAVAILABLE").join(", "), remote, description, type, tags, posted_at, deadline };
+}
+
+// ---------- sitemaps (SuccessFactors, iCIMS) ----------
+/** Page URLs (with lastmod) and child sitemaps of one sitemap.xml. */
+export function parseSitemap(xml: string): { urls: { loc: string; lastmod: string | null }[]; sitemaps: string[] } {
+  const loc = (b: string) => decodeEntities(/<loc>\s*([^<]+?)\s*<\/loc>/.exec(b)?.[1] ?? "");
+  const urls = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => ({ loc: loc(m[1]), lastmod: /<lastmod>\s*([^<]+?)\s*<\/lastmod>/.exec(m[1])?.[1] ?? null })).filter((u) => u.loc);
+  const sitemaps = [...xml.matchAll(/<sitemap>([\s\S]*?)<\/sitemap>/g)].map((m) => loc(m[1])).filter(Boolean);
+  return { urls, sitemaps };
+}
+/** "Munich-Software-Intern" -> "Munich Software Intern": the only title a sitemap gives before the detail page. */
+const slugTitle = (s: string) => {
+  let t = s;
+  try {
+    t = decodeURIComponent(s);
+  } catch {
+    // keep the raw slug
+  }
+  return t.replace(/[-_+]+/g, " ").replace(/\s+/g, " ").trim();
+};
+const publicHost = (h: string) => validatePublicUrl(`https://${h}/`).url?.hostname ?? null;
+const hostOf = (u: string) => {
+  try {
+    return new URL(u).hostname;
+  } catch {
+    return "";
+  }
+};
+
+// ---------- BambooHR: one list call, description from the per-opening detail ----------
+interface BambooItem { id?: string | number; jobOpeningName?: string; location?: { city?: string; state?: string }; isRemote?: boolean | null; locationType?: string }
+export function mapBamboo(items: BambooItem[], slug: string): NewJob[] {
+  return items
+    .filter((p) => p.id && p.jobOpeningName)
+    .map((p) => job({ title: p.jobOpeningName!, company: prettySlug(slug), location: join(p.location?.city, p.location?.state), remote: !!p.isRemote || p.locationType === "1", url: `https://${slug}.bamboohr.com/careers/${p.id}`, source: "bamboohr", description: "" }));
+}
+export async function bamboohr(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  // A board that is not public redirects to bamboohr.com, so the JSON parse fails there.
+  const { data, error } = await getJson<{ result?: BambooItem[] }>(`https://${encodeURIComponent(slug)}.bamboohr.com/careers/list`);
+  return data ? { jobs: mapBamboo(data.result ?? [], slug) } : { jobs: [], error: error?.startsWith("Invalid JSON") ? `BambooHR board "${slug}" is not public` : error };
+}
+export async function bamboohrDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const m = /^https:\/\/([a-z0-9-]+)\.bamboohr\.com\/careers\/(\d+)$/.exec(j.url);
+  if (!m) return null;
+  const { data } = await getJson<{ result?: { jobOpening?: { description?: string; datePosted?: string; location?: { city?: string; state?: string; addressCountry?: string } } } }>(`https://${m[1]}.bamboohr.com/careers/${m[2]}/detail`);
+  const o = data?.result?.jobOpening;
+  if (!o) return null;
+  const description = htmlToText(o.description ?? "");
+  return { description, location: join(o.location?.city, o.location?.state, o.location?.addressCountry) || j.location, posted_at: normalizeDate(o.datePosted) ?? j.posted_at, type: guessType(j.title, description), tags: extractTags(j.title, description) };
+}
+
+// ---------- Breezy: /json listing, description from each position page's JSON-LD ----------
+interface BreezyItem { name?: string; url?: string; published_date?: string; type?: { name?: string }; location?: { name?: string; city?: string; country?: { name?: string }; is_remote?: boolean }; company?: { name?: string } }
+export function mapBreezy(items: BreezyItem[], slug: string): NewJob[] {
+  return items
+    .filter((p) => p.name && p.url?.startsWith(`https://${slug}.breezy.hr/`))
+    .map((p) => job({ title: p.name!, company: p.company?.name?.trim() || prettySlug(slug), location: p.location?.name || join(p.location?.city, p.location?.country?.name), remote: p.location?.is_remote, url: p.url!, source: "breezy", kind: p.type?.name, description: "", posted: p.published_date }));
+}
+export async function breezy(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  const { data, error } = await getJson<BreezyItem[]>(`https://${encodeURIComponent(slug)}.breezy.hr/json`);
+  return Array.isArray(data) ? { jobs: mapBreezy(data, slug) } : { jobs: [], error: error ?? "Unexpected Breezy response" };
+}
+
+// ---------- JOIN (join.com): paged public API, Markdown body from the per-job call ----------
+interface JoinItem { id?: number; idParam?: string; title?: string; createdAt?: string; workplaceType?: string; city?: { cityName?: string; countryName?: string } | null }
+export function mapJoin(items: JoinItem[], company: { name: string; domain: string }): NewJob[] {
+  return items
+    .filter((it) => it.id && it.title && it.idParam)
+    .map((it) => job({ title: it.title!, company: company.name, location: join(it.city?.cityName, it.city?.countryName), remote: it.workplaceType === "REMOTE", url: `https://join.com/companies/${company.domain}/${it.idParam}`, source: "join", description: "", posted: it.createdAt }));
+}
+/** Board = the company slug from join.com/companies/<slug> (or its numeric id). */
+export async function joinCom(handle: string): Promise<Scan> {
+  const h = slugOf(handle).replace(/^https?:\/\/(www\.)?join\.com\/companies\//, "").split("/")[0];
+  if (!/^[a-z0-9][a-z0-9._-]{0,80}$/.test(h)) return { jobs: [], error: "Invalid JOIN company" };
+  let id = /^\d+$/.test(h) ? h : "";
+  let company = { name: prettySlug(h), domain: h };
+  if (id) {
+    const { data } = await getJson<{ name?: string; domain?: string }>(`https://join.com/api/public/companies/${id}`);
+    if (data?.domain) company = { name: data.name || company.name, domain: data.domain };
+  } else {
+    const page = await getText(`https://join.com/companies/${h}`, HTML);
+    const m = new RegExp(`"id":(\\d+),"name":"([^"]*)","domain":"${h.replace(/\./g, "\\.")}"`).exec(page.text);
+    if (!m) return { jobs: [], error: page.error ?? `JOIN company "${h}" not found` };
+    id = m[1];
+    company = { name: m[2] || company.name, domain: h };
+  }
+  const all: JoinItem[] = [];
+  // ponytail: the public API caps pages at 5 offers; 20 pages (100 offers) covers a company board.
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await getJson<{ items?: JoinItem[]; pagination?: { pageCount?: number } }>(`https://join.com/api/public/companies/${id}/jobs?page=${page}&pageSize=5`);
+    if (!data) return all.length ? { jobs: mapJoin(all, company) } : { jobs: [], error };
+    all.push(...(data.items ?? []));
+    if (page >= (data.pagination?.pageCount ?? 0)) break;
+  }
+  return { jobs: mapJoin(all, company) };
+}
+export async function joinDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const id = /^https:\/\/join\.com\/companies\/[^/]+\/(\d+)/.exec(j.url)?.[1];
+  if (!id) return null;
+  const { data } = await getJson<{ description?: string }>(`https://join.com/api/public/jobs/${id}`);
+  // The body is Markdown: kept as is, the offer page renders it.
+  const description = data?.description?.trim();
+  return description ? { description, type: guessType(j.title, description), tags: extractTags(j.title, description) } : null;
+}
+
+// ---------- softgarden: one listing page, description from each job page's JSON-LD ----------
+export function softgardenLinks(html: string, slug: string): { url: string; title: string }[] {
+  const out = new Map<string, string>();
+  for (const m of html.matchAll(/<a\b[^>]*href\s*=\s*["'][^"']*?\/job\/(\d+)\/([^"'?#/]*)[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const url = `https://${slug}.softgarden.io/job/${m[1]}/${m[2]}`;
+    const text = htmlToText(m[3]).replace(/\s+/g, " ").trim();
+    if (!out.get(url)) out.set(url, text || slugTitle(m[2]));
+  }
+  return [...out].map(([url, title]) => ({ url, title }));
+}
+export async function softgarden(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  // ponytail: softgarden pages through a Wicket AJAX callback, so only the first listing page is read; tenants are small.
+  const { text, error } = await getText(`https://${encodeURIComponent(slug)}.softgarden.io/`, HTML);
+  if (error) return { jobs: [], error };
+  return { jobs: softgardenLinks(text, slug).map((l) => job({ title: l.title, company: prettySlug(slug), location: "", url: l.url, source: "softgarden", description: "" })) };
+}
+
+// ---------- SAP SuccessFactors: job sitemap, description from each page's microdata ----------
+/** Inner HTML of every element carrying itemprop="<name>", nested tags of the same name included. */
+export function itemprops(html: string, name: string): string[] {
+  const out: string[] = [];
+  const opens = new RegExp(`<([a-z][a-z0-9]*)\\b[^>]*itemprop\\s*=\\s*["']${name}["'][^>]*>`, "gi");
+  for (const open of html.matchAll(opens)) {
+    const start = open.index + open[0].length;
+    const re = new RegExp(`<(/?)${open[1]}\\b[^>]*>`, "gi");
+    re.lastIndex = start;
+    let depth = 1;
+    let end = html.length;
+    for (let m = re.exec(html); m; m = re.exec(html)) {
+      depth += m[1] ? -1 : 1;
+      if (!depth) {
+        end = m.index;
+        break;
+      }
+    }
+    out.push(html.slice(start, end));
+  }
+  return out;
+}
+export function mapSuccessFactors(urls: { loc: string; lastmod: string | null }[], host: string): NewJob[] {
+  const company = prettySlug(host.replace(/^(jobs|careers|career|karriere)\./, "").split(".")[0]);
+  return urls.flatMap((u) => {
+    const m = /\/job\/([^/]+)\/\d+[^/]*\/?$/.exec(u.loc);
+    return m && hostOf(u.loc) === host ? [{ ...job({ title: slugTitle(m[1]), company, location: "", url: u.loc, source: "successfactors", description: "" }), posted_at: normalizeDate(u.lastmod) }] : [];
+  });
+}
+/** Board = the career-site host (jobs.acme.com). */
+export async function successFactors(handle: string): Promise<Scan> {
+  const host = publicHost(handle.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0]);
+  if (!host) return { jobs: [], error: "Invalid SuccessFactors career-site host" };
+  const { text, error } = await getText(`https://${host}/job_sitemap.xml`, "application/xml, text/xml;q=0.9");
+  return error ? { jobs: [], error } : { jobs: mapSuccessFactors(parseSitemap(text).urls, host) };
+}
+export async function successFactorsDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const { text } = await getText(j.url, HTML);
+  if (!text) return null;
+  const title = htmlToText(itemprops(text, "title")[0] ?? "") || j.title;
+  // The description is split over several itemprop sections (summary, tasks, profile…).
+  const description = htmlToText(itemprops(text, "description").join("\n"));
+  if (!description) return null;
+  return { title, description, type: guessType(title, description), tags: extractTags(title, description) };
+}
+
+// ---------- iCIMS: sitemap(s), description from the posting's iframe fragment JSON-LD ----------
+/** Board = the iCIMS slug (careers-<slug>.icims.com) or a vanity careers host. */
+const icimsHost = (handle: string) => {
+  const h = handle.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+  return h.includes(".") ? publicHost(h) : /^[a-z0-9-]+$/.test(h) ? `careers-${h}.icims.com` : null;
+};
+export function mapIcims(urls: { loc: string; lastmod: string | null }[], host: string): NewJob[] {
+  const company = prettySlug(host.replace(/^careers-|\.icims\.com$/g, "").replace(/^(careers|jobs)\./, "").split(".")[0]);
+  return urls.flatMap((u) => {
+    const m = /\/jobs\/(\d+)\/([^/?#]+)/.exec(u.loc);
+    return m && hostOf(u.loc) === host ? [{ ...job({ title: slugTitle(m[2]), company, location: "", url: u.loc, source: "icims", description: "" }), posted_at: normalizeDate(u.lastmod) }] : [];
+  });
+}
+export async function icims(handle: string): Promise<Scan> {
+  const host = icimsHost(handle);
+  if (!host) return { jobs: [], error: "Invalid iCIMS board" };
+  const root = await getText(`https://${host}/sitemap.xml`, "application/xml, text/xml;q=0.9");
+  if (root.error) return { jobs: [], error: root.error };
+  const map = parseSitemap(root.text);
+  // ponytail: first 5 child sitemaps on the same host; vanity sites split by locale and the first ones hold the postings.
+  for (const sm of map.sitemaps.filter((u) => hostOf(u) === host).slice(0, 5)) {
+    const sub = await getText(sm, "application/xml, text/xml;q=0.9");
+    map.urls.push(...parseSitemap(sub.text).urls);
+  }
+  return { jobs: mapIcims(map.urls, host) };
+}
+export async function icimsDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const host = hostOf(j.url);
+  const id = /\/jobs\/(\d+)/.exec(j.url)?.[1];
+  if (!id) return null;
+  // The canonical page is a JS wrapper; the ?in_iframe=1 fragment is server-rendered (vanity sites serve it under /careers-home).
+  const frag = host.endsWith(".icims.com") ? `${j.url.split("?")[0]}?in_iframe=1` : `https://${host}/careers-home/jobs/${id}?in_iframe=1`;
+  return ldDetail(j, frag);
+}
+
+// ---------- thehub.io (Nordic startups): keyword search pages, description from JSON-LD ----------
+export function mapTheHub(html: string): NewJob[] {
+  return html.split(/class="card card-job-find-list"/).slice(1).flatMap((card) => {
+    const id = /href="\/jobs\/([0-9a-f]{24})"/.exec(card)?.[1];
+    const title = htmlToText(/card-job-find-list__position">([\s\S]*?)<\/span>/.exec(card)?.[1] ?? "");
+    if (!id || !title) return [];
+    const bullets = /bullet-inline-list[^>]*>([\s\S]*?)<\/div>/.exec(card)?.[1] ?? "";
+    const [company = "", location = "", kind = ""] = [...bullets.matchAll(/<span>([\s\S]*?)<\/span>/g)].map((m) => htmlToText(m[1]));
+    return [job({ title, company: company || "thehub.io", location, url: `https://thehub.io/jobs/${id}`, source: "thehub", kind, description: "" })];
+  });
+}
+export async function theHub(keywords: string[]): Promise<Scan> {
+  const seen = new Map<string, NewJob>();
+  let error: string | undefined;
+  // ponytail: 3 result pages for each of the first 3 keywords; the board sorts by relevance.
+  for (const kw of (keywords.length ? keywords : ["intern"]).slice(0, 3)) {
+    for (let page = 1; page <= 3; page++) {
+      const res = await getText(`https://thehub.io/jobs?${new URLSearchParams({ search: kw, page: String(page) })}`, HTML);
+      if (res.error) {
+        error = res.error;
+        break;
+      }
+      const jobs = mapTheHub(res.text);
+      for (const j of jobs) if (!seen.has(j.url)) seen.set(j.url, j);
+      if (jobs.length < 15) break;
+    }
+  }
+  return { jobs: [...seen.values()], error: seen.size ? undefined : error };
+}
+
+// ---------- Hacker News "Ask HN: Who is hiring?" (public Algolia HN API) ----------
+interface HnItem { id?: number; text?: string | null; created_at?: string; children?: HnItem[] }
+const HN_SENIOR_LEAD = /^(sr|jr|senior|junior|staff|principal|lead|founding|head|director|vp|chief)\b/i;
+const HN_ROLE = /\b(engineer|engineering|developer|designer|scientist|analyst|architect|manager|programmer|devops|sre|researcher)\b/i;
+const HN_NOT_PLACE = /^(full[ -]?time|part[ -]?time|contract(or)?|intern(ship)?s?|permanent|freelance|remote|onsite|on-site|hybrid)$|^[$€£¥]|^\d/i;
+/** Top-level comment "Company | Role | Location | …" -> an offer; free-form posts are skipped. */
+export function mapHnComment(c: HnItem): NewJob | null {
+  if (!c.id || !c.text) return null;
+  const head = htmlToText(c.text.split(/<p\b/i)[0]).replace(/\s+/g, " ");
+  const parts = head.split("|").map((p) => p.replace(/https?:\/\/\S+/g, "").replace(/[()]/g, " ").replace(/\s+/g, " ").trim());
+  if (parts.length < 2 || !parts[0] || !parts[1] || (HN_SENIOR_LEAD.test(parts[0]) && HN_ROLE.test(parts[0]))) return null;
+  // HN escapes the slashes inside hrefs ("https:&#x2F;&#x2F;…").
+  const link = [...c.text.matchAll(/href="([^"]+)"/g)].map((m) => decodeEntities(m[1])).find((u) => /^https?:\/\//.test(u));
+  // Posters order the fields freely ("Acme | ONSITE | Backend Engineer"): the role is the first field naming one.
+  const title = parts.slice(1).find((p) => HN_ROLE.test(p) || /\b(intern(ship)?|stage|werkstudent)\b/i.test(p)) ?? parts.slice(1).find((p) => p && !HN_NOT_PLACE.test(p)) ?? parts[1];
+  return job({
+    title: title.slice(0, 140),
+    company: parts[0].slice(0, 80),
+    location: parts.slice(2).find((p) => p && !HN_NOT_PLACE.test(p)) ?? "",
+    remote: /\bremote\b/i.test(parts.slice(1).join(" ")),
+    url: link ?? `https://news.ycombinator.com/item?id=${c.id}`,
+    source: "hackernews",
+    kind: parts.slice(1).join(" "),
+    description: htmlToText(c.text),
+    posted: c.created_at,
+  });
+}
+export async function hackerNews(): Promise<Scan> {
+  const { data, error } = await getJson<{ hits?: { objectID?: string; title?: string }[] }>("https://hn.algolia.com/api/v1/search_by_date?tags=story,author_whoishiring&hitsPerPage=5");
+  const thread = data?.hits?.find((h) => /who is hiring/i.test(h.title ?? ""));
+  if (!thread?.objectID || !/^\d+$/.test(thread.objectID)) return { jobs: [], error: error ?? "No \"Who is hiring?\" thread found" };
+  // The whole thread (hundreds of comments, a few MB) comes in one response.
+  const item = await getText(`https://hn.algolia.com/api/v1/items/${thread.objectID}`, "application/json", { timeoutMs: 30_000 });
+  if (item.error) return { jobs: [], error: item.error };
+  try {
+    return { jobs: ((JSON.parse(item.text) as HnItem).children ?? []).map(mapHnComment).filter((j): j is NewJob => !!j) };
+  } catch {
+    return { jobs: [], error: "Invalid JSON from the HN API" };
+  }
 }

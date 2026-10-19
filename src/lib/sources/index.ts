@@ -2,6 +2,7 @@ import type { NewJob } from "../db";
 import type { Profile, Source } from "../types";
 import { extractTags, guessType, matchesProfile } from "./classify";
 import { mapLimit } from "./http";
+import { canonicalPostingUrl } from "./url";
 import * as greenhouse from "./greenhouse";
 import * as lever from "./lever";
 import * as ashby from "./ashby";
@@ -74,6 +75,14 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   pinpoint: { list: (h) => more.pinpoint(h) },
   workday: { list: (h) => more.workday(h), detail: more.workdayDetail, detailGapMs: 250 },
   teamtailor: { list: (h) => more.teamtailor(h), detail: more.teamtailorDetail },
+  bamboohr: { list: (h) => more.bamboohr(h), detail: more.bamboohrDetail },
+  breezy: { list: (h) => more.breezy(h), detail: (j) => more.ldDetail(j) },
+  join: { list: (h) => more.joinCom(h), detail: more.joinDetail, detailGapMs: 300 },
+  softgarden: { list: (h) => more.softgarden(h), detail: (j) => more.ldDetail(j) },
+  successfactors: { list: (h) => more.successFactors(h), detail: more.successFactorsDetail },
+  icims: { list: (h) => more.icims(h), detail: more.icimsDetail },
+  thehub: { list: (_h, kw) => more.theHub(kw), detail: (j) => more.ldDetail(j) },
+  hackernews: { list: () => more.hackerNews() },
   rss: { list: (h) => rss.scan(h) },
   keejob: { list: keejob.scan, detail: keejob.detail },
   tanitjobs: { list: tanitjobs.scan, detail: tanitjobs.detail },
@@ -137,7 +146,9 @@ export interface ScanResult {
 export async function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
   const provider = PROVIDERS[source.kind as ProviderKind];
   if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, error: `Unknown source kind: ${source.kind}` };
-  const { jobs, error } = await provider.list(source.handle, opts.keywords ?? []);
+  const listed = await provider.list(source.handle, opts.keywords ?? []);
+  const error = listed.error;
+  const jobs = listed.jobs.map((j) => ({ ...j, url: canonicalPostingUrl(j.url) }));
   const seen = new Set<string>();
   const dropped: Record<string, number> = {};
   const decide = (j: NewJob): Decision => {

@@ -10,8 +10,8 @@ export interface Trust {
   host: HostClass;
 }
 
-const ATS_HOSTS = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|teamtailor\.com|bamboohr\.com|workable\.com|icims\.com|successfactors\.com|taleo\.net|jobvite\.com|personio\.(de|com))$/i;
-const PORTAL_HOSTS = /(linkedin\.com|indeed\.com|keejob\.com|tanitjobs\.com|emploitunisie\.com|farojob\.net|jobs\.ch|jobup\.ch|job-room\.ch|jobbank\.gc\.ca|arbeitnow\.\w+|arbeitsagentur\.de|europa\.eu|englishjobs\.(de|fr)|englishjobsearch\.ch|daijob\.com|wantedly\.com|remoteok\.com|jobicy\.com|himalayas\.app|remotive\.com|artificialintelligencejobs\.co|adzuna\.\w+|jooble\.org|reed\.co\.uk|findwork\.dev|glassdoor\.\w+|welcometothejungle\.com|hellowork\.com|apec\.fr|francetravail\.fr|stepstone\.\w+|xing\.com|python\.org|weworkremotely\.com)$/i;
+const ATS_HOSTS = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|teamtailor\.com|bamboohr\.com|workable\.com|icims\.com|successfactors\.(com|eu)|taleo\.net|jobvite\.com|personio\.(de|com)|pinpointhq\.com|myworkdaysite\.com|breezy\.hr|softgarden\.io|join\.com)$/i;
+const PORTAL_HOSTS = /(linkedin\.com|indeed\.com|keejob\.com|tanitjobs\.com|emploitunisie\.com|farojob\.net|jobs\.ch|jobup\.ch|job-room\.ch|jobbank\.gc\.ca|arbeitnow\.\w+|arbeitsagentur\.de|europa\.eu|englishjobs\.(de|fr)|englishjobsearch\.ch|daijob\.com|wantedly\.com|remoteok\.com|jobicy\.com|himalayas\.app|remotive\.com|artificialintelligencejobs\.co|adzuna\.\w+|jooble\.org|reed\.co\.uk|findwork\.dev|glassdoor\.\w+|welcometothejungle\.com|hellowork\.com|apec\.fr|francetravail\.fr|stepstone\.\w+|xing\.com|python\.org|weworkremotely\.com|bayt\.com|thehub\.io|landing\.jobs|ycombinator\.com)$/i;
 const SUSPICIOUS = /(^|\.)(bit\.ly|tinyurl\.com|t\.co|goo\.gl|shorturl\.at|forms\.gle|docs\.google\.com|t\.me|telegram\.(me|org)|wa\.me|whatsapp\.com|cutt\.ly|rb\.gy|is\.gd|linktr\.ee)$/i;
 const WEBMAIL = /\b[\w.+-]+@(gmail|yahoo|hotmail|outlook|live|aol|protonmail|icloud|mail)\.(com|fr|tn)\b/i;
 const FEES = /\b(frais (de )?(dossier|formation|inscription)|payer (pour|avant)|paiement (requis|obligatoire)|registration fee|processing fee|pay (a |an )?(fee|deposit)|training fee|send money|western union|moneygram|carte bancaire pour postuler)\b/i;
@@ -29,6 +29,24 @@ export function hostClass(url: string): HostClass {
   if (ATS_HOSTS.test(host)) return "ats";
   if (/^manual:/.test(url)) return "unverified";
   return "company";
+}
+
+/**
+ * A job board's ad often names the employer's own posting ("apply at https://jobs.lever.co/…"): the first such
+ * link in the text, so the apply step can open the employer's form instead of the board.
+ */
+export function employerLink(url: string, description: string): string | null {
+  if (hostClass(url) !== "portal") return null;
+  for (const m of description.matchAll(/https?:\/\/[^\s<>"')\]]+/g)) {
+    const link = m[0].replace(/[.,;:!?]+$/, "");
+    try {
+      // A board root ("jobs.lever.co/acme") is not a posting; keep links at least two path segments deep.
+      if (hostClass(link) === "ats" && new URL(link).pathname.split("/").filter(Boolean).length >= 2) return link;
+    } catch {
+      // not a URL
+    }
+  }
+  return null;
 }
 
 /** Does the company name share a word with the posting's host? Only judged for company-hosted pages. */
