@@ -489,6 +489,23 @@ function StarButton({ r, onStar }: { r: OfferRow; onStar: () => void }) {
   );
 }
 
+/** The row's next step: open the apply workspace (tracks the offer if needed). */
+function ApplyButton(p: RowProps) {
+  const { t } = useT();
+  return (
+    <button
+      type="button"
+      className="btn btn-primary btn-sm"
+      onClick={(e) => {
+        e.stopPropagation();
+        p.onApply();
+      }}
+    >
+      <Send size={13} aria-hidden="true" /> {t.offers2.apply}
+    </button>
+  );
+}
+
 function RowMenu(p: RowProps) {
   const { t } = useT();
   const o = t.offers2;
@@ -574,10 +591,12 @@ function TableRow(p: RowProps) {
       <Fit r={r} />
       <Deadline date={r.deadline} locale={p.locale} />
       <div className="min-w-0">
-        {r.status ? (
+        {r.status && r.status !== "evaluated" ? (
           <span className="status" style={{ color: STATE_FG[r.status] ?? "var(--ink-2)" }}>{t.states[r.status as AppState]}</span>
-        ) : (
+        ) : p.archivedView ? (
           <span className="text-[0.78rem] text-muted">{o.list2.notTracked}</span>
+        ) : (
+          <ApplyButton {...p} />
         )}
       </div>
       <div className="flex items-center justify-end">
@@ -620,7 +639,7 @@ function OfferCard(p: RowProps & { i: number }) {
       <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
         <Score r={r} size={34} />
         <div className="flex items-center gap-2">
-          {r.status && <StateChip state={r.status as AppState} t={t} />}
+          {r.status && r.status !== "evaluated" ? <StateChip state={r.status as AppState} t={t} /> : !p.archivedView && <ApplyButton {...p} />}
           <Deadline date={r.deadline} locale={p.locale} />
         </div>
       </div>

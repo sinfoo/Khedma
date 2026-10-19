@@ -254,9 +254,11 @@ export function OnboardingWizard({
           <CvImporter
             upload={upload}
             uploadText={uploadText}
-            onUploaded={(m, text) => {
+            onUploaded={(m, text, markdown, skills) => {
               setUpload(m);
               setUploadText(text);
+              // The server already saved the converted CV and skills; keep them in the draft so "Continue" does not overwrite them.
+              if (markdown && markdown.trim().length > 40) update({ cv_md: markdown, ...(skills ? { skills } : {}) });
             }}
             skills={d.skills}
             onAddSkills={(found) => {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useOptimistic, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarClock, ChevronDown, ChevronRight, GitCompareArrows, GripVertical, Mic, Search } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarClock, ChevronDown, ChevronRight, GitCompareArrows, GripVertical, Mic, Search, Send } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { APP_STATES, type AppState, type JobType } from "@/lib/types";
@@ -172,7 +172,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
         )}
         {item.cadence && !nextLine && <CadenceChip c={item.cadence} t={t} locale={locale} />}
         <div className="flex items-center justify-between gap-1.5 border-t border-line pt-2">
-          <span className="tabular text-[0.7rem] text-muted">{fmt(f.hereDays, { n: item.stageDays })}</span>
+          <span className="tabular whitespace-nowrap text-[0.7rem] text-muted">{fmt(f.hereDays, { n: item.stageDays })}</span>
           <div className="flex gap-1">
             <button
               id={`grab-${item.id}`}
@@ -190,7 +190,12 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
                 <ArrowLeft size={12} aria-hidden="true" />
               </button>
             )}
-            {next && (
+            {/* Not sent yet: the next step is the review & apply step, which checks the CV and letter before marking it sent. */}
+            {item.status === "evaluated" ? (
+              <Link href={`/app/pipeline/${item.id}?tab=overview`} className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-[7px] bg-saffron px-2 text-[0.72rem] font-semibold text-saffron-ink hover:brightness-95">
+                <Send size={12} aria-hidden="true" /> {t.offers2.apply}
+              </Link>
+            ) : next && (
               <button type="button" onClick={() => doMove(item, next)} className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-[7px] bg-accent-soft px-2 text-[0.72rem] font-semibold text-accent-text hover:brightness-95">
                 {t.states[next]} <ArrowRight size={12} aria-hidden="true" />
               </button>

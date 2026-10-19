@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bookmark, Check, Copy, MousePointerClick } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { bookmarkletHref } from "@/lib/clip-url";
@@ -19,6 +19,11 @@ export function Clipper({ token }: { token: string }) {
     return () => clearTimeout(id);
   }, []);
   const href = bookmarkletHref(base, token);
+  // React blocks javascript: URLs in href, which left a dead bookmark; set the attribute on the element instead.
+  const link = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    link.current?.setAttribute("href", href);
+  }, [href]);
   return (
     <Section id="clipper" title={c.title} i={3}>
       <p className="text-sm text-ink-2">{c.lead}</p>
@@ -28,7 +33,7 @@ export function Clipper({ token }: { token: string }) {
           <span>
             {c.step1}{" "}
             <a
-              href={href}
+              ref={link}
               className="btn btn-saffron btn-sm cursor-grab align-middle"
               draggable
               onClick={(e) => {

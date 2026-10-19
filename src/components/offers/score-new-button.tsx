@@ -9,7 +9,7 @@ export function ScoreNewButton({ n }: { n: number }) {
   const { t } = useT();
   if (!n) return null;
   return (
-    <button type="button" className="btn btn-saffron" onClick={() => window.dispatchEvent(new Event("khedma:score-pending"))}>
+    <button type="button" className="btn btn-outline" onClick={() => window.dispatchEvent(new Event("khedma:score-pending"))}>
       <Sparkles size={15} aria-hidden="true" /> {fmt(t.offers2.list2.scoreNew, { n })}
     </button>
   );

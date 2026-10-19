@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Bookmark, Check, Loader2, Sparkles } from "lucide-react";
+import { Bookmark, Check, Loader2, Send, Sparkles } from "lucide-react";
 import { useToast } from "@/components/kit/toast";
 import { ScoreRing, scoreLabel } from "@/components/ui";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import type { OfferReco } from "@/lib/recommend/engine";
 import { evaluateRecommended, trackRecommended } from "@/app/actions/discover";
+import { applyTo } from "@/app/actions/jobs";
 import { reasonText } from "./text";
 import { WhyPopover } from "./why-popover";
 
@@ -21,6 +22,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
   const [evaluation, setEvaluation] = useState(offer.evaluation);
   const [trackPending, startTrack] = useTransition();
   const [evalPending, startEval] = useTransition();
+  const [applying, startApply] = useTransition();
   const reasons = offer.reasons.map((r) => reasonText(t, r));
   const r = 22;
   const c = 2 * Math.PI * r;
@@ -58,12 +60,15 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
         )}
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3">
+        <button type="button" className="btn btn-primary btn-sm" disabled={applying} aria-busy={applying} aria-label={`${t.offers2.apply}: ${offer.title}`} onClick={() => startApply(async () => await applyTo(offer.id))}>
+          {applying ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Send size={13} aria-hidden="true" />} {t.offers2.apply}
+        </button>
         {tracked ? (
           <span className="chip chip-success"><Check size={12} aria-hidden="true" /> {m.offer.tracked}</span>
         ) : (
           <button
             type="button"
-            className="btn btn-primary btn-sm"
+            className="btn btn-outline btn-sm"
             disabled={trackPending}
             aria-busy={trackPending}
             aria-label={`${m.offer.track}: ${offer.title}`}

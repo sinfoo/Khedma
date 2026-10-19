@@ -45,7 +45,7 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
   const openHelp = useCallback(() => setHelp(true), []);
   const { crumb, crumb2 } = useCrumbs();
   const urgent = notices.filter((n) => n.overdue || n.kind === "interview").length;
-  const scanning = path.startsWith("/app/sources");
+  const onSources = path.startsWith("/app/sources");
   const fmt = (x: string) =>
     new Date(x.length <= 10 ? x + "T00:00" : x).toLocaleString(locale === "fr" ? "fr-TN" : "en-GB", {
       weekday: "short",
@@ -163,8 +163,9 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
           >
             {nextLocale.toUpperCase()}
           </button>
-          <Link href="/app/sources?scan=1" aria-label={s.scanCta} title={s.scanCta} className="btn btn-saffron ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
-            <Radar size={15} aria-hidden="true" className={scanning ? "animate-[spin_3s_linear_infinite]" : ""} />
+          {/* Opens the radar page; the scan itself starts there, after the keywords and countries are in view. */}
+          <Link href="/app/sources" aria-label={s.scanCta} title={s.scanCta} aria-current={onSources ? "page" : undefined} className="btn btn-outline ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
+            <Radar size={15} aria-hidden="true" />
             <span className="hidden md:inline">{s.scanCta}</span>
           </Link>
         </div>

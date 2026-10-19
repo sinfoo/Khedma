@@ -109,16 +109,16 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               <Bookmark size={14} aria-hidden="true" /> {o.openApplication}
             </Link>
           ) : job.application ? (
-            <Link href={`/app/pipeline/${job.application.id}?tab=overview`} className="btn btn-primary !h-9">
+            <Link href={`/app/pipeline/${job.application.id}?tab=overview`} className="btn btn-saffron !h-9">
               <Send size={14} aria-hidden="true" /> {o.apply}
             </Link>
           ) : (
-            <ActionButton action={applyTo.bind(null, job.id)} className="btn btn-primary !h-9">
+            <ActionButton action={applyTo.bind(null, job.id)} className="btn btn-saffron !h-9">
               <Send size={14} aria-hidden="true" /> {o.apply}
             </ActionButton>
           )}
           {!ev && (
-            <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-saffron !h-9">
+            <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-outline !h-9">
               <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
             </ActionButton>
           )}
@@ -319,9 +319,15 @@ function FitTab({ jobId, ev, appId, marginals, gates, match, t, locale }: { jobI
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted" style={{ fontFamily: "var(--font-sans)" }}>{o.breakdown}</h3>
             <ScoreBreakdown ev={ev} t={t} />
           </div>
-          <ActionButton action={runEvaluation.bind(null, jobId)} pendingLabel={o.evaluating} className="btn btn-secondary mt-6 no-print">
-            <Sparkles size={16} aria-hidden="true" /> {o.reevaluate}
-          </ActionButton>
+          <div className="mt-6 flex flex-wrap gap-2 no-print">
+            {/* The verdict is read: the next step sits right under it. */}
+            <ActionButton action={applyTo.bind(null, jobId)} className="btn btn-saffron">
+              <Send size={16} aria-hidden="true" /> {o.apply}
+            </ActionButton>
+            <ActionButton action={runEvaluation.bind(null, jobId)} pendingLabel={o.evaluating} className="btn btn-secondary">
+              <Sparkles size={16} aria-hidden="true" /> {o.reevaluate}
+            </ActionButton>
+          </div>
         </section>
         <div className="grid gap-4 md:grid-cols-3">
           <Points title={o.strengths} items={ev.strengths} color="var(--success)" i={1} />

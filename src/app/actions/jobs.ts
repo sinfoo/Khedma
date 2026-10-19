@@ -21,6 +21,7 @@ import { isBlacklisted } from "@/lib/company";
 import { getTriageMarginals, insertEvaluationV2, isPriorityCompany, setTriageMarginals as setMarginals } from "@/lib/repo/evaluations";
 import { DEMO_JOBS, extractTags, guessType, importFromUrl } from "@/lib/sources";
 import * as repo from "@/lib/repo/offers";
+import { bestPicks, type Pick } from "@/lib/picks";
 
 const str = (v: FormDataEntryValue | null, max: number) => String(v ?? "").trim().slice(0, max);
 /** Trust boundary for id lists coming from the client. */
@@ -167,6 +168,11 @@ export async function tailorCvFor(jobId: number) {
   const app = ensureApplication(Number(jobId));
   refresh();
   redirect(`/app/pipeline/${app.id}?tab=documents`);
+}
+
+/** The post-scan shortlist: best open, untracked offers, this scan's and older ones together. */
+export async function scanPicks(ids: number[]): Promise<Pick[]> {
+  return bestPicks(cleanIds(ids));
 }
 
 export async function trackOffers(ids: number[]) {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AlarmClock, ArrowRight, BellRing, Bookmark, Check, Hourglass, MessageSquareReply, Mic, Play, Snowflake, Sparkles, Zap } from "lucide-react";
+import { AlarmClock, ArrowRight, BellRing, Check, Hourglass, MessageSquareReply, Mic, Play, Send, Snowflake, Sparkles, Zap } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { getProfile } from "@/lib/db";
@@ -10,7 +10,8 @@ import { CompanyAvatar, Sparkline } from "@/components/kit";
 import { ScoreRing, VerdictChip, scoreLabel } from "@/components/ui";
 import { RunButton } from "@/components/insights/run-button";
 import { WeeklyGoal } from "@/components/insights/weekly-goal";
-import { evaluatePending, logFollowup, setReminderDoneAction, trackOffer } from "@/app/actions/insights";
+import { evaluatePending, logFollowup, setReminderDoneAction } from "@/app/actions/insights";
+import { applyTo } from "@/app/actions/jobs";
 import type { AppState } from "@/lib/types";
 
 const fmtDay = (key: string, locale: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => {
@@ -106,11 +107,13 @@ export default async function TodayPage() {
                   <Link href={`/app/jobs/${j.id}`} className="line-clamp-2 text-[0.9rem] font-semibold leading-[1.3] text-ink hover:text-accent-text">
                     {j.title}
                   </Link>
-                  <div className="mt-auto flex items-center justify-between">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
                     <VerdictChip verdict={j.evaluation!.verdict} t={t} />
-                    <RunButton action={trackOffer.bind(null, j.id)} success={m.tracked} className="btn btn-outline btn-sm !h-7 !min-h-7 !px-2.5 !text-[0.78rem]" label={`${m.track}: ${j.title}`}>
-                      <Bookmark size={12} aria-hidden="true" /> {m.track}
-                    </RunButton>
+                    <form action={applyTo.bind(null, j.id)}>
+                      <button type="submit" className="btn btn-primary btn-sm" aria-label={`${t.offers2.apply}: ${j.title}`}>
+                        <Send size={12} aria-hidden="true" /> {t.offers2.apply}
+                      </button>
+                    </form>
                   </div>
                 </li>
               ))}
@@ -259,7 +262,9 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
       );
       action = (
         <>
-          <RunButton action={trackOffer.bind(null, f.jobId)} success={m.tracked} className="btn btn-primary !h-9">{m.track}</RunButton>
+          <form action={applyTo.bind(null, f.jobId)}>
+            <button type="submit" className="btn btn-primary !h-9"><Send size={14} aria-hidden="true" /> {t.offers2.apply}</button>
+          </form>
           <Link href={f.href} className="btn btn-outline !h-9">{m.openOffer}</Link>
         </>
       );
@@ -294,7 +299,7 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
       title = fmt(m.unevaluated, { n: f.count });
       meta = m.aboutSeconds;
       action = (
-        <RunButton action={evaluatePending} success={m.evaluated.replace("{n}", "{r}")} pendingLabel={m.evaluating} className="btn btn-saffron !h-9">
+        <RunButton action={evaluatePending} success={m.evaluated.replace("{n}", "{r}")} pendingLabel={m.evaluating} className="btn btn-outline !h-9">
           <Sparkles size={14} aria-hidden="true" /> {fmt(m.evaluateN, { n: Math.min(5, f.count) })}
         </RunButton>
       );

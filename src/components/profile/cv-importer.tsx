@@ -25,7 +25,7 @@ export function CvImporter({
 }: {
   upload: UploadMeta | null;
   uploadText: string;
-  onUploaded: (meta: UploadMeta, text: string) => void;
+  onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void;
   skills: string[];
   onAddSkills: (skills: string[]) => void;
   hasMarkdown: boolean;
@@ -49,10 +49,10 @@ export function CvImporter({
       {showUpload && (
         <CvUpload
           upload={upload}
-          onUploaded={(m, text) => {
+          onUploaded={(m, text, markdown, skills) => {
             setSource(text);
             setReview(null);
-            onUploaded(m, text);
+            onUploaded(m, text, markdown, skills);
           }}
         />
       )}
