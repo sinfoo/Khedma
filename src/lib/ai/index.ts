@@ -86,11 +86,11 @@ const stripFences = (md: string) => md.replace(/^\s*```[\w-]*\s*\n([\s\S]*?)\n\s
 
 // ---------- public API ----------
 /** `gates`: eligibility gates for this offer (see gates.ts); a failed one vetoes the verdict whatever the score. */
-export async function evaluateJob(job: Job, profile: Profile, gates: Gate[] = []): Promise<Omit<Evaluation, "id" | "created_at">> {
+export async function evaluateJob(job: Job, profile: Profile, gates: Gate[] = [], calibration = ""): Promise<Omit<Evaluation, "id" | "created_at">> {
   const locale = profile.settings.locale;
   // Legitimacy, comp reliability and the deterministic defaults never come from the model.
   const v2 = heuristicV2Fields(job, profile);
-  const fromOllama = await tryOllama(profile.settings, evaluatePrompt(job, profile, locale), (raw, label) => {
+  const fromOllama = await tryOllama(profile.settings, evaluatePrompt(job, profile, locale, calibration), (raw, label) => {
     const r = obj(raw);
     if (r.global === undefined && r.match === undefined) throw new Error("missing scores");
     const global = score(r.global);

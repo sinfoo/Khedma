@@ -373,18 +373,22 @@ export function heuristicInterviewPrep(job: Job, profile: Profile, locale: Local
 }
 
 // ---------- skill gaps / upskill ----------
-export function computeSkillGaps(jobs: Job[], profile: Profile): SkillGap[] {
+export function computeSkillGaps(jobs: (Job & { evaluation?: { global: number } | null })[], profile: Profile): SkillGap[] {
   const have = profileSkillSet(profile);
   const map = new Map<string, SkillGap>();
   for (const job of jobs) {
+    // ponytail: unscored offers count as a middling fit (0.6); scored ones by their 1-5 score.
+    const w = job.evaluation ? Math.min(1, Math.max(0.2, job.evaluation.global / 5)) : 0.6;
     for (const s of extractSkills(jobText(job))) {
-      const g = map.get(s) ?? { skill: s, demand: 0, have: have.has(s.toLowerCase()), jobs: [] };
+      const g = map.get(s) ?? { skill: s, demand: 0, weight: 0, have: have.has(s.toLowerCase()), jobs: [] };
       g.demand++;
+      g.weight += w;
       g.jobs.push(job.id);
       map.set(s, g);
     }
   }
-  return [...map.values()].sort((a, b) => b.demand - a.demand || Number(a.have) - Number(b.have) || a.skill.localeCompare(b.skill));
+  for (const g of map.values()) g.weight = Math.round(g.weight * 10) / 10;
+  return [...map.values()].sort((a, b) => b.weight - a.weight || b.demand - a.demand || Number(a.have) - Number(b.have) || a.skill.localeCompare(b.skill));
 }
 
 // Official docs for common skills; everything else gets course-search links.

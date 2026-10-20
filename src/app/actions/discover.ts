@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ensureApplication, getJob, getProfile, insertEvaluation, updateProfile } from "@/lib/db";
 import { evaluateJob } from "@/lib/ai";
 import { eligibilityGates } from "@/lib/ai/gates";
+import { outcomeCalibration } from "@/lib/repo/evaluations";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import type { Evaluation } from "@/lib/types";
 import { clearModelCache, FIELDS, LEVELS, setOverride, type Field, type Level } from "@/lib/recommend";
@@ -72,7 +73,7 @@ export async function evaluateRecommended(jobId: number): Promise<{ ok: boolean;
   if (!job) return { ok: false };
   try {
     const profile = getProfile();
-    const ev = insertEvaluation(await evaluateJob(job, profile, eligibilityGates(job, profile, getProfileExtra().langs)));
+    const ev = insertEvaluation(await evaluateJob(job, profile, eligibilityGates(job, profile, getProfileExtra().langs), outcomeCalibration()));
     revalidatePath("/app", "layout");
     return { ok: true, global: ev.global, verdict: ev.verdict, engine: ev.engine };
   } catch (e) {

@@ -82,6 +82,27 @@ export interface CalibrationBand {
   interviewRate: number | null;
   offerRate: number | null;
 }
+/**
+ * How each kind of role actually went, for the evaluation prompt. Empty below `min` closed applications;
+ * a kind needs 2 closed applications to be listed. good = reached an interview or better.
+ */
+export function outcomeNote(rows: { kind: string; good: boolean }[], min = 3): string {
+  if (rows.length < min) return "";
+  const by = new Map<string, { n: number; good: number }>();
+  for (const r of rows) {
+    const g = by.get(r.kind) ?? { n: 0, good: 0 };
+    g.n++;
+    if (r.good) g.good++;
+    by.set(r.kind, g);
+  }
+  return [...by]
+    .filter(([, g]) => g.n >= 2)
+    .sort((a, b) => b[1].n - a[1].n || a[0].localeCompare(b[0]))
+    .slice(0, 6)
+    .map(([k, g]) => `- ${k}: ${g.good} of ${g.n} closed applications reached an interview or better`)
+    .join("\n");
+}
+
 /** Minimum sent applications before a verdict is more than an anecdote. */
 export const CALIBRATION_MIN_N = 5;
 

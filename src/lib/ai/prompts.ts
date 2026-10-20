@@ -65,7 +65,8 @@ Description:
 ${cut(job.description) || "[empty]"}`;
 }
 
-export function evaluatePrompt(job: Job, profile: Profile, locale: Locale): Prompt {
+/** `calibration`: how past applications went by kind of role (see outcomeCalibration); empty until there are outcomes. */
+export function evaluatePrompt(job: Job, profile: Profile, locale: Locale, calibration = ""): Prompt {
   return {
     system: `You are a career advisor for ENIT engineering students (Tunisia). Score how well a job posting fits a candidate.
 ${RULES(locale)}
@@ -91,7 +92,7 @@ Also return:
 - level_plan: 1-3 sentences: the level the posting targets vs the candidate's, and what to do if the candidate is under-levelled (how to sell projects/internships honestly, what to accept or negotiate).
 - cv_changes: the top 5 concrete edits to the CV for this posting (which line, what to reword with the posting's vocabulary). Reformulate only; never suggest adding something the CV cannot support.
 - company_type: who the hiring entity is (not the brand): big_tech | growth_startup | early_startup | enterprise | agency (SSII/ESN, outsourcing, consulting) | local_smb | commission | staffing (recruiter posting for a client) | public_academic | community | unknown.`,
-    user: `${profileBlock(profile)}\n\n${jobBlock(job)}`,
+    user: `${profileBlock(profile)}\n\n${jobBlock(job)}${calibration ? `\n\nCALIBRATION FROM THE CANDIDATE'S OWN PAST APPLICATIONS (real outcomes by kind of role). Let it move target and global by at most 0.5 for a matching kind of role; the posting itself still decides:\n${calibration}` : ""}`,
     schema: {
       type: "object",
       properties: {

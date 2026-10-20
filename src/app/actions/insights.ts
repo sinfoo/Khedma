@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { addEvent, ensureApplication, getApplication, getJob, getProfile, insertEvaluation, listJobs } from "@/lib/db";
 import { evaluateJob } from "@/lib/ai";
 import { eligibilityGates } from "@/lib/ai/gates";
+import { outcomeCalibration } from "@/lib/repo/evaluations";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { addReminder, setReminderDone, setWeeklyGoal } from "@/lib/repo/insights";
 
@@ -63,10 +64,11 @@ export async function logFollowup(appId: number) {
 export async function evaluatePending(): Promise<number> {
   const profile = getProfile();
   const todo = listJobs().filter((j) => !j.evaluation).slice(0, 5);
+  const calibration = outcomeCalibration();
   let n = 0;
   for (const j of todo) {
     try {
-      insertEvaluation(await evaluateJob(j, profile, eligibilityGates(j, profile, getProfileExtra().langs)));
+      insertEvaluation(await evaluateJob(j, profile, eligibilityGates(j, profile, getProfileExtra().langs), calibration));
       n++;
     } catch (e) {
       console.warn("[evaluate] skipped", j.id, (e as Error).message);

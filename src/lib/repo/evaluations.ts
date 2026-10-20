@@ -2,6 +2,7 @@
 import { db, insertEvaluation, kvGet, kvSet, migrate } from "../db";
 import type { Evaluation } from "../types";
 import { normalizeCompany } from "../company/normalize";
+import { outcomeNote } from "../reports/digest";
 
 type Row = Record<string, unknown>;
 const V2_COLS = ["requirements", "legitimacy", "company_type", "comp_reliability", "level_plan", "cv_changes", "archetype", "triage"] as const;
@@ -94,4 +95,24 @@ export function isPriorityCompany(job: { id: number; company: string; starred: b
     // companies table not created yet (company area not visited)
   }
   return false;
+}
+
+/** Past outcomes by kind of role (evaluation archetype, else offer type), as a note for the evaluation prompt. */
+export function outcomeCalibration(): string {
+  try {
+    const rows = db()
+      .prepare(
+        `SELECT a.status, j.type,
+           (SELECT archetype FROM evaluations e WHERE e.job_id = j.id ORDER BY e.id DESC LIMIT 1) AS arch,
+           (SELECT outcome FROM apply_packs p WHERE p.application_id = a.id) AS outcome
+         FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.applied_at IS NOT NULL`,
+      )
+      .all() as { status: string; type: string; arch: string | null; outcome: string | null }[];
+    const closed = rows
+      .map((r) => ({ kind: r.arch?.trim() || r.type, good: ["interview", "offer", "hired"].includes(r.status), bad: r.status === "rejected" || r.outcome === "ghosted" }))
+      .filter((r) => r.good || r.bad);
+    return outcomeNote(closed);
+  } catch {
+    return ""; // apply_packs not created yet
+  }
 }

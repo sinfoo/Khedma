@@ -104,3 +104,14 @@ test("letters follow the posting's language when there is enough text", () => {
   assert.equal(postingLocale({ description: en }, "fr"), "en");
   assert.equal(postingLocale({ description: "Stage React" }, "fr"), "fr");
 });
+
+test("skill gaps from offers you nearly fit rank first", () => {
+  const near = { ...job({ id: 3, description: "Kubernetes. ".repeat(20) }), evaluation: { global: 4.5 } };
+  const far = [4, 5].map((id) => ({ ...job({ id, description: "Terraform. ".repeat(20) }), evaluation: { global: 1.5 } }));
+  const gaps = computeSkillGaps([near, ...far], profile());
+  const k8s = gaps.find((g) => g.skill === "Kubernetes")!;
+  const tf = gaps.find((g) => g.skill === "Terraform")!;
+  assert.equal(tf.demand, 2);
+  assert.ok(k8s.weight > tf.weight, `${k8s.weight} > ${tf.weight}`);
+  assert.ok(gaps.indexOf(k8s) < gaps.indexOf(tf));
+});

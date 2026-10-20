@@ -179,6 +179,8 @@ export interface Source {
 export interface SkillGap {
   skill: string;
   demand: number; // how many target jobs mention it
+  /** Demand weighted by how well you fit each offer: a gap in an offer you nearly fit counts most. */
+  weight: number;
   have: boolean;
   jobs: number[];
 }

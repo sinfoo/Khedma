@@ -18,7 +18,7 @@ import { eligibilityGates } from "@/lib/ai/gates";
 import { triageScore } from "@/lib/ai/triage";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { isBlacklisted } from "@/lib/company";
-import { getTriageMarginals, insertEvaluationV2, isPriorityCompany, setTriageMarginals as setMarginals } from "@/lib/repo/evaluations";
+import { getTriageMarginals, insertEvaluationV2, isPriorityCompany, outcomeCalibration, setTriageMarginals as setMarginals } from "@/lib/repo/evaluations";
 import { DEMO_JOBS, extractTags, guessType, importFromUrl } from "@/lib/sources";
 import * as repo from "@/lib/repo/offers";
 import { bestPicks, type Pick } from "@/lib/picks";
@@ -99,7 +99,7 @@ export async function parsePasted(text: string): Promise<repo.PastedOffer> {
 async function fullEvaluation(job: Job, profile: Profile): Promise<Evaluation> {
   const gates = eligibilityGates(job, profile, getProfileExtra().langs);
   const triage = triageScore(job, profile, { gates });
-  return insertEvaluationV2({ ...(await evaluateJob(job, profile, gates)), triage });
+  return insertEvaluationV2({ ...(await evaluateJob(job, profile, gates, outcomeCalibration())), triage });
 }
 
 export async function runEvaluation(jobId: number) {
