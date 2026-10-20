@@ -91,3 +91,9 @@ test("interview: no thank-you is due before a future interview", () => {
   assert.equal(c.angle, "thankyou");
   assert.ok(c.nextDue && c.nextDue > "2026-10-15", String(c.nextDue));
 });
+
+test("applied: 60 days of silence is cold even without follow-ups", () => {
+  const stale = computeCadence({ ...base, applied_at: "2026-08-10T09:00:00Z", stageEnteredAt: "2026-08-10 09:00:00" }, now);
+  assert.equal(stale.urgency, "cold");
+  assert.equal(stale.nextDue, null);
+});

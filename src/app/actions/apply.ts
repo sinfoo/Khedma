@@ -212,6 +212,8 @@ export async function logOutcome(id: number, outcome: string, reason: string, le
     setPack(id, { outcome, outcome_reason: clamp(reason, 500), lesson: clamp(lesson, 500), outcome_at: new Date().toISOString() });
     if (outcome === "rejected" && ctx.app.status !== "rejected") updateApplication(id, { status: "rejected" });
     if (outcome === "offer" && !["offer", "hired"].includes(ctx.app.status)) updateApplication(id, { status: "offer" });
+    // No answer is a closed application: it leaves the follow-up queue.
+    if (outcome === "ghosted" && ["applied", "responded", "interview"].includes(ctx.app.status)) updateApplication(id, { status: "discarded" });
     if (outcome !== "offer") completeFollowups(id);
     const { t } = await getDict();
     logEvent(id, "note", `${t.apply2.outcome.outcomes[outcome]}${reason ? ` — ${clamp(reason, 200)}` : ""}`);

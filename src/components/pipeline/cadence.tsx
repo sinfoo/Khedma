@@ -1,5 +1,7 @@
 // Server-safe cadence visuals: a small urgency chip (board cards, tables) and the workspace banner.
 import Link from "next/link";
+import { ActionButton } from "@/components/action-button";
+import { logOutcome } from "@/app/actions/apply";
 import { AlarmClock, MessageSquareReply, Snowflake, Zap } from "lucide-react";
 import type { Dict } from "@/lib/i18n/dict";
 import { fmt } from "@/lib/i18n/dict";
@@ -64,6 +66,7 @@ export function CadenceBanner({ id, c, t, locale }: { id: number; c: CadenceView
       {c.urgency === "cold" && (
         <span className="ml-auto flex gap-1.5">
           <Link href={`/app/pipeline/${id}?tab=contacts`} className="btn btn-secondary btn-sm">{m.coldContact}</Link>
+          <ActionButton action={logOutcome.bind(null, id, "ghosted", "", "")} className="btn btn-outline btn-sm">{m.closeGhosted}</ActionButton>
         </span>
       )}
     </aside>

@@ -6,7 +6,8 @@ import { useToast } from "@/components/kit/toast";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { INTERVIEW_KINDS, type AppState, type Interview } from "@/lib/types";
-import { addNote, moveApplication, saveInterview, undoMove } from "@/app/actions/applications";
+import { moveApplication, saveInterview, undoMove } from "@/app/actions/applications";
+import { logOutcome } from "@/app/actions/apply";
 import { useRun } from "./use-run";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -125,7 +126,7 @@ function RejectDialog({ appId, title, onClose }: { appId: number; title: string;
             className="btn btn-primary"
             disabled={pending || !reason.trim()}
             aria-busy={pending}
-            onClick={() => run(() => addNote(appId, `${s.reasonPrefix}${reason.trim()}`), s.reasonSaved, onClose)}
+            onClick={() => run(() => logOutcome(appId, "rejected", reason.trim(), ""), s.reasonSaved, onClose)}
           >
             {t.common.save}
           </button>

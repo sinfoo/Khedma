@@ -1,5 +1,5 @@
 // Follow-up cadence: pure, testable. Mirrors career-ops followup-cadence.mjs.
-// applied → first follow-up +7 d, then +7 d, max 2 then COLD;
+// applied → first follow-up +7 d, then +7 d, max 2 (or 60 days of silence) then COLD;
 // responded → +1 d (urgent reply window) then +3 d; interview → thank-you +1 d then +3 d.
 import type { AppState } from "../types";
 
@@ -7,6 +7,8 @@ export const DEFAULT_CADENCE = {
   applied_first: 7,
   applied_subsequent: 7,
   applied_max_followups: 2,
+  /** Days after applying with no answer before the application counts as cold, follow-ups or not. */
+  applied_stale: 60,
   responded_initial: 1,
   responded_subsequent: 3,
   interview_thankyou: 1,
@@ -90,7 +92,7 @@ export function computeCadence(input: CadenceInput, now: Date, cfg = DEFAULT_CAD
   let nextDue: string | null;
 
   if (input.status === "applied") {
-    if (n >= cfg.applied_max_followups) {
+    if (n >= cfg.applied_max_followups || daysSinceStart >= cfg.applied_stale) {
       urgency = "cold";
       angle = "none";
       nextDue = null;
