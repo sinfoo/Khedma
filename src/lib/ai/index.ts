@@ -9,11 +9,13 @@ import {
   heuristicInterviewPrep,
   heuristicTailorCv,
   heuristicUpskillPlan,
+  cautiousVerdict,
   verdictFor,
 } from "./heuristic";
 import { ollamaChatJSON, ollamaChatStream, ollamaChatText, ollamaHealth, type ChatMessage } from "./ollama";
 import { claudeHealth, claudeJSON, claudeStream, claudeText } from "./anthropic";
-import { coverLetterPrompt, evaluatePrompt, interviewPrompt, tailorCvPrompt, upskillPrompt, type Prompt } from "./prompts";
+import { coverLetterPrompt, evaluatePrompt, interviewPrompt, tailorCvPrompt, upskillPrompt, type DocCtx, type Prompt } from "./prompts";
+import { applyGates, type Gate } from "./gates";
 
 export { detectLanguage, computeSkillGaps };
 
@@ -83,7 +85,8 @@ const text = (x: unknown) => String(x ?? "").trim();
 const stripFences = (md: string) => md.replace(/^\s*```[\w-]*\s*\n([\s\S]*?)\n\s*```\s*$/, "$1").trim();
 
 // ---------- public API ----------
-export async function evaluateJob(job: Job, profile: Profile): Promise<Omit<Evaluation, "id" | "created_at">> {
+/** `gates`: eligibility gates for this offer (see gates.ts); a failed one vetoes the verdict whatever the score. */
+export async function evaluateJob(job: Job, profile: Profile, gates: Gate[] = []): Promise<Omit<Evaluation, "id" | "created_at">> {
   const locale = profile.settings.locale;
   // Legitimacy, comp reliability and the deterministic defaults never come from the model.
   const v2 = heuristicV2Fields(job, profile);
@@ -92,7 +95,8 @@ export async function evaluateJob(job: Job, profile: Profile): Promise<Omit<Eval
     if (r.global === undefined && r.match === undefined) throw new Error("missing scores");
     const global = score(r.global);
     const verdicts: Evaluation["verdict"][] = ["apply_now", "apply", "maybe", "skip"];
-    const verdict = verdicts.includes(r.verdict as Evaluation["verdict"]) ? (r.verdict as Evaluation["verdict"]) : verdictFor(global);
+    const said = verdicts.includes(r.verdict as Evaluation["verdict"]) ? (r.verdict as Evaluation["verdict"]) : verdictFor(global);
+    const verdict = cautiousVerdict(said, verdictFor(global));
     const requirements = shapeRequirements(r.requirements, `${profile.skills.join(", ")}\n${profile.cv_md}`);
     const cvChanges = strs(r.cv_changes, 5).map((s) => s.slice(0, 160));
     return {
@@ -117,7 +121,7 @@ export async function evaluateJob(job: Job, profile: Profile): Promise<Omit<Eval
       company_type: (COMPANY_TYPES as readonly string[]).includes(String(r.company_type)) ? (r.company_type as CompanyType) : v2.company_type,
     };
   });
-  return fromOllama ?? { job_id: job.id, ...heuristicEvaluate(job, profile), ...v2 };
+  return applyGates(fromOllama ?? { job_id: job.id, ...heuristicEvaluate(job, profile), ...v2 }, gates, locale === "fr");
 }
 
 async function markdownTask(settings: Settings, prompt: Prompt, fallback: () => string): Promise<{ md: string; engine: string }> {
@@ -129,16 +133,16 @@ async function markdownTask(settings: Settings, prompt: Prompt, fallback: () => 
   return r ?? { md: fallback(), engine: "heuristic" };
 }
 
-export function tailorCv(job: Job, profile: Profile, locale: Locale) {
-  return markdownTask(profile.settings, tailorCvPrompt(job, profile, locale), () => heuristicTailorCv(job, profile, locale));
+export function tailorCv(job: Job, profile: Profile, locale: Locale, ctx: DocCtx = {}) {
+  return markdownTask(profile.settings, tailorCvPrompt(job, profile, locale, ctx), () => heuristicTailorCv(job, profile, locale));
 }
 
-export function writeCoverLetter(job: Job, profile: Profile, locale: Locale) {
-  return markdownTask(profile.settings, coverLetterPrompt(job, profile, locale), () => heuristicCoverLetter(job, profile, locale));
+export function writeCoverLetter(job: Job, profile: Profile, locale: Locale, ctx: DocCtx = {}) {
+  return markdownTask(profile.settings, coverLetterPrompt(job, profile, locale, ctx), () => heuristicCoverLetter(job, profile, locale));
 }
 
-export async function prepareInterview(job: Job, profile: Profile, locale: Locale): Promise<InterviewPrep> {
-  const r = await tryOllama(profile.settings, interviewPrompt(job, profile, locale), (raw, label) => {
+export async function prepareInterview(job: Job, profile: Profile, locale: Locale, ctx: DocCtx = {}): Promise<InterviewPrep> {
+  const r = await tryOllama(profile.settings, interviewPrompt(job, profile, locale, ctx), (raw, label) => {
     const o = obj(raw);
     const likely_questions = (Array.isArray(o.likely_questions) ? o.likely_questions : [])
       .map((q) => ({ question: text(obj(q).question), why: text(obj(q).why), approach: text(obj(q).approach) }))

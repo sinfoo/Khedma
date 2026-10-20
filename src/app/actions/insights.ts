@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { addEvent, ensureApplication, getApplication, getJob, getProfile, insertEvaluation, listJobs } from "@/lib/db";
 import { evaluateJob } from "@/lib/ai";
+import { eligibilityGates } from "@/lib/ai/gates";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { addReminder, setReminderDone, setWeeklyGoal } from "@/lib/repo/insights";
 
 const id = (v: unknown) => {
@@ -64,7 +66,7 @@ export async function evaluatePending(): Promise<number> {
   let n = 0;
   for (const j of todo) {
     try {
-      insertEvaluation(await evaluateJob(j, profile));
+      insertEvaluation(await evaluateJob(j, profile, eligibilityGates(j, profile, getProfileExtra().langs)));
       n++;
     } catch (e) {
       console.warn("[evaluate] skipped", j.id, (e as Error).message);

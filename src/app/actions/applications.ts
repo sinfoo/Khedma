@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db";
 import { prepareInterview } from "@/lib/ai";
+import { postingLocale } from "@/lib/ai/heuristic";
+import { companySlug, getCompany } from "@/lib/company";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict, getLocale } from "@/lib/i18n/server";
@@ -149,9 +151,13 @@ export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Re
     return { ok: false, error: t.apps2.docs.needCv };
   }
   try {
-    const locale = await getLocale();
+    const ui = await getLocale();
     const profile = getProfile();
-    const { md, engine } = kind === "cv" ? await tailorFromSource(job, profile, src, locale) : await letterFromSource(job, profile, src, locale);
+    // The CV stays in the app's language; the letter follows the posting's, and its "why this company" uses the research brief.
+    const { md, engine } =
+      kind === "cv"
+        ? await tailorFromSource(job, profile, src, ui)
+        : await letterFromSource(job, profile, src, postingLocale(job, ui), { company: companyBrief(job.company) });
     if (!md.trim()) return fail("generic");
     updateApplication(id, kind === "cv" ? { cv_md: md } : { cover_letter_md: md });
     setExtras(id, kind === "cv" ? { cv_engine: engine } : { letter_engine: engine });
@@ -181,6 +187,11 @@ export async function clearCvOverride(id: number): Promise<Result> {
   return { ok: true };
 }
 
+/** The summary from a past "Research this company" run, if any. */
+function companyBrief(company: string) {
+  return getCompany(companySlug(company))?.research?.summary ?? null;
+}
+
 export async function generatePrep(id: number): Promise<Result> {
   if (!exists(id)) return fail("notFound");
   const app = getApplication(id)!;
@@ -189,7 +200,7 @@ export async function generatePrep(id: number): Promise<Result> {
   try {
     const src = cvInput(id);
     const profile = getProfile();
-    const prep = await prepareInterview(job, { ...profile, cv_md: cvBase(src) || profile.cv_md }, await getLocale());
+    const prep = await prepareInterview(job, { ...profile, cv_md: cvBase(src) || profile.cv_md }, await getLocale(), { company: companyBrief(job.company) });
     updateApplication(id, { interview_prep: prep });
     logEvent(id, "doc", "interview");
     refresh();

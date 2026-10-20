@@ -87,6 +87,11 @@ export function detectLanguage(text: string): Locale {
   return fr > en ? "fr" : "en";
 }
 
+/** Language a letter should be written in: the posting's, when there is enough text to tell. */
+export function postingLocale(job: Pick<Job, "description">, fallback: Locale): Locale {
+  return job.description.trim().length >= 200 ? detectLanguage(job.description) : fallback;
+}
+
 // ---------- shared helpers ----------
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const clamp = (n: number) => Math.min(5, Math.max(1, n));
@@ -112,6 +117,12 @@ function splitSkills(job: Job, profile: Profile) {
 
 export function verdictFor(global: number): Evaluation["verdict"] {
   return global >= 4.5 ? "apply_now" : global >= 4 ? "apply" : global >= 3.5 ? "maybe" : "skip";
+}
+
+const VERDICT_RANK: Record<Evaluation["verdict"], number> = { skip: 0, maybe: 1, apply: 2, apply_now: 3 };
+/** The more cautious of two verdicts: a model may be stricter than its own score, never kinder. */
+export function cautiousVerdict(a: Evaluation["verdict"], b: Evaluation["verdict"]): Evaluation["verdict"] {
+  return VERDICT_RANK[a] <= VERDICT_RANK[b] ? a : b;
 }
 
 const INTERNSHIP: Job["type"][] = ["stage", "pfe", "alternance"];

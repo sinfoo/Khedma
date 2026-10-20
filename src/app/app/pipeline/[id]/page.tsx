@@ -276,6 +276,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 disabledSlot={needCv ? uploadSlot : undefined}
                 downloads={{ docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
                 original={hasCv ? cvBase(source) : null}
+                limit={{ words: 900, pages: 2 }}
               />
             ) : (
               <DocEditor
@@ -290,6 +291,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 disabledReason={needCv}
                 disabledSlot={needCv ? uploadSlot : undefined}
                 downloads={{ docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
+                limit={{ words: 320, pages: 1 }}
               />
             )}
             <aside className="no-print flex flex-col gap-3.5">

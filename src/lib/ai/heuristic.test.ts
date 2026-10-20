@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS, type Job, type Profile } from "../types";
-import { computeSkillGaps, extractSkills, heuristicEvaluate } from "./heuristic";
+import { cautiousVerdict, computeSkillGaps, extractSkills, heuristicEvaluate, postingLocale, verdictFor } from "./heuristic";
 import { detectLanguage } from "./index";
 
 const job = (over: Partial<Job> = {}): Job => ({
@@ -91,4 +91,16 @@ test("computeSkillGaps counts demand and marks missing skills", () => {
 test("detectLanguage", () => {
   assert.equal(detectLanguage("Nous recherchons un stagiaire pour rejoindre notre équipe dans les locaux de Tunis."), "fr");
   assert.equal(detectLanguage("We are looking for an intern to join our team in the Tunis office."), "en");
+});
+
+test("a model verdict can be stricter than its score, never kinder", () => {
+  assert.equal(cautiousVerdict("apply_now", verdictFor(3.2)), "skip");
+  assert.equal(cautiousVerdict("skip", verdictFor(4.6)), "skip");
+  assert.equal(cautiousVerdict("apply", verdictFor(4.6)), "apply");
+});
+
+test("letters follow the posting's language when there is enough text", () => {
+  const en = "We are looking for an intern to join our team. You will work with the data team and help us build our pipelines. ".repeat(3);
+  assert.equal(postingLocale({ description: en }, "fr"), "en");
+  assert.equal(postingLocale({ description: "Stage React" }, "fr"), "fr");
 });

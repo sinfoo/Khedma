@@ -28,6 +28,7 @@ export function DocEditor({
   disabledSlot,
   downloads,
   original,
+  limit,
 }: {
   value: string | null;
   saveAction: (md: string) => Promise<Result | void>;
@@ -42,6 +43,8 @@ export function DocEditor({
   downloads?: { docx?: string; md?: string };
   /** Source document; enables the side-by-side compare view. */
   original?: string | null;
+  /** Rough fit: past `words`, the document likely runs over `pages`. */
+  limit?: { words: number; pages: number };
 }) {
   const { t } = useT();
   const d = t.apps2.docs;
@@ -171,7 +174,13 @@ export function DocEditor({
               </>
             )}
             <span className="ml-auto flex items-center gap-2">
-              <span className="mono text-xs text-muted tabular">{fmt(d.words, { n: count })}</span>
+              {limit && count > limit.words ? (
+                <span className="chip chip-danger tabular" title={fmt(d.tooLong, { max: limit.words, p: limit.pages })}>
+                  {fmt(d.words, { n: count })} · {fmt(d.tooLongShort, { p: limit.pages })}
+                </span>
+              ) : (
+                <span className="mono text-xs text-muted tabular">{fmt(d.words, { n: count })}</span>
+              )}
               {dirty && <span className="chip chip-saffron">{d.unsaved}</span>}
               {engine && <EngineChip engine={engine} t={t} />}
             </span>

@@ -2,6 +2,7 @@
 import type { Job, Locale, Profile } from "../types";
 import { aiText, tailorCv, writeCoverLetter } from "./index";
 import { extractSkills } from "./heuristic";
+import type { DocCtx } from "./prompts";
 import { lintWriting, styleBlock, WRITING_RULES, type LintFinding } from "./writing";
 import { getProfileExtra } from "../cv/profile-extra";
 import { keywordCoverage } from "../cv/export";
@@ -256,14 +257,14 @@ export function cvBase(src: CvInput): string {
 const jobText = (job: Job) => `${job.title}\n${job.tags.join(", ")}\n${job.description}`;
 
 // The CV/letter prompts live in prompts.ts (shared); their output is linted after the fact.
-export async function tailorFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale) {
+export async function tailorFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale, ctx: DocCtx = {}) {
   const md = prioritizeLines(cvBase(src), extractSkills(jobText(job)));
-  const r = await tailorCv(job, { ...profile, cv_md: md }, locale);
+  const r = await tailorCv(job, { ...profile, cv_md: md }, locale, { ...ctx, style: styleBlock(getProfileExtra()) });
   return { ...r, lint: lintWriting(r.md, locale) };
 }
 
-export async function letterFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale) {
-  const r = await writeCoverLetter(job, { ...profile, cv_md: cvBase(src) }, locale);
+export async function letterFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale, ctx: DocCtx = {}) {
+  const r = await writeCoverLetter(job, { ...profile, cv_md: cvBase(src) }, locale, { ...ctx, style: styleBlock(getProfileExtra()) });
   return { ...r, lint: lintWriting(r.md, locale) };
 }
 

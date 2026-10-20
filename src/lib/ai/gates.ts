@@ -1,6 +1,6 @@
 // Eligibility and language gates (rank vetoes). Zero-LLM. "Silence is not permission":
 // a gate fires only on explicit posting text, which is quoted verbatim so the user can judge.
-import type { Job, Profile } from "../types";
+import type { Evaluation, Job, Profile } from "../types";
 import type { LangLevel } from "../cv/model";
 
 export interface Gate {
@@ -79,4 +79,12 @@ export function eligibilityGates(job: Job, profile: Profile, langs: LangLevel[] 
     seen.add(k);
     gates.push(g);
   }
+}
+
+/** A failed gate vetoes any score: the verdict drops to skip and the posting's own words lead the flags. */
+export function applyGates<T extends Pick<Evaluation, "verdict" | "flags">>(ev: T, gates: Gate[], fr: boolean): T {
+  const fails = gates.filter((g) => g.level === "fail");
+  if (!fails.length) return ev;
+  const label = fr ? "critère éliminatoire" : "eligibility gate";
+  return { ...ev, verdict: "skip", flags: [...fails.map((g) => `${label}: “${g.quote}”`), ...ev.flags].slice(0, 6) };
 }

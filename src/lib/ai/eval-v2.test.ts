@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS, type Job, type Profile } from "../types";
 import { capInferred, classifyCompanyType, compReliability, computeLegitimacy, heuristicEvaluateV2, heuristicRequirements, shapeRequirements, sortRequirements } from "./eval-v2";
-import { eligibilityGates } from "./gates";
+import { applyGates, eligibilityGates } from "./gates";
 import { triageScore, TRIAGE_MARGINAL, TRIAGE_PASS } from "./triage";
 
 const DESC = `Stage PFE développeur embarqué (6 mois) chez notre PME tunisienne.
@@ -125,4 +125,13 @@ test("triage: thresholds and reasons", () => {
   assert.equal(far.verdict, "fail");
   assert.ok(far.score < TRIAGE_MARGINAL && far.reason.length > 0);
   assert.equal(far.skipped, false);
+});
+
+test("a failed eligibility gate vetoes the verdict and quotes the posting", () => {
+  const gates = [{ key: "citizenship" as const, level: "fail" as const, quote: "Must be a French citizen." }];
+  const ev = applyGates({ verdict: "apply_now" as const, flags: ["urgent"] }, gates, false);
+  assert.equal(ev.verdict, "skip");
+  assert.deepEqual(ev.flags, ["eligibility gate: “Must be a French citizen.”", "urgent"]);
+  const flagOnly = applyGates({ verdict: "apply" as const, flags: [] }, [{ ...gates[0], level: "flag" as const }], false);
+  assert.equal(flagOnly.verdict, "apply");
 });

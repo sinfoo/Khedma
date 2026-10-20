@@ -99,7 +99,7 @@ export async function parsePasted(text: string): Promise<repo.PastedOffer> {
 async function fullEvaluation(job: Job, profile: Profile): Promise<Evaluation> {
   const gates = eligibilityGates(job, profile, getProfileExtra().langs);
   const triage = triageScore(job, profile, { gates });
-  return insertEvaluationV2({ ...(await evaluateJob(job, profile)), triage });
+  return insertEvaluationV2({ ...(await evaluateJob(job, profile, gates)), triage });
 }
 
 export async function runEvaluation(jobId: number) {
