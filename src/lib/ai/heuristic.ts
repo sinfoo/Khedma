@@ -227,8 +227,8 @@ export function heuristicTailorCv(job: Job, profile: Profile, locale: Locale): s
   const fr = locale === "fr";
   const skillsTxt = matched.length ? matched.join(", ") : fr ? "[compétences clés]" : "[key skills]";
   const summary = fr
-    ? `## Résumé\n\nCandidature au poste de ${job.title} chez ${job.company}. ${profile.headline ? profile.headline + ". " : ""}Compétences en lien avec le poste : ${skillsTxt}.\n`
-    : `## Summary\n\nApplying for the ${job.title} position at ${job.company}. ${profile.headline ? profile.headline + ". " : ""}Skills relevant to this role: ${skillsTxt}.\n`;
+    ? `## Profil\n\n${profile.headline ? profile.headline + ". " : ""}Compétences en lien avec le poste : ${skillsTxt}.\n`
+    : `## Summary\n\n${profile.headline ? profile.headline + ". " : ""}Skills relevant to this role: ${skillsTxt}.\n`;
 
   // Split into "## " sections; keep the preamble (name / contact) first.
   const parts = cv.split(/^(?=## )/m);
@@ -250,10 +250,12 @@ export function heuristicCoverLetter(job: Job, profile: Profile, locale: Locale)
     return `${name}
 ${profile.email || "[e-mail]"}
 
-${job.company}
-[Adresse]
+[Date]
 
-Objet : Candidature au ${type} de ${job.title}
+${job.company}
+${job.location || "[Adresse]"}
+
+Objet : Candidature, ${job.title}
 
 [Madame, Monsieur],
 
@@ -273,12 +275,14 @@ ${name}
   return `${name}
 ${profile.email || "[email]"}
 
+[Date]
+
 ${job.company}
-[Address]
+${job.location || "[Address]"}
 
-Subject: Application for the ${job.title} ${type}
+Subject: Application, ${job.title}
 
-Dear [Hiring Manager],
+[Dear Hiring Team],
 
 As a ${headline}, I am writing to apply for the ${job.title} ${type} at ${job.company}.
 

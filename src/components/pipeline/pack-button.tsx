@@ -7,14 +7,17 @@ import { useT } from "@/lib/i18n/client";
 import { generatePack } from "@/app/actions/applications";
 
 /** One click writes the missing CV and letter together, so "Apply" never lands on an empty pack. */
-export function PackButton({ id }: { id: number }) {
+export function PackButton({ id, missing, needCvHref }: { id: number; missing: "both" | "cv" | "letter"; /** No CV to start from: link to the upload instead. */ needCvHref?: string }) {
   const { t } = useT();
   const F = t.apps2.flow;
   const toast = useToast();
   const [pending, start] = useTransition();
   return (
     <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-saffron-soft px-3.5 py-3">
-      <p className="min-w-0 flex-1 text-[0.82rem] text-ink-2">{pending ? F.packWriting : F.packHint}</p>
+      <p className="min-w-0 flex-1 text-[0.82rem] text-ink-2">{needCvHref ? F.packNeedCv : pending ? F.packWriting : F.packHint}</p>
+      {needCvHref ? (
+        <a href={needCvHref} className="btn btn-saffron btn-sm">{F.packUpload}</a>
+      ) : (
       <button
         type="button"
         className="btn btn-saffron btn-sm"
@@ -28,8 +31,9 @@ export function PackButton({ id }: { id: number }) {
           })
         }
       >
-        {pending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />} {F.packGenerate}
+        {pending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />} {missing === "cv" ? F.packGenerateCv : missing === "letter" ? F.packGenerateLetter : F.packGenerate}
       </button>
+      )}
     </div>
   );
 }

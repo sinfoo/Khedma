@@ -189,20 +189,25 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             {review && !applied && <SafetyCard id={app.id} safety={review.safety} company={job.company} manual={!/^https?:\/\//i.test(job.url)} />}
             <div className="card p-[18px]">
               <h2 className="mb-3 text-[1.15rem] tracking-[-0.01em]">{F.pack}</h2>
-              {!(app.cv_md?.trim() && app.cover_letter_md?.trim()) && <PackButton id={app.id} />}
+              {!(app.cv_md?.trim() && app.cover_letter_md?.trim()) && (
+                <PackButton id={app.id} missing={!app.cv_md?.trim() && !app.cover_letter_md?.trim() ? "both" : !app.cv_md?.trim() ? "cv" : "letter"} needCvHref={hasCv ? undefined : stepHref("tailor")} />
+              )}
               <ul className="flex flex-col gap-2">
                 {([["cv", app.cv_md, F.packCv], ["letter", app.cover_letter_md, F.packLetter]] as const).map(([k, text, label]) => (
                   <li key={k} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-line bg-bg-elev px-3 py-2.5">
                     <span className={`tile tile-sm ${text?.trim() ? "tone-success" : "tone-muted"}`}>{k === "cv" ? <FileText size={16} aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{label}</p>
-                      <p className="text-[0.75rem] text-muted">{text?.trim() ? fmt(F.packWords, { n: words(text) }) : F.packMissing}</p>
+                      <p className={`text-[0.75rem] ${text?.trim() && words(text) > (k === "cv" ? 900 : 320) ? "text-danger" : "text-muted"}`}>
+                        {text?.trim() ? fmt(F.packWords, { n: words(text) }) : F.packMissing}
+                        {text?.trim() && words(text) > (k === "cv" ? 900 : 320) && ` · ${fmt(a.docs.tooLongShort, { p: k === "cv" ? 2 : 1 })}`}
+                      </p>
                     </div>
                     <div className="flex gap-1">
                       <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{F.edit}</Link>
                       {text?.trim() && (
                         <>
-                          <a href={`/print/${app.id}?doc=${k}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlPdf, { doc: label })} title={fmt(F.dlPdf, { doc: label })}>
+                          <a href={`/api/applications/${app.id}/export?doc=${k}&format=pdf`} download className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlPdf, { doc: label })} title={fmt(F.dlPdf, { doc: label })}>
                             <Download size={13} aria-hidden="true" /> PDF
                           </a>
                           <a href={`/api/applications/${app.id}/export?doc=${k}&format=docx`} className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlDocx, { doc: label })} title={fmt(F.dlDocx, { doc: label })} download>
@@ -215,6 +220,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 ))}
               </ul>
             </div>
+            {review && (
+              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} />
+            )}
             <div className="card p-[18px]">
               <h2 className="mb-1 text-[1.15rem] tracking-[-0.01em]">{F.howToApply}</h2>
               <p className="mb-3 text-[0.82rem] text-muted">{F.howToApplyLead}</p>
@@ -258,9 +266,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <Suspense fallback={null}>
               <ApplyFormCard url={job.url} />
             </Suspense>
-            {review && (
-              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} />
-            )}
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
@@ -290,7 +295,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 engine={extras.cv_engine}
                 disabledReason={needCv}
                 disabledSlot={needCv ? uploadSlot : undefined}
-                downloads={{ docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
+                downloads={{ pdf: `/api/applications/${app.id}/export?doc=cv&format=pdf`, docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
+                preview={`/print/${app.id}?doc=cv&embed=1`}
                 original={hasCv ? cvBase(source) : null}
                 limit={{ words: 900, pages: 2 }}
               />
@@ -306,7 +312,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 engine={extras.letter_engine}
                 disabledReason={needCv}
                 disabledSlot={needCv ? uploadSlot : undefined}
-                downloads={{ docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
+                downloads={{ pdf: `/api/applications/${app.id}/export?doc=letter&format=pdf`, docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
+                preview={`/print/${app.id}?doc=letter&embed=1`}
+                original={hasCv ? cvBase(source) : null}
+                compare={false}
                 limit={{ words: 320, pages: 1 }}
               />
             )}
@@ -446,8 +455,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             title={`${job.company} — ${job.title}`}
             missing={[...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(app.cover_letter_md?.trim() ? [] : ["letter" as const])]}
             afterHref={stepHref("after")}
-            channel={applyEmail && !/^https?:\/\//.test(job.url) ? "email" : "site"}
+            channel={applyEmail && (!contactEmail || !/^https?:\/\//.test(job.url)) ? "email" : "site"}
             answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
+            unfilled={review?.saved.filter((x) => /\[[^\]]+\](?!\()/.test(x.answer)).length ?? 0}
           />
         ) : step !== "after" && (
           <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>

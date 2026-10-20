@@ -159,7 +159,7 @@ export async function applyTo(jobId: number) {
   if (!getJob(Number(jobId))) return;
   const app = ensureApplication(Number(jobId));
   refresh();
-  redirect(`/app/pipeline/${app.id}?tab=overview`);
+  redirect(`/app/pipeline/${app.id}`);
 }
 
 /** Track if needed, then open the application's documents tab for CV tailoring. */

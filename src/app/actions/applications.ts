@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db";
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
+import { docFacts } from "@/lib/apply/doc-facts";
 import { companySlug, getCompany } from "@/lib/company";
 import { getPack, isChannel, listAnswers, setPack } from "@/lib/apply/repo";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
@@ -151,7 +152,7 @@ export async function saveDoc(id: number, kind: "cv" | "letter", md: string): Pr
   return { ok: true };
 }
 
-export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Result<{ engine: string }>> {
+export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Result<{ engine: string; dropped: string[] }>> {
   if (!exists(id)) return fail("notFound");
   if (kind !== "cv" && kind !== "letter") return fail("invalid");
   const app = getApplication(id)!;
@@ -165,17 +166,19 @@ export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Re
   try {
     const ui = await getLocale();
     const profile = getProfile();
-    // The CV stays in the app's language; the letter follows the posting's, and its "why this company" uses the research brief.
-    const { md, engine } =
+    // The CV and the letter go out together: both in the posting's language.
+    const lang = postingLocale(job, ui);
+    const facts = docFacts(id, lang);
+    const { md, engine, dropped } =
       kind === "cv"
-        ? await tailorFromSource(job, profile, src, ui)
-        : await letterFromSource(job, profile, src, postingLocale(job, ui), { company: companyBrief(job.company) });
+        ? await tailorFromSource(job, profile, src, lang, { facts })
+        : await letterFromSource(job, profile, src, lang, { company: companyBrief(job.company), facts });
     if (!md.trim()) return fail("generic");
     updateApplication(id, kind === "cv" ? { cv_md: md } : { cover_letter_md: md });
     setExtras(id, kind === "cv" ? { cv_engine: engine } : { letter_engine: engine });
     logEvent(id, "doc", kind);
     refresh();
-    return { ok: true, engine };
+    return { ok: true, engine, dropped };
   } catch {
     return fail("generic");
   }
@@ -187,9 +190,10 @@ export async function generatePack(id: number): Promise<Result<{ written: number
   if (!app) return fail("notFound");
   const kinds = (["cv", "letter"] as const).filter((k) => !(k === "cv" ? app.cv_md : app.cover_letter_md)?.trim());
   const results = await Promise.all(kinds.map((k) => generateDoc(id, k)));
-  const bad = results.find((r) => !r.ok);
-  if (bad && !results.some((r) => r.ok)) return bad as { ok: false; error: string };
-  return { ok: true, written: results.filter((r) => r.ok).length };
+  const bad = results.find((r) => !r.ok) as { ok: false; error: string } | undefined;
+  // One failed: say which instead of "both are ready".
+  if (bad) return results.some((r) => r.ok) ? { ok: false, error: `${(await getDict()).t.apps2.flow.packPartial} ${bad.error}` } : bad;
+  return { ok: true, written: results.length };
 }
 
 export async function clearCvOverride(id: number): Promise<Result> {

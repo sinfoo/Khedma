@@ -16,7 +16,7 @@ import { useStageMove } from "./stage";
  * (toast + undo, follow-up reminder, answers kept as sent) and opens the after-step.
  */
 export function MarkSentButton({
-  id, status, title, missing, afterHref, channel: initial, answers, className = "btn btn-saffron !h-10",
+  id, status, title, missing, afterHref, channel: initial, answers, unfilled = 0, className = "btn btn-saffron !h-10",
 }: {
   id: number;
   status: AppState;
@@ -25,8 +25,9 @@ export function MarkSentButton({
   afterHref: string;
   /** Best guess from the posting: "email" when it only gives an address. */
   channel: Channel;
-  /** Form answers that will be stored as sent. */
+  /** Form answers that will be stored as sent, and how many still hold a [placeholder]. */
   answers: number;
+  unfilled?: number;
   className?: string;
 }) {
   const { t } = useT();
@@ -63,6 +64,12 @@ export function MarkSentButton({
           <p className="mb-4 flex items-start gap-2 rounded-xl bg-saffron-soft p-3 text-sm" role="note">
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
             {fmt(F.missingDocs, { docs })}
+          </p>
+        )}
+        {unfilled > 0 && (
+          <p className="mb-4 flex items-start gap-2 rounded-xl bg-saffron-soft p-3 text-sm" role="note">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
+            {fmt(F.unfilledAnswers, { n: unfilled })}
           </p>
         )}
         <fieldset className="mb-4">

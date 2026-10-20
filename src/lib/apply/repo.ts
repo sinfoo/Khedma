@@ -39,7 +39,8 @@ function schema() {
 // ---------- answers ----------
 export function listAnswers(appId: number): SavedAnswer[] {
   schema();
-  return db().prepare("SELECT * FROM apply_answers WHERE application_id = ? ORDER BY rowid").all(appId) as unknown as SavedAnswer[];
+  // Spread: SQLite rows have a null prototype, which React refuses to pass to client components.
+  return (db().prepare("SELECT * FROM apply_answers WHERE application_id = ? ORDER BY rowid").all(appId) as unknown as SavedAnswer[]).map((r) => ({ ...r }));
 }
 
 export function saveAnswer(a: Omit<SavedAnswer, "updated_at">): void {

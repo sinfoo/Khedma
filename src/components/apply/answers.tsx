@@ -154,7 +154,8 @@ function AnswerCard({ id, draft, i, onRegen, onRemove, busy }: { id: number; dra
       <label className="sr-only" htmlFor={tid}>{draft.question}</label>
       <textarea id={tid} className="input min-h-28 w-full resize-y text-sm leading-relaxed" value={text} aria-invalid={over || unfilled || undefined} aria-required={sensitive || undefined}
         aria-describedby={sensitive ? `${tid}-s ${tid}-c` : `${tid}-c`}
-        onChange={(e) => { setText(e.target.value); setDirty(true); }} />
+        onChange={(e) => { setText(e.target.value); setDirty(true); }}
+        onBlur={() => { if (dirty) runSave(() => saveFormAnswer(id, draft.qid, text, draft.max_chars), t.common.saved, () => setDirty(false)); }} />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span id={`${tid}-c`} className={`text-xs tabular ${over ? "text-danger" : "text-muted"}`}>
           {fmt(a.counter, { n: text.length, max: draft.max_chars })}{over ? ` · ${a.tooLong}` : ""}

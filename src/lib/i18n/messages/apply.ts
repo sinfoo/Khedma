@@ -216,7 +216,7 @@ export default defineMessages({
     },
     submit: {
       title: "Envoi & suivi",
-      lead: "Une fois la candidature envoyée, enregistrez-la ici : le pipeline passe à « Postulé » et un rappel de relance est créé à +7 jours.",
+      lead: "Une fois la candidature envoyée, enregistre-la ici : la candidature passe dans « Candidature envoyée » et une relance est prévue à +7 jours.",
       channel: "Canal",
       channels: { site: "Site de l'entreprise / ATS", email: "E-mail", linkedin: "LinkedIn", referral: "Recommandation" },
       reference: "Numéro de référence",

@@ -3,6 +3,7 @@ import type { Job, Locale, Profile } from "../types";
 import { aiText, tailorCv, writeCoverLetter } from "./index";
 import { extractSkills } from "./heuristic";
 import type { DocCtx } from "./prompts";
+import { fillPlaceholders } from "./placeholders";
 import { lintWriting, styleBlock, WRITING_RULES, type LintFinding } from "./writing";
 import { getProfileExtra } from "../cv/profile-extra";
 import { keywordCoverage } from "../cv/export";
@@ -49,7 +50,7 @@ export function heuristicMessage(type: MessageType, c: MessageCtx): { subject: s
       case "followup":
         return {
           subject: `Suivi de ma candidature : ${job.title}`,
-          body: `${hello}\n\nJe me permets de revenir vers vous au sujet de ma candidature au poste de ${job.title} chez ${job.company}, envoyée il y a ${c.days} jours.\n\nCette opportunité m'intéresse toujours vivement${skills ? `, notamment pour mettre à profit mes compétences en ${skills}` : ""}. Je reste disponible pour un échange à votre convenance.\n\nJe vous remercie par avance pour votre retour.\n\nCordialement,\n${sign}`,
+          body: `${hello}\n\nJ'ai envoyé il y a ${c.days} jours ma candidature au poste de ${job.title} chez ${job.company}.\n\nCette opportunité m'intéresse toujours vivement${skills ? `, notamment pour mettre à profit mes compétences en ${skills}` : ""}. Je reste disponible pour un échange à votre convenance.\n\nJe vous remercie par avance pour votre retour.\n\nCordialement,\n${sign}`,
         };
       case "thanks":
         return {
@@ -260,12 +261,14 @@ const jobText = (job: Job) => `${job.title}\n${job.tags.join(", ")}\n${job.descr
 export async function tailorFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale, ctx: DocCtx = {}) {
   const md = prioritizeLines(cvBase(src), extractSkills(jobText(job)));
   const r = await tailorCv(job, { ...profile, cv_md: md }, locale, { ...ctx, style: styleBlock(getProfileExtra()) });
-  return { ...r, lint: lintWriting(r.md, locale) };
+  const f = ctx.facts ? fillPlaceholders(r.md, ctx.facts) : { md: r.md, dropped: [] };
+  return { ...r, md: f.md, dropped: f.dropped, lint: lintWriting(f.md, locale) };
 }
 
 export async function letterFromSource(job: Job, profile: Profile, src: CvInput, locale: Locale, ctx: DocCtx = {}) {
   const r = await writeCoverLetter(job, { ...profile, cv_md: cvBase(src) }, locale, { ...ctx, style: styleBlock(getProfileExtra()) });
-  return { ...r, lint: lintWriting(r.md, locale) };
+  const f = ctx.facts ? fillPlaceholders(r.md, ctx.facts) : { md: r.md, dropped: [] };
+  return { ...r, md: f.md, dropped: f.dropped, lint: lintWriting(f.md, locale) };
 }
 
 /** Share of the posting's recognised keywords that appear in the CV. */

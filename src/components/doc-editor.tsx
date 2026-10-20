@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Check, Columns2, Copy, Download, Eye, FileText, Loader2, Pencil, Printer, RotateCcw, Save, Sparkles } from "lucide-react";
+import { Check, Columns2, Copy, Download, Eye, FileText, Loader2, Pencil, RotateCcw, Save, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -15,7 +15,7 @@ import { FactGate, WritingLint, useFacts } from "./writing-lint";
 
 const words = (s: string) => (s.replace(/[#>*_`|[\]()-]+/g, " ").match(/[\p{L}\p{N}][\p{L}\p{N}'’+#.]*/gu) ?? []).length;
 
-/** Markdown document: generate, edit/preview/compare, save, copy, download, print. */
+/** A document that gets sent: the PDF is the main view and download; its Markdown text is the editable source. */
 export function DocEditor({
   value,
   saveAction,
@@ -28,11 +28,13 @@ export function DocEditor({
   disabledSlot,
   downloads,
   original,
+  compare = true,
+  preview,
   limit,
 }: {
   value: string | null;
   saveAction: (md: string) => Promise<Result | void>;
-  generateAction: () => Promise<Result<{ engine: string }> | void>;
+  generateAction: () => Promise<Result<{ engine: string; dropped?: string[] }> | void>;
   emptyText: string;
   generateLabel: string;
   generateHint: string;
@@ -40,9 +42,12 @@ export function DocEditor({
   disabledReason?: string;
   /** Rendered under the disabled reason (e.g. an upload dropzone). */
   disabledSlot?: React.ReactNode;
-  downloads?: { docx?: string; md?: string };
-  /** Source document; enables the side-by-side compare view. */
+  downloads?: { pdf?: string; docx?: string; md?: string };
+  /** The rendered sheet (print page), shown as the preview. */
+  preview?: string;
+  /** Source document: checks the facts, and enables the side-by-side compare view unless `compare` is false. */
   original?: string | null;
+  compare?: boolean;
   /** Rough fit: past `words`, the document likely runs over `pages`. */
   limit?: { words: number; pages: number };
 }) {
@@ -91,6 +96,7 @@ export function DocEditor({
           return;
         }
         toast.success(d.generated);
+        if (r?.ok && r.dropped?.length) toast.info(d.dropped, r.dropped.slice(0, 3).join(" · "));
         setDirty(false);
         setMode("preview");
       } catch {
@@ -130,7 +136,12 @@ export function DocEditor({
   return (
     <div className="card p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2 no-print">
-        <button type="button" className="btn btn-primary" onClick={generate} disabled={gen || !!disabledReason} aria-busy={gen} aria-describedby={disabledReason ? "doc-disabled" : undefined}>
+        {value && downloads?.pdf && !dirty && (
+          <a href={downloads.pdf} className="btn btn-primary" download>
+            <Download size={16} aria-hidden="true" /> {d.pdf}
+          </a>
+        )}
+        <button type="button" className={`btn ${value ? "btn-outline" : "btn-primary"}`} onClick={generate} disabled={gen || !!disabledReason} aria-busy={gen} aria-describedby={disabledReason ? "doc-disabled" : undefined}>
           {gen ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
           {gen ? t.common.generating : value ? t.common.regenerate : generateLabel}
         </button>
@@ -138,8 +149,8 @@ export function DocEditor({
           <>
             <div role="group" aria-label={d.viewMode} className="inline-flex overflow-hidden rounded-full border border-line-strong">
               {tabBtn("preview", <Eye size={14} aria-hidden="true" />, t.application.preview)}
-              {tabBtn("edit", <Pencil size={14} aria-hidden="true" />, t.common.edit)}
-              {original?.trim() && tabBtn("compare", <Columns2 size={14} aria-hidden="true" />, d.compare)}
+              {tabBtn("edit", <Pencil size={14} aria-hidden="true" />, d.editText)}
+              {compare && original?.trim() && tabBtn("compare", <Columns2 size={14} aria-hidden="true" />, d.compare)}
             </div>
             <button
               type="button"
@@ -156,13 +167,12 @@ export function DocEditor({
             >
               {copied ? <Check size={14} aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />} {copied ? t.common.copied : t.common.copy}
             </button>
-            <Menu label={d.downloads} triggerClassName="btn btn-ghost btn-sm" align="start" trigger={<><Download size={14} aria-hidden="true" /> {d.downloads}</>}>
-              {downloads?.docx && <MenuItem href={downloads.docx}><FileText size={14} aria-hidden="true" /> {d.docx}</MenuItem>}
-              <MenuItem onClick={() => { setMode("preview"); setTimeout(() => window.print(), 50); }}>
-                <Printer size={14} aria-hidden="true" /> {d.pdf}
-              </MenuItem>
-              {downloads?.md && <MenuItem href={downloads.md}><Download size={14} aria-hidden="true" /> {d.md}</MenuItem>}
-            </Menu>
+            {(downloads?.docx || downloads?.md) && (
+              <Menu label={d.otherFormats} triggerClassName="btn btn-ghost btn-sm" align="start" trigger={<><FileText size={14} aria-hidden="true" /> {d.otherFormats}</>}>
+                {downloads?.docx && <MenuItem href={downloads.docx}><FileText size={14} aria-hidden="true" /> {d.docx}</MenuItem>}
+                {downloads?.md && <MenuItem href={downloads.md}><Download size={14} aria-hidden="true" /> {d.md}</MenuItem>}
+              </Menu>
+            )}
             {dirty && (
               <>
                 <button type="button" className="btn btn-secondary btn-sm" disabled={saving} aria-busy={saving} onClick={save}>
@@ -230,6 +240,9 @@ export function DocEditor({
           <FactGate findings={facts} className="mb-3 no-print" />
           <Compare original={original} tailored={current} />
         </>
+      ) : preview && !dirty ? (
+        // The sheet as it will be sent (same page the PDF is printed from); reloads when the saved text changes.
+        <iframe key={value ?? ""} src={preview} title={t.application.preview} className={`h-[78vh] w-full rounded-xl border border-line bg-surface ${gen ? "opacity-60 transition-opacity" : ""}`} />
       ) : (
         <article className={gen ? "opacity-60 transition-opacity" : ""}>
           <Markdown>{current}</Markdown>

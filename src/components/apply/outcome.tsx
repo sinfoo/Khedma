@@ -15,7 +15,7 @@ export function OutcomeButton({ id, pack: initial }: { id: number; pack: Pack })
   const o = t.apply2.outcome;
   const [pack, setPack] = useState(initial);
   const [open, setOpen] = useState(false);
-  const [outcome, setOutcome] = useState<Outcome>(pack.outcome ?? "rejected");
+  const [outcome, setOutcome] = useState<Outcome | null>(pack.outcome);
   const [reason, setReason] = useState(pack.outcome_reason);
   const [lesson, setLesson] = useState(pack.lesson);
   const [pending, run] = useRun();
@@ -30,10 +30,10 @@ export function OutcomeButton({ id, pack: initial }: { id: number; pack: Pack })
         footer={
           <>
             <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>{t.common.cancel}</button>
-            <button type="submit" form={formId} className="btn btn-primary" disabled={pending} aria-busy={pending}>{o.save}</button>
+            <button type="submit" form={formId} className="btn btn-primary" disabled={pending || !outcome} aria-busy={pending}>{o.save}</button>
           </>
         }>
-        <form id={formId} className="space-y-4" onSubmit={(e) => { e.preventDefault(); run(() => logOutcome(id, outcome, reason, lesson), o.saved, (r) => { setPack(r.pack); setOpen(false); }); }}>
+        <form id={formId} className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (outcome) run(() => logOutcome(id, outcome, reason, lesson), o.saved, (r) => { setPack(r.pack); setOpen(false); }); }}>
           <fieldset>
             <legend className="label">{o.outcome}</legend>
             <div className="grid gap-1.5">

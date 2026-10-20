@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db";
+import { getApplication, getJob, getProfile } from "@/lib/db";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict } from "@/lib/i18n/server";
 import { fallbackAnswers, generateAnswers, generateFields, type AskedQuestion, type GeneratedAnswer } from "@/lib/ai/apply";
@@ -10,7 +10,7 @@ import { deleteAnswer as repoDeleteAnswer, getPack, isOutcome, listAnswers, save
 import { bumpBankUse, deleteBankAnswer, findBankAnswer, listBank, profileFactAnswer, updateBankAnswer, upsertBankAnswer, type BankAnswer } from "@/lib/apply/bank";
 import type { FormFields } from "@/lib/apply/fields";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { completeFollowups, logEvent } from "@/lib/repo/apps";
+import { applyStageChange, completeFollowups, logEvent } from "@/lib/repo/apps";
 import type { Result } from "@/lib/repo/apps";
 
 const clamp = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -155,13 +155,12 @@ export async function logOutcome(id: number, outcome: string, reason: string, le
   if (!ctx) return fail("notFound");
   if (!isOutcome(outcome)) return fail("invalid");
   try {
-    setPack(id, { outcome, outcome_reason: clamp(reason, 500), lesson: clamp(lesson, 500), outcome_at: new Date().toISOString() });
-    if (outcome === "rejected" && ctx.app.status !== "rejected") updateApplication(id, { status: "rejected" });
-    if (outcome === "offer" && !["offer", "hired"].includes(ctx.app.status)) updateApplication(id, { status: "offer" });
-    // No answer is a closed application: it leaves the follow-up queue.
-    if (outcome === "ghosted" && ["applied", "responded", "interview"].includes(ctx.app.status)) updateApplication(id, { status: "discarded" });
-    if (outcome !== "offer") completeFollowups(id);
     const { t } = await getDict();
+    setPack(id, { outcome, outcome_reason: clamp(reason, 500), lesson: clamp(lesson, 500), outcome_at: new Date().toISOString() });
+    // Same path as a board move: status event in the timeline, latency stats, follow-ups. No answer closes it.
+    const to = outcome === "rejected" ? "rejected" : outcome === "offer" ? (["offer", "hired"].includes(ctx.app.status) ? null : "offer") : ["applied", "responded", "interview"].includes(ctx.app.status) ? "discarded" : null;
+    if (to && ctx.app.status !== to) applyStageChange(id, to, t.apps2.reminders.autoFollowup);
+    if (outcome !== "offer") completeFollowups(id);
     logEvent(id, "note", `${t.apply2.outcome.outcomes[outcome]}${reason ? ` — ${clamp(reason, 200)}` : ""}`);
     refresh();
     return { ok: true, pack: getPack(id) };
