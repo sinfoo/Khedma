@@ -156,11 +156,11 @@ export function useStageMove(onOptimistic?: (id: number, status: AppState) => vo
   const [schedule, setSchedule] = useState<{ item: MovableItem; slot: string } | null>(null);
   const [reject, setReject] = useState<MovableItem | null>(null);
 
-  const move = (item: MovableItem, to: AppState, onDone?: () => void) => {
+  const move = (item: MovableItem, to: AppState, onDone?: () => void, sent?: { channel: string; reference: string }) => {
     if (item.status === to) return;
     start(async () => {
       onOptimistic?.(item.id, to);
-      const r = await moveApplication(item.id, to);
+      const r = await moveApplication(item.id, to, sent);
       if (!r.ok) {
         toast.error(t.common.error, r.error);
         announce?.(r.error);

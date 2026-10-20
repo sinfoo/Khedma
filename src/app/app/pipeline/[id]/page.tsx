@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, PackageCheck, Sparkles, StickyNote, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
 import { getApplication, getJob, getProfile, latestEvaluation, listEvents } from "@/lib/db";
@@ -39,6 +39,13 @@ import { listStories } from "@/lib/repo/coach";
 import { mapStories } from "@/lib/coach/logic";
 import { likelyConcerns } from "@/lib/coach/concerns";
 import { ConcernsCard, StoryMapCard } from "@/components/coach/readiness";
+import { SafetyCard } from "@/components/apply/readiness";
+import { AnswersStep } from "@/components/apply/answers";
+import { OutcomeButton } from "@/components/apply/outcome";
+import { detectQuestions } from "@/lib/apply/questions";
+import { getFields, getPack, listAnswers, priorApplications } from "@/lib/apply/repo";
+import { atsKind, knockouts } from "@/lib/apply/knockout";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
@@ -126,6 +133,17 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const storyMap = stories.length && app.interview_prep ? mapStories(stories, app.interview_prep.likely_questions.map((q) => q.question)) : null;
   const concerns = tab === "interviews" ? likelyConcerns(job, getProfile(), ev, locale) : [];
   const cadence = toView(cadenceFor([{ id: app.id, status: app.status, applied_at: app.applied_at, company: job.company }], now).get(app.id));
+  // Review step: everything the old apply assistant had (knock-outs, repeat warning, ATS tips, form answers).
+  const review =
+    tab === "overview"
+      ? {
+          safety: { knockouts: knockouts(job, getProfile(), getProfileExtra(), app.cv_md?.trim() || source.text || getProfile().cv_md), repeat: priorApplications(job.company, app.id), ats: atsKind(job.url) },
+          questions: detectQuestions(`${job.title}\n${job.description}`),
+          saved: listAnswers(app.id),
+          fields: getFields(app.id),
+        }
+      : null;
+  const pack = AFTER_TABS.includes(tab) ? getPack(app.id) : null;
 
   return (
     <>
@@ -168,6 +186,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       {tab === "overview" && (
         <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]" style={{ animation: "fade .25s ease both" }}>
           <section className="flex flex-col gap-3">
+            {review && !applied && <SafetyCard id={app.id} safety={review.safety} company={job.company} manual={!/^https?:\/\//i.test(job.url)} />}
             <div className="card p-[18px]">
               <h2 className="mb-3 text-[1.15rem] tracking-[-0.01em]">{F.pack}</h2>
               {!(app.cv_md?.trim() && app.cover_letter_md?.trim()) && <PackButton id={app.id} />}
@@ -235,16 +254,13 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </span>
                 )}
               </div>
-              <Link href={`/app/apply/${app.id}`} className="mt-2.5 flex items-start gap-2 rounded-[10px] bg-saffron-soft px-3 py-2.5 text-[0.8rem] text-saffron hover:brightness-95">
-                <PackageCheck size={14} aria-hidden="true" className="mt-0.5" />
-                <span>
-                  <strong>{F.assistant}</strong> · {F.assistantHint}
-                </span>
-              </Link>
             </div>
             <Suspense fallback={null}>
               <ApplyFormCard url={job.url} />
             </Suspense>
+            {review && (
+              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} />
+            )}
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
@@ -314,6 +330,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 <span className="font-semibold">{fmt(F.appliedOn, { date: shortDate(app.applied_at ?? app.updated_at, locale) })}</span>
                 {app.status === "applied" && app.next_action_at && <span className="block text-[0.8rem] text-ink-2">{fmt(F.appliedNext, { date: shortDate(app.next_action_at, locale) })}</span>}
               </p>
+              {pack && <OutcomeButton id={app.id} pack={pack} />}
               <Link href="/app/pipeline" className="text-[0.8rem] font-semibold text-success">{F.seePipeline}</Link>
             </div>
           )}
@@ -429,6 +446,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             title={`${job.company} — ${job.title}`}
             missing={[...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(app.cover_letter_md?.trim() ? [] : ["letter" as const])]}
             afterHref={stepHref("after")}
+            channel={applyEmail && !/^https?:\/\//.test(job.url) ? "email" : "site"}
+            answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
           />
         ) : step !== "after" && (
           <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>

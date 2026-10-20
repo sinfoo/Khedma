@@ -91,7 +91,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                 <li key={x.job_id} className="flex items-center gap-3">
                   <CompanyAvatar name={x.company} size={30} />
                   <div className="min-w-0 flex-1">
-                    <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="block truncate text-[0.9rem] font-semibold hover:text-accent-text">{x.title}</Link>
+                    <Link href={x.application_id ? `/app/pipeline/${x.application_id}` : `/app/jobs/${x.job_id}`} className="block truncate text-[0.9rem] font-semibold hover:text-accent-text">{x.title}</Link>
                     <p className="truncate text-xs text-muted">{x.company}{x.deadline ? ` · ${t.common.deadline} ${date(x.deadline)}` : ""}</p>
                   </div>
                   <ScoreRing value={x.score} size={32} label={scoreLabel(t, x.score)} animate={false} />
@@ -111,7 +111,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               {d.interviews.map((i, k) => <li key={`i${k}`}>{i.title} — {i.company} <span className="text-muted tabular">· {date(i.starts_at)}</span></li>)}
               {d.deadlinesNext.map((x) => (
                 <li key={x.job_id}>
-                  <Link href={x.application_id ? `/app/apply/${x.application_id}` : `/app/jobs/${x.job_id}`} className="hover:text-accent-text">{x.title}</Link> <span className="text-muted">— {x.company} · <span className="tabular">{date(x.deadline)}</span></span>
+                  <Link href={x.application_id ? `/app/pipeline/${x.application_id}` : `/app/jobs/${x.job_id}`} className="hover:text-accent-text">{x.title}</Link> <span className="text-muted">— {x.company} · <span className="tabular">{date(x.deadline)}</span></span>
                 </li>
               ))}
             </ul>
@@ -148,7 +148,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <tbody>
               {data.apps.map((a) => (
                 <tr key={a.id}>
-                  <td><Link href={`/app/apply/${a.id}`} className="block max-w-72 truncate font-medium hover:underline">{a.job.title}</Link><span className="block truncate text-xs text-muted">{a.job.company}</span></td>
+                  <td><Link href={`/app/pipeline/${a.id}`} className="block max-w-72 truncate font-medium hover:underline">{a.job.title}</Link><span className="block truncate text-xs text-muted">{a.job.company}</span></td>
                   <td className="text-muted">{t.jobTypes[a.type as JobType] ?? a.type}</td>
                   <td><StateChip state={a.status} t={t} /></td>
                   <td className="text-right tabular">{a.score?.toFixed(1) ?? "—"}</td>

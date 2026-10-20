@@ -5,7 +5,7 @@ import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db"
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
 import { companySlug, getCompany } from "@/lib/company";
-import { getPack, listAnswers, setPack } from "@/lib/apply/repo";
+import { getPack, isChannel, listAnswers, setPack } from "@/lib/apply/repo";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict, getLocale } from "@/lib/i18n/server";
@@ -59,16 +59,23 @@ function exists(id: unknown): id is number {
 }
 
 // ---------- stage ----------
-export async function moveApplication(id: number, status: string): Promise<Result<{ snapshot: MoveSnapshot; askInterview: boolean; askReason: boolean }>> {
+export async function moveApplication(id: number, status: string, sent?: { channel?: string; reference?: string }): Promise<Result<{ snapshot: MoveSnapshot; askInterview: boolean; askReason: boolean }>> {
   if (!exists(id)) return fail("notFound");
   if (!isState(status)) return fail("invalid");
   const { t } = await getDict();
   try {
     const r = applyStageChange(id, status, t.apps2.reminders.autoFollowup);
     if (!r) return fail("notFound");
-    // "I've sent it" leaves the same record as the apply wizard: the date and the form answers as sent.
+    // Every way of marking it sent leaves one record: date, form answers as sent, and how it went out when known.
     if (status === "applied" && !getPack(id).submitted_at)
-      setPack(id, { submitted_at: new Date().toISOString(), answers: listAnswers(id).filter((a) => a.answer.trim()).map((a) => ({ question: a.question, answer: a.answer })) });
+      setPack(id, {
+        submitted_at: new Date().toISOString(),
+        answers: listAnswers(id).filter((a) => a.answer.trim()).map((a) => ({ question: a.question, answer: a.answer })),
+        ...(isChannel(sent?.channel) ? { channel: sent.channel } : {}),
+        reference: clamp(sent?.reference ?? "", 120),
+      });
+    // Back to "To apply": no longer sent.
+    if (status === "evaluated") setPack(id, { submitted_at: null });
     refresh();
     return { ok: true, snapshot: r.snapshot, askInterview: r.fx.askInterview, askReason: r.fx.askReason };
   } catch {

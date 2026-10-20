@@ -4,16 +4,13 @@ import { revalidatePath } from "next/cache";
 import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict } from "@/lib/i18n/server";
-import { fmt } from "@/lib/i18n/dict";
-import { generateMessage, type MessageType } from "@/lib/ai/apps";
 import { fallbackAnswers, generateAnswers, generateFields, type AskedQuestion, type GeneratedAnswer } from "@/lib/ai/apply";
 import { QUESTION_LABEL, clampChars, clampLimit, isQuestionId, isSensitiveQuestion } from "@/lib/apply/questions";
-import { deleteAnswer as repoDeleteAnswer, getPack, isChannel, isOutcome, listAnswers, saveAnswer as repoSaveAnswer, setFields, setPack, type Pack } from "@/lib/apply/repo";
+import { deleteAnswer as repoDeleteAnswer, getPack, isOutcome, listAnswers, saveAnswer as repoSaveAnswer, setFields, setPack, type Pack } from "@/lib/apply/repo";
 import { bumpBankUse, deleteBankAnswer, findBankAnswer, listBank, profileFactAnswer, updateBankAnswer, upsertBankAnswer, type BankAnswer } from "@/lib/apply/bank";
 import type { FormFields } from "@/lib/apply/fields";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { addReminder, completeFollowups, listContacts, logEvent, openFollowup } from "@/lib/repo/apps";
-import { addDays, localDate } from "@/lib/reports/digest";
+import { completeFollowups, logEvent } from "@/lib/repo/apps";
 import type { Result } from "@/lib/repo/apps";
 
 const clamp = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -150,57 +147,6 @@ export async function removeFormAnswer(id: number, qid: string): Promise<Result>
   repoDeleteAnswer(id, clamp(qid, 60));
   refresh();
   return { ok: true };
-}
-
-// ---------- outreach ----------
-export async function draftOutreach(id: number, kind: "recruiter" | "linkedin", contactId: number | null): Promise<Result<{ subject: string; body: string; engine: string }>> {
-  const ctx = load(id);
-  if (!ctx) return fail("notFound");
-  if (kind !== "recruiter" && kind !== "linkedin") return fail("invalid");
-  const { locale } = await getDict();
-  const contact = okId(contactId) ? listContacts(id).find((c) => c.id === contactId) : undefined;
-  try {
-    const r = await generateMessage(kind as MessageType, { job: ctx.job, profile: getProfile(), locale, contactName: contact?.name, days: 7 });
-    return { ok: true, ...r };
-  } catch {
-    return fail("generic");
-  }
-}
-
-export async function logOutreach(id: number, kind: "recruiter" | "linkedin", body: string): Promise<Result> {
-  if (!load(id)) return fail("notFound");
-  if (kind !== "recruiter" && kind !== "linkedin") return fail("invalid");
-  const text = clamp(body, 4000);
-  if (!text) return fail("invalid");
-  // Outreach is a first contact, not a follow-up: it must not push the application toward "cold".
-  logEvent(id, "message", `${kind}: ${text.slice(0, 400)}`);
-  refresh();
-  return { ok: true };
-}
-
-// ---------- submit ----------
-export async function submitApplication(id: number, channel: string, reference: string): Promise<Result<{ followupDue: string }>> {
-  const ctx = load(id);
-  if (!ctx) return fail("notFound");
-  if (!isChannel(channel)) return fail("invalid");
-  const { t } = await getDict();
-  try {
-    const now = new Date();
-    const answers = listAnswers(id).filter((a) => a.answer.trim()).map((a) => ({ question: a.question, answer: a.answer }));
-    setPack(id, { channel, reference: clamp(reference, 120), answers, submitted_at: now.toISOString() });
-    if (ctx.app.status === "evaluated" || ctx.app.status === "discarded") updateApplication(id, { status: "applied", applied_at: now.toISOString() });
-    else if (!ctx.app.applied_at) updateApplication(id, { applied_at: now.toISOString() });
-    const due = addDays(localDate(now), 7);
-    if (!openFollowup(id)) {
-      addReminder({ application_id: id, title: fmt(t.apply2.submit.reminderTitle, { title: ctx.job.title, company: ctx.job.company }), due_at: due, kind: "followup" });
-      updateApplication(id, { next_action_at: due });
-    }
-    logEvent(id, "note", `${t.apply2.submit.done.replace("{d}", localDate(now)).replace("{channel}", t.apply2.submit.channels[channel])}${reference ? ` · ${clamp(reference, 120)}` : ""}`);
-    refresh();
-    return { ok: true, followupDue: due };
-  } catch {
-    return fail("generic");
-  }
 }
 
 // ---------- outcome ----------

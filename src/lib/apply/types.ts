@@ -1,6 +1,4 @@
 // Client-safe constants and types for the apply area (no DB imports here).
-export const STEPS = ["ready", "answers", "outreach", "submit"] as const;
-export type Step = (typeof STEPS)[number];
 
 export const CHANNELS = ["site", "email", "linkedin", "referral"] as const;
 export type Channel = (typeof CHANNELS)[number];

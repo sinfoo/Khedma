@@ -10,7 +10,6 @@ import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
 import { StateChip } from "@/components/ui";
 import { useStageMove } from "./stage";
-import { ApplyLauncher } from "@/components/apply/launcher";
 
 const STEPS: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
 
@@ -95,9 +94,6 @@ export function WorkspaceHeader({
             </MenuItem>
             <MenuItem onClick={() => go("discarded")}>{fmt(s.markAs, { s: t.states.discarded })}</MenuItem>
           </Menu>
-          <span className="hidden">
-            <ApplyLauncher applicationId={id} />
-          </span>
         </div>
       </div>
     </header>
