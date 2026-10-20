@@ -5,6 +5,7 @@ import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db"
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
 import { companySlug, getCompany } from "@/lib/company";
+import { getPack, listAnswers, setPack } from "@/lib/apply/repo";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict, getLocale } from "@/lib/i18n/server";
@@ -65,6 +66,9 @@ export async function moveApplication(id: number, status: string): Promise<Resul
   try {
     const r = applyStageChange(id, status, t.apps2.reminders.autoFollowup);
     if (!r) return fail("notFound");
+    // "I've sent it" leaves the same record as the apply wizard: the date and the form answers as sent.
+    if (status === "applied" && !getPack(id).submitted_at)
+      setPack(id, { submitted_at: new Date().toISOString(), answers: listAnswers(id).filter((a) => a.answer.trim()).map((a) => ({ question: a.question, answer: a.answer })) });
     refresh();
     return { ok: true, snapshot: r.snapshot, askInterview: r.fx.askInterview, askReason: r.fx.askReason };
   } catch {
@@ -85,6 +89,7 @@ export async function undoMove(id: number, s: MoveSnapshot): Promise<Result> {
     (s.reminderId === null || okId(s.reminderId));
   if (!valid) return fail("invalid");
   undoStageChange(id, s);
+  if (s.status === "evaluated") setPack(id, { submitted_at: null });
   refresh();
   return { ok: true };
 }
