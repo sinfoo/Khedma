@@ -14,6 +14,9 @@ export function normalizeForAts(text: string): string {
     .replace(/[   ]/g, " ")
     .replace(/[—―]/g, " - ")
     .replace(/–/g, "-")
+    // Non-breaking hyphen falls back to another font in PDFs; tabs and wide spaces break ATS word splitting.
+    .replace(/[‐‑]/g, "-")
+    .replace(/[\t　 - ]/g, " ")
     .replace(/[‘’‚′]/g, "'")
     .replace(/[“”„″]/g, '"')
     .replace(/…/g, "...")

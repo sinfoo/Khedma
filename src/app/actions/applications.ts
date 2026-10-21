@@ -5,6 +5,8 @@ import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db"
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
+import { setDocStyle } from "@/lib/cv/doc-style-store";
+import type { DocStyle } from "@/lib/cv/doc-style";
 import { companySlug, getCompany } from "@/lib/company";
 import { getPack, isChannel, listAnswers, setPack } from "@/lib/apply/repo";
 import { cvBase, generateMessage, isMessageType, letterFromSource, tailorFromSource, type MessageType } from "@/lib/ai/apps";
@@ -182,6 +184,13 @@ export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Re
   } catch {
     return fail("generic");
   }
+}
+
+/** Look of every sent CV and letter (validated in normalizeDocStyle). */
+export async function saveDocStyle(patch: Partial<DocStyle>): Promise<Result> {
+  setDocStyle(patch && typeof patch === "object" ? patch : {});
+  refresh();
+  return { ok: true };
 }
 
 /** "Prepare my pack": writes whichever of the CV and letter is still missing, both at once. */

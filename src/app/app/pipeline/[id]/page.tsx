@@ -46,6 +46,8 @@ import { detectQuestions } from "@/lib/apply/questions";
 import { getFields, getPack, listAnswers, priorApplications } from "@/lib/apply/repo";
 import { atsKind, knockouts } from "@/lib/apply/knockout";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
+import { getDocStyle } from "@/lib/cv/doc-style-store";
+import { DocStylePanel } from "@/components/pipeline/doc-style-panel";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
@@ -144,6 +146,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       : null;
   const pack = AFTER_TABS.includes(tab) ? getPack(app.id) : null;
+  const docStyle = getDocStyle();
+  // Changes with the style, so the preview frame reloads after "Mise en page" edits.
+  const styleKey = encodeURIComponent(Object.values(docStyle).join("-"));
 
   return (
     <>
@@ -296,7 +301,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 disabledReason={needCv}
                 disabledSlot={needCv ? uploadSlot : undefined}
                 downloads={{ pdf: `/api/applications/${app.id}/export?doc=cv&format=pdf`, docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
-                preview={`/print/${app.id}?doc=cv&embed=1`}
+                preview={`/print/${app.id}?doc=cv&embed=1&v=${styleKey}`}
                 original={hasCv ? cvBase(source) : null}
                 limit={{ words: 900, pages: 2 }}
               />
@@ -313,13 +318,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 disabledReason={needCv}
                 disabledSlot={needCv ? uploadSlot : undefined}
                 downloads={{ pdf: `/api/applications/${app.id}/export?doc=letter&format=pdf`, docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
-                preview={`/print/${app.id}?doc=letter&embed=1`}
+                preview={`/print/${app.id}?doc=letter&embed=1&v=${styleKey}`}
                 original={hasCv ? cvBase(source) : null}
                 compare={false}
                 limit={{ words: 320, pages: 1 }}
               />
             )}
             <aside className="no-print flex flex-col gap-3.5">
+              {(doc === "cv" ? app.cv_md : app.cover_letter_md)?.trim() && <DocStylePanel initial={docStyle} />}
               {doc === "cv" && <AtsPanel t={t} before={hasCv ? atsCheck(job, source.text) : null} after={app.cv_md ? atsCheck(job, app.cv_md) : null} />}
               <Checklist id={app.id} items={checklist.items} compact title={F.beforeSend} />
               <Link href={`/app/coach?application=${app.id}`} className="inline-flex items-center gap-1.5 px-1 text-[0.8rem] font-semibold">

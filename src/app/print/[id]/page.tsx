@@ -5,9 +5,13 @@ import { normalizeForAts } from "@/lib/cv/export";
 import { getDict } from "@/lib/i18n/server";
 import { Markdown } from "@/components/markdown";
 import { AutoPrint } from "./auto-print";
+import { DocFit } from "./doc-fit";
+import { docFontVars } from "./fonts";
 import { fillPlaceholders, hardBreaks } from "@/lib/ai/placeholders";
 import { detectLanguage } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
+import { MARGIN_MM, docStyleVars, fitSteps } from "@/lib/cv/doc-style";
+import { getDocStyle } from "@/lib/cv/doc-style-store";
 
 // The browser names the saved PDF after the document title.
 export async function generateMetadata({ params, searchParams }: PageProps<"/print/[id]">): Promise<Metadata> {
@@ -19,8 +23,8 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/pri
 }
 
 /**
- * Bare page holding only the tailored CV or letter, so the browser's "Save as PDF" gives a clean file
- * (no shell, banners or checklists). ?doc=cv|letter
+ * Bare page holding only the tailored CV or letter: the preview (?embed=1), the headless PDF (?pdf=1) and the
+ * browser's "Save as PDF" all print this one sheet. ?doc=cv|letter&paper=a4|letter
  */
 export default async function PrintDoc({ params, searchParams }: PageProps<"/print/[id]">) {
   const id = Number((await params).id);
@@ -33,11 +37,20 @@ export default async function PrintDoc({ params, searchParams }: PageProps<"/pri
   const raw = app && (doc === "cv" ? app.cv_md : app.cover_letter_md);
   if (!app || !job || !raw?.trim()) notFound();
   const { t } = await getDict();
+  const style = getDocStyle();
+  const [mx, my] = MARGIN_MM[style.margins];
+  const lang = detectLanguage(raw);
+  // Screen width = paper width, so the fit measure matches the printed line breaks.
+  const vars = { ...docStyleVars(style), "--doc-mx": `${mx}mm`, "--doc-my": `${my}mm`, width: paper === "A4" ? "210mm" : "215.9mm" } as React.CSSProperties;
   return (
-    <main className={`doc-page ${quiet ? "" : "mx-auto my-6 max-w-[210mm] shadow-lg print:my-0 print:shadow-none"}`}>
-      <style>{`@page { size: ${paper}; margin: 14mm 16mm; } .skip-link { display: none !important; } @media print { html, body, .doc-page { background: none !important; } }`}</style>
+    <main lang={lang} className={`doc-page ${docFontVars} ${quiet ? "" : "mx-auto my-6 shadow-lg print:my-0 print:shadow-none"}`} style={vars}>
+      <style id="doc-page-css">{`@page { size: ${paper}; margin: ${my}mm ${mx}mm; }`}</style>
+      <style>{`.skip-link { display: none !important; } @media print { html, body, .doc-page { background: none !important; } .doc-page { width: auto !important; } }`}</style>
       {!quiet && <AutoPrint hint={t.apps2.flow.printHint} again={t.apps2.flow.printAgain} />}
-      <Markdown className={`doc-sheet ${doc === "letter" ? "doc-letter" : ""}`}>{hardBreaks(normalizeForAts(fillPlaceholders(raw, docFacts(id, detectLanguage(raw))).md))}</Markdown>
+      {style.fit && <DocFit steps={fitSteps(style)} paper={paper} pageHeightMm={paper === "A4" ? 297 : 279.4} />}
+      <Markdown className={`doc-sheet ${doc === "letter" ? "doc-letter" : `tpl-${style.template}`}`}>
+        {hardBreaks(normalizeForAts(fillPlaceholders(raw, docFacts(id, lang)).md))}
+      </Markdown>
     </main>
   );
 }

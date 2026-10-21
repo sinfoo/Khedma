@@ -523,19 +523,34 @@ html[data-rail] .rail-hide { display: none !important; }
 /* Thin, theme-aware scrollbars */
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 
-/* Sent documents (print page, PDF, preview): a plain sheet whatever the app theme. */
-.doc-page { background: oklch(0.995 0 0); color: oklch(0.2 0.005 260); padding: 14mm 16mm; min-height: 100vh; }
-.doc-sheet { max-width: none; color: oklch(0.22 0.005 260); font-family: var(--font-sans); font-size: 10.5pt; line-height: 1.45; }
-.doc-sheet h2 { font-family: var(--font-display); font-size: 19pt; line-height: 1.15; margin: 0 0 3pt; color: oklch(0.16 0.005 260); }
-.doc-sheet h3 { font-family: var(--font-sans); font-size: 10.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin: 12pt 0 4pt; padding-bottom: 2pt; border-bottom: 1px solid oklch(0.8 0.005 260); color: oklch(0.2 0.005 260); break-after: avoid; }
-.doc-sheet h4 { font-family: var(--font-sans); font-size: 10.5pt; font-weight: 700; margin: 7pt 0 1pt; color: oklch(0.2 0.005 260); break-after: avoid; }
+/* Sent documents (print page, PDF, preview): a plain sheet whatever the app theme. Theme knobs are CSS variables
+   set on .doc-page (lib/cv/doc-style.ts, fit steps override them inline); the tpl-* designs follow Reactive Resume (MIT): persian, scizor, kakuna, smeargle. */
+.doc-page { --doc-mx: 16mm; --doc-my: 14mm; --doc-accent: #2F5A8A; --doc-fs: 10.5pt; --doc-lh: 1.5; --doc-gap: 6pt; --doc-font: var(--font-sans); background: oklch(0.995 0 0); color: oklch(0.2 0.005 260); padding: var(--doc-my) var(--doc-mx); box-sizing: border-box; min-height: 100vh; }
+.doc-sheet {
+  max-width: none; color: oklch(0.22 0.005 260); font-family: var(--doc-font); font-size: var(--doc-fs); line-height: var(--doc-lh);
+  font-variant-ligatures: no-common-ligatures; /* ATS readers must see "fi", not one ligature glyph */
+}
+.doc-sheet h2 { font-family: var(--doc-font); font-size: calc(var(--doc-fs) * 1.85); font-weight: 700; line-height: 1.15; margin: 0 0 3pt; color: oklch(0.16 0.005 260); }
+.doc-sheet h2 + p { color: oklch(0.38 0.005 260); font-size: calc(var(--doc-fs) * 0.92); }
+.doc-sheet h3 { font-family: var(--doc-font); font-size: var(--doc-fs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin: calc(var(--doc-gap) * 2) 0 var(--doc-gap); padding-bottom: 2pt; border-bottom: 1px solid oklch(0.8 0.005 260); color: var(--doc-accent); break-after: avoid; }
+.doc-sheet h4 { font-family: var(--doc-font); font-size: var(--doc-fs); font-weight: 700; margin: var(--doc-gap) 0 1pt; color: oklch(0.2 0.005 260); break-after: avoid; }
 .doc-sheet p { margin: 2pt 0; }
-.doc-sheet ul { margin: 2pt 0 4pt; padding-left: 13pt; }
+.doc-sheet ul { margin: 2pt 0 calc(var(--doc-gap) * 0.7); padding-left: 13pt; }
 .doc-sheet li { margin: 1pt 0; break-inside: avoid; }
 .prose-doc.doc-sheet a { color: inherit; text-decoration: none; }
-.doc-letter { font-size: 11pt; line-height: 1.5; }
+.tpl-persian h2 { text-align: center; text-transform: uppercase; letter-spacing: 0.04em; }
+.tpl-persian h2 + p { text-align: center; padding-bottom: 6pt; border-bottom: 1pt solid oklch(0.2 0 0); }
+.tpl-persian h3 { color: oklch(0.16 0.005 260); font-size: calc(var(--doc-fs) * 1.05); border-bottom: 0.5pt solid oklch(0.2 0 0); }
+.tpl-scizor { border-top: 2.7pt solid var(--doc-accent); padding-top: 8pt; }
+.tpl-scizor h3 { color: oklch(0.2 0.005 260); font-size: calc(var(--doc-fs) * 1.15); border-bottom: 0; border-top: 1px solid oklch(0.88 0.01 260); padding: 3.9pt 0 0; }
+.tpl-kakuna h2, .tpl-kakuna h2 + p { text-align: center; }
+.tpl-kakuna h3 { text-align: center; text-transform: none; letter-spacing: 0; font-size: calc(var(--doc-fs) * 1.25); border-bottom: 1pt solid var(--doc-accent); }
+.tpl-smeargle h2 { font-size: calc(var(--doc-fs) * 2.6); line-height: 1.05; letter-spacing: -0.02em; padding-bottom: 6pt; }
+.tpl-smeargle h2 + p { border-top: 0.5pt solid oklch(0.7 0.005 260); padding-top: 5pt; }
+.tpl-smeargle h3 { text-transform: none; letter-spacing: 0; border-bottom: 0; color: oklch(0.16 0.005 260); font-size: calc(var(--doc-fs) * 1.3); }
+.doc-letter { font-size: calc(var(--doc-fs) + 0.5pt); }
 .doc-letter p { margin: 0 0 8pt; }
-.doc-letter h2 { font-size: 14pt; }
+.doc-letter h2 { font-size: calc(var(--doc-fs) * 1.35); }
 
 @media print {
   .doc-page { padding: 0; min-height: 0; }
