@@ -68,21 +68,6 @@ export function Clipper({ token }: { token: string }) {
         <span className="chip">+ JSON-LD</span>
       </div>
       <p className="hint">{c.privacy}</p>
-      <div className="mt-4 rounded-lg border border-line p-3 text-sm" id="extension">
-        <p className="font-semibold">{c.extTitle}</p>
-        <p className="mt-0.5 text-ink-2">{c.extLead}</p>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-ink-2">
-          <li>{c.extStep1}</li>
-          <li>{c.extStep2}</li>
-          <li>
-            {c.extStep3}{" "}
-            <code className="mono rounded bg-surface-2 px-1.5 py-0.5">{token}</code>{" "}
-            <button type="button" className="btn btn-ghost btn-icon btn-sm align-middle" aria-label={t.common.copy} onClick={() => navigator.clipboard.writeText(token)}>
-              <Copy size={14} aria-hidden="true" />
-            </button>
-          </li>
-        </ol>
-      </div>
       <details className="mt-2 text-xs text-muted">
         <summary className="cursor-pointer">{c.manual}</summary>
         <div className="mt-2 flex items-start gap-2">

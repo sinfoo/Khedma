@@ -50,18 +50,44 @@ test("a mailbox export (.mbox) lists its messages and fills the reply box with t
 
 test("a scanned PDF CV (no text layer) is read with OCR in the browser and becomes the CV", async ({ page }) => {
   test.setTimeout(180_000);
+  // The new CV starts its adapt phase, whose scan would reach real job boards: answer it here instead.
+  const scans: string[] = [];
+  await page.route("**/api/sources/scan", (r) => {
+    scans.push(r.request().postData() ?? "");
+    return r.fulfill({ status: 204 });
+  });
   await page.goto("/app/profile");
   await page.locator('input[type=file][accept*=".docx"]').first().setInputFiles("e2e/fixtures/scanned-cv.pdf");
   await page.getByRole("button", { name: "Le lire avec l'OCR" }).click();
   // Only in the scanned image (the seeded CV says amira@example.tn and has no skills line).
   await expect(page.locator("#cv-md")).toHaveValue(/amira\.bensalah@example\.tn/, { timeout: 150_000 });
   await expect(page.locator("#cv-md")).toHaveValue(/React, Node\.js, Python, SQL, Git/);
+  // Then Khedma adapts: roles and ranking follow the CV, and a scan is asked for with the CV's keywords.
+  await expect(page.getByText(/offre\(s\) re-classée\(s\) selon ton CV/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Scan non lancé. Lance-le depuis Sources quand tu veux.")).toBeVisible();
+  expect(JSON.parse(scans[0]).keywords).toEqual(expect.arrayContaining(["react"]));
+});
+
+test("Auto scan reads the profile CV and scans with its keywords", async ({ page }) => {
+  let body: { keywords?: string[] } = {};
+  await page.route("**/api/sources/scan", (r) => {
+    if (r.request().method() === "POST") body = JSON.parse(r.request().postData() ?? "{}");
+    return r.fulfill({ status: 204 });
+  });
+  await page.goto("/app/sources");
+  const button = page.getByRole("button", { name: "Scan auto depuis mon CV" });
+  const title = (await button.getAttribute("title")) ?? "";
+  await button.click();
+  await expect.poll(() => body.keywords?.length ?? 0).toBeGreaterThan(0);
+  expect(title).toContain(body.keywords!.join(", "));
 });
 
 test("Khedma Fill: the endpoint needs the access code, and fill.js fills an employer's form without submitting it", async ({ page, request }) => {
   expect((await request.get("/api/extension/fill?url=https://example.com/apply")).status()).toBe(403);
   await page.goto("/app/sources/manage");
-  const token = (await page.locator("#extension code").textContent())!.trim();
+  // The extension is shelved in the UI; its code is the clipper's, carried by the bookmark link.
+  const href = await page.locator('a[href^="javascript:"]').first().getAttribute("href");
+  const token = /token="([0-9a-f]+)"/.exec(decodeURIComponent(href ?? ""))![1];
   const res = await request.get("/api/extension/fill?url=https://example.com/jobs/1", { headers: { "x-khedma-token": token } });
   expect(res.status()).toBe(200);
   expect(res.headers()["access-control-allow-origin"]).toBeUndefined();

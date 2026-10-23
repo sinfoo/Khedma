@@ -7,6 +7,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { fmtDate } from "@/components/ui";
 import { wordCount } from "@/lib/cv/sectionize";
+import { CvAdapt } from "./cv-adapt";
 
 export interface UploadMeta {
   fileName: string;
@@ -36,6 +37,8 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
   const fail = (code: ErrCode) => toast.error(t.common.error, c.errors[code] ?? c.errors.bad_request);
   // A PDF with no text layer (a scan, a flattened Canva export) can be read with OCR in this browser.
   const [scanned, setScanned] = useState<File | null>(null);
+  // Bumped on each successful upload: a new CV starts its adapt phase (profile, ranking, scan).
+  const [adaptRun, setAdaptRun] = useState(0);
   const [ocrStep, setOcrStep] = useState<string | null>(null);
   const readScan = async (file: File) => {
     setOcrStep(c.ocrLoading);
@@ -76,6 +79,7 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
       }
       onUploaded({ fileName: r.fileName ?? file.name, uploadedAt: r.uploadedAt ?? new Date().toISOString(), size: r.size ?? file.size }, r.text, typeof r.markdown === "string" ? r.markdown : undefined, Array.isArray(r.skills) ? r.skills : undefined);
       toast.success(c.uploadedToast, fmt(c.uploadedBody, { n: wordCount(r.text) }));
+      setAdaptRun((n) => n + 1);
     };
     setProgress(0);
     xhr.send(fd);
@@ -148,6 +152,7 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
       <p id={hintId} className={`hint ${upload ? "" : "text-center"}`}>
         {c.formats}
       </p>
+      {adaptRun > 0 && <CvAdapt key={adaptRun} />}
       {scanned && !ocrStep && (
         <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-sm" role="status">
           <p className="font-semibold">{c.scannedTitle}</p>

@@ -1,7 +1,7 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
 import { getProfileExtra } from "../cv/profile-extra";
-import { db, getProfile, kvGet, kvSet, migrate, updateJob, upsertJob } from "../db";
+import { db, getProfile, kvGet, kvSet, listJobs, migrate, updateJob, upsertJob } from "../db";
 import type { JobType, Profile } from "../types";
 import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit } from "../sources/http";
@@ -13,6 +13,7 @@ import { buildFilter, compileKeyword, fold } from "../search/filter";
 import { companyKey, scoreJob, type RankContext } from "../search/rank";
 import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust } from "../search/store";
 import { buildTiers, type Tier, type Tiers } from "../search/tiers";
+import { cvKeywords } from "../search/cv-keywords";
 import { sweep } from "../search/sweep";
 import { extractSkills } from "../ai/heuristic";
 import { cvForMatching } from "./offers";
@@ -138,10 +139,14 @@ export function cvSkills(profile: Profile, cvText = profile.cv_md): string[] {
 }
 
 /**
- * Keywords used when the user types none: the head word of each target role, the first skills of the CV,
- * then the internship kinds. Boards phrase-match keywords; the profile filter narrows the results afterwards.
+ * Keywords used when the user types none: the roles the CV shows (title, experience entries) and its main
+ * skills (search/cv-keywords.ts). When the CV shows no role: the head word of each target role, the first
+ * skills, then the internship kinds.
+ * Boards phrase-match keywords; the profile filter narrows the results afterwards.
  */
 export function defaultKeywords(profile: Profile, cvText = profile.cv_md): string[] {
+  const fromCv = cvKeywords(cvText, profile.headline, cvSkills(profile, cvText));
+  if (fromCv.roles.length) return fromCv.keywords;
   const kinds = profile.target_types.filter((t) => t === "stage" || t === "pfe" || t === "alternance");
   // "Développeur full stack" -> "développeur", "Data analyst" -> "data".
   const roles = profile.target_roles.map((r) => r.trim().split(/\s+/)[0]).filter((w) => w && w.length >= 3);
@@ -480,6 +485,32 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
   } finally {
     globalThis.__khedmaScanBusy = false;
   }
+}
+
+/**
+ * Re-scores every open offer against the current CV and profile (after a new CV): same ranking as a scan,
+ * without the per-search tier bonus. Returns how many offers were re-scored.
+ */
+export function rerankOpenJobs(): number {
+  ensure();
+  const profile = getProfile();
+  const extra = getProfileExtra();
+  const all = listSourceRows();
+  const cvText = cvForMatching().text;
+  const keywords = defaultKeywords(profile, cvText);
+  const countries = searchCountries(extra.places.countries, all);
+  const places = { countries, cities: countries.includes("TN") ? extra.places.cities : [], remote: extra.places.remote };
+  const filter = buildFilter({ keywords, profile, places, prefs: getSearchPrefs() });
+  const rank: RankContext = {
+    positives: filter.positives, keywords, types: filter.types, places, seen: new Set<string>(), skills: cvSkills(profile, cvText),
+    tracked: new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label))),
+  };
+  const jobs = listJobs();
+  for (const j of jobs) {
+    const r = scoreJob(j, rank);
+    setRelevance(j.id, r.score, r.why);
+  }
+  return jobs.length;
 }
 
 /** Tracked company from a careers URL: detect the ATS, store it as a company source. */

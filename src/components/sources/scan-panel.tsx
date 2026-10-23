@@ -61,6 +61,7 @@ export function ScanPanel({
   sources,
   autoStart,
   typed = false,
+  cvKeywords = [],
 }: {
   keywords: string[];
   /** Keywords came from the user (a ?q= link), not from the CV. */
@@ -68,6 +69,8 @@ export function ScanPanel({
   places: { countries: string[]; remote: Remote };
   sources: Src[];
   autoStart: boolean;
+  /** Keywords read from the profile CV (roles, then main skills), for "Auto scan". */
+  cvKeywords?: string[];
 }) {
   const { t, locale } = useT();
   const m = t.sources2.scan2;
@@ -113,12 +116,13 @@ export function ScanPanel({
     else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
   };
 
-  const run = () => {
+  /** `use`: scan with these keywords instead of the box's ("Auto scan" passes the CV's). */
+  const run = (use?: string[]) => {
     setDone(null);
     setElapsed(0);
     startPrepare(async () => {
-      const untouched = !typed && terms.join(",").toLowerCase() === keywords.slice(0, 6).join(",").toLowerCase();
-      const r = await start({ keywords: untouched ? undefined : terms, countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
+      const untouched = !use && !typed && terms.join(",").toLowerCase() === keywords.slice(0, 6).join(",").toLowerCase();
+      const r = await start({ keywords: untouched ? undefined : (use ?? terms), countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
       // Another tab (or this page before a reload) is scanning: follow that scan instead.
       const followed = r.kind === "busy" ? await attach() : null;
       settle(followed ?? r);
@@ -202,9 +206,24 @@ export function ScanPanel({
         <div className="flex gap-2">
           {(busy || finishedAll) && (
             // One element for Stop / Scanning / Scan again, so keyboard focus is not lost when the scan ends.
-            <button type="button" className="btn btn-outline" disabled={!running && (busy || preview.runs.length === 0)} aria-busy={busy && !running} onClick={running ? stop : run}>
+            <button type="button" className="btn btn-outline" disabled={!running && (busy || preview.runs.length === 0)} aria-busy={busy && !running} onClick={() => (running ? stop() : run())}>
               {running ? <Square size={15} aria-hidden="true" /> : busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
               {running ? m.stop : busy ? m.scanning : m.scanAgain}
+            </button>
+          )}
+          {!busy && (
+            // Reads the profile CV: its roles and main skills become the keywords, shown in the box, then scans.
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!cvKeywords.length || preview.runs.length === 0}
+              title={cvKeywords.length ? fmt(m.autoCvTitle, { kw: cvKeywords.join(", ") }) : m.autoCvNone}
+              onClick={() => {
+                setKw(cvKeywords.join(", "));
+                run(cvKeywords);
+              }}
+            >
+              <Sparkles size={15} aria-hidden="true" /> {m.autoCv}
             </button>
           )}
           <Link href="/app/sources/manage#catalog" className="btn btn-outline">

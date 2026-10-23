@@ -6,7 +6,11 @@ import { JOB_TYPES, type JobType } from "@/lib/types";
 import { getEngine } from "@/lib/ai";
 import { ollamaHealth } from "@/lib/ai/ollama";
 import { getProfileExtra, updateProfileExtra } from "@/lib/cv/profile-extra";
-import { ONBOARDING_STEPS, type ProfileDraft } from "@/lib/cv/model";
+import { ONBOARDING_STEPS, mergeSkills, type ProfileDraft } from "@/lib/cv/model";
+import { extractSkills } from "@/lib/ai/heuristic";
+import { cvKeywords } from "@/lib/search/cv-keywords";
+import { cvSkills, defaultKeywords, rerankOpenJobs } from "@/lib/repo/sources";
+import { cvForMatching } from "@/lib/repo/offers";
 
 const str = (s: unknown, max: number) => (typeof s === "string" ? s.slice(0, max) : "");
 const list = (v: unknown, max = 200, len = 80) =>
@@ -114,4 +118,19 @@ export async function chooseCvSource(pref: string): Promise<{ ok: boolean }> {
   setCvSourcePref(pref);
   revalidatePath("/app", "layout");
   return { ok: true };
+}
+
+/**
+ * After a new or replaced CV: skills and target roles follow the CV (search/cv-keywords.ts), every open offer is
+ * re-scored against it, and the keywords for the next scan are returned (the caller runs the scan).
+ */
+export async function adaptToCv(): Promise<{ roles: string[]; keywords: string[]; skillsAdded: number; reranked: number }> {
+  const profile = getProfile();
+  const cv = cvForMatching().text;
+  const skills = mergeSkills(profile.skills, extractSkills(cv));
+  const { roles } = cvKeywords(cv, profile.headline, cvSkills({ ...profile, skills }, cv));
+  updateProfile({ skills, ...(roles.length ? { target_roles: roles } : {}) });
+  const reranked = rerankOpenJobs();
+  revalidatePath("/app", "layout");
+  return { roles, keywords: defaultKeywords(getProfile(), cv), skillsAdded: skills.length - profile.skills.length, reranked };
 }
