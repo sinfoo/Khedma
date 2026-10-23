@@ -117,7 +117,8 @@ export function CompanyAvatar({ name, size = 36 }: { name: string; size?: number
         height: size,
         fontSize: size * 0.38,
         background: `hsl(${hue} 70% 50% / 0.14)`,
-        color: `hsl(${hue} 60% 42%)`,
+        // Lightness per theme (--avatar-l): 42% failed 4.5:1 on teal/cyan tints in light mode.
+        color: `hsl(${hue} 60% var(--avatar-l))`,
         boxShadow: `inset 0 0 0 1px hsl(${hue} 60% 50% / 0.25)`,
       }}
     >

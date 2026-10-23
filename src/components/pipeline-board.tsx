@@ -267,10 +267,11 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
               {v === "board" ? b.viewBoard : b.viewTable}
             </button>
           ))}
-          <Link href={sel.length >= 2 && sel.length <= 4 ? `/app/pipeline/compare?ids=${sel.join(",")}` : "/app/pipeline?view=table"} className="seg-btn" title={sel.length < 2 ? t.apps2.compare.needTwo : undefined}>
-            {f.viewCompare}
-          </Link>
         </div>
+        {/* A link, so it sits beside the tab group: a tablist may only hold tabs. */}
+        <Link href={sel.length >= 2 && sel.length <= 4 ? `/app/pipeline/compare?ids=${sel.join(",")}` : "/app/pipeline?view=table"} className="btn btn-outline btn-sm" title={sel.length < 2 ? t.apps2.compare.needTwo : undefined}>
+          {f.viewCompare}
+        </Link>
       </div>
 
       {q && filtered.length === 0 ? (

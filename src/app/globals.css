@@ -6,6 +6,7 @@
    Every text/background pair below is checked for WCAG AA.
    ------------------------------------------------------------------ */
 :root {
+  --avatar-l: 30%;
   --bg: #f6f5f1;
   --bg-elev: #fbfaf7;
   --surface: #ffffff;
@@ -47,6 +48,7 @@
 }
 
 :root[data-theme="dark"] {
+  --avatar-l: 74%;
   --bg: #0b0e13;
   --bg-elev: #0f131a;
   --surface: #131821;
@@ -84,6 +86,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --avatar-l: 74%;
     --bg: #0b0e13;
     --bg-elev: #0f131a;
     --surface: #131821;

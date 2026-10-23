@@ -180,17 +180,18 @@ export default async function TodayPage() {
 
           <section className="card p-[18px] rise" style={{ ["--i" as string]: 4 }} aria-labelledby="kpi-h">
             <h2 id="kpi-h" className="card-title mb-2.5">{m.last8}</h2>
-            <dl className="grid grid-cols-2 gap-3">
+            {/* A list, not <dl>: each item also holds a sparkline, which a definition list does not allow. */}
+            <ul className="grid grid-cols-2 gap-3">
               {kpis.map((k) => (
-                <div key={k.label} className="flex items-center justify-between gap-2 border-t border-line pt-2">
+                <li key={k.label} className="flex items-center justify-between gap-2 border-t border-line pt-2">
                   <div className="min-w-0">
-                    <dt className="truncate text-[0.72rem] text-muted">{k.label}</dt>
-                    <dd className="display tabular text-[1.25rem] leading-[1.1]">{k.value}</dd>
+                    <p className="truncate text-[0.72rem] text-muted">{k.label}</p>
+                    <p className="display tabular text-[1.25rem] leading-[1.1]">{k.value}</p>
                   </div>
                   <Sparkline values={k.trend} width={56} height={20} />
-                </div>
+                </li>
               ))}
-            </dl>
+            </ul>
           </section>
         </aside>
       </div>

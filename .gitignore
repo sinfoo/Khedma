@@ -46,3 +46,9 @@ AGENTS.md
 
 # third-party repos cloned for research (never committed)
 /research/
+
+# end-to-end tests: throwaway data, build and reports
+/e2e/.data/
+/.next-e2e/
+/test-results/
+/playwright-report/
