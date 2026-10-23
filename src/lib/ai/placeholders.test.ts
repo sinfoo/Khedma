@@ -42,4 +42,5 @@ test("known placeholders are filled, unknown ones take their sentence or line", 
 
 test("single newlines become hard breaks, lists and headings stay markdown", () => {
   assert.equal(hardBreaks("Name\nphone\n\n## Exp\n- a\n- b\nACME\nDev"), "Name\\\nphone\n\n## Exp\n- a\n- b\\\nACME\\\nDev");
+  assert.equal(hardBreaks("### Designer · Acme\n**2019 - 2021**\nTunis"), "### Designer · Acme\n**2019 - 2021**\\\nTunis");
 });

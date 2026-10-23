@@ -49,7 +49,8 @@ export function fillPlaceholders(md: string, facts: DocFacts): { md: string; dro
 
 /** Markdown joins single newlines into one paragraph; documents mean them (address blocks, "Company · Role · Dates"). */
 export function hardBreaks(md: string): string {
-  return md.replace(/([^\n\\])\n(?=[^\n])(?!\s*([-*+] |\d+[.)] |#|\||>))/g, "$1\\\n");
+  // Not after a heading or table row: a trailing "\" there is a literal backslash, not a break.
+  return md.replace(/^(?![ \t]*(?:#|\|))(.*[^\n\\])\n(?=[^\n])(?![ \t]*([-*+] |\d+[.)] |#|\||>))/gm, "$1\\\n");
 }
 
 const hasPlaceholder = (s: string) => new RegExp(PH.source).test(s);

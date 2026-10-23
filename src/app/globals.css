@@ -538,6 +538,7 @@ html[data-rail] .rail-hide { display: none !important; }
 .doc-sheet h3 { font-family: var(--doc-font); font-size: var(--doc-fs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin: calc(var(--doc-gap) * 2) 0 var(--doc-gap); padding-bottom: 2pt; border-bottom: 1px solid oklch(0.8 0.005 260); color: var(--doc-accent); break-after: avoid; }
 .doc-sheet h4 { font-family: var(--doc-font); font-size: var(--doc-fs); font-weight: 700; margin: var(--doc-gap) 0 1pt; color: oklch(0.2 0.005 260); break-after: avoid; }
 .doc-sheet p { margin: 2pt 0; }
+.doc-sheet strong { color: inherit; } /* not the app's --ink: near-white on a dark-theme system */
 .doc-sheet ul { margin: 2pt 0 calc(var(--doc-gap) * 0.7); padding-left: 13pt; }
 .doc-sheet li { margin: 1pt 0; break-inside: avoid; }
 .prose-doc.doc-sheet a { color: inherit; text-decoration: none; }
@@ -551,6 +552,17 @@ html[data-rail] .rail-hide { display: none !important; }
 .tpl-smeargle h2 { font-size: calc(var(--doc-fs) * 2.6); line-height: 1.05; letter-spacing: -0.02em; padding-bottom: 6pt; }
 .tpl-smeargle h2 + p { border-top: 0.5pt solid oklch(0.7 0.005 260); padding-top: 5pt; }
 .tpl-smeargle h3 { text-transform: none; letter-spacing: 0; border-bottom: 0; color: oklch(0.16 0.005 260); font-size: calc(var(--doc-fs) * 1.3); }
+/* Harvard: the career-office layout (centred name, black ruled capitals). Engineering: after Jake's Resume and
+   rendercv's engineeringresumes theme (MIT): small capitals, tight lists. Both keep the accent for links only. */
+.tpl-harvard h2, .tpl-harvard h2 + p, .tpl-engineering h2, .tpl-engineering h2 + p { text-align: center; }
+.tpl-harvard h3 { color: oklch(0.16 0.005 260); letter-spacing: 0.04em; border-bottom: 0.75pt solid oklch(0.2 0 0); }
+.tpl-engineering h2 { font-variant: small-caps; font-size: calc(var(--doc-fs) * 2.2); }
+.tpl-engineering h3 { color: oklch(0.16 0.005 260); text-transform: none; font-variant: small-caps; letter-spacing: 0.02em; font-size: calc(var(--doc-fs) * 1.2); border-bottom: 0.75pt solid oklch(0.2 0 0); }
+.tpl-engineering ul { margin-top: 0; }
+.tpl-engineering li { margin: 0; }
+/* Entry rows: what and where on the left, dates on the right margin (components/markdown.tsx, `dates`). */
+.doc-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10pt; }
+.doc-date { flex: none; white-space: nowrap; font-weight: 400; font-style: normal; color: oklch(0.35 0.005 260); }
 .doc-letter { font-size: calc(var(--doc-fs) + 0.5pt); }
 .doc-letter p { margin: 0 0 8pt; }
 .doc-letter h2 { font-size: calc(var(--doc-fs) * 1.35); }

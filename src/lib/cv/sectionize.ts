@@ -83,6 +83,19 @@ const YEAR_RE = /\b(?:19|20)\d{2}\b/;
 const CONTACT_RE = /@|https?:\/\/|www\.|linkedin|github|\+?\d[\d .-]{7,}\d/i;
 
 export const isBullet = (line: string) => BULLET_RE.test(line);
+
+/** "July 2025 - Present", "Sept 2024 - juin 2026", "2023 - 2024 (expected)": a date range. */
+const DATE = String.raw`(?:[\p{L}.]+\s+)?\d{4}\s*[-–]\s*(?:(?:[\p{L}.]+\s+)?\d{4}|present|présent|aujourd'hui|now|current|en cours)(?:\s*\([^)]*\))?`;
+const DATE_TAIL = new RegExp(String.raw`^(.*?\S)\s+(?:[·|,–-]\s+)?(${DATE})$`, "iu");
+const DATE_ONLY = new RegExp(String.raw`^${DATE}$`, "iu");
+/** True when the whole line is a date range. */
+export const isDateRange = (line: string) => DATE_ONLY.test(line.trim());
+/** "Vermeg · Intern · July 2025 - Present" → ["Vermeg · Intern", "July 2025 - Present"]; null without a trailing range. */
+export function splitDates(line: string): [string, string] | null {
+  if (isDateRange(line)) return null;
+  const m = DATE_TAIL.exec(line.trim());
+  return m ? [m[1], m[2]] : null;
+}
 export const stripBullet = (line: string) => line.replace(BULLET_RE, "").trim();
 
 const isAllCapsTitle = (l: string) =>

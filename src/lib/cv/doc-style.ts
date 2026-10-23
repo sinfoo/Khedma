@@ -2,7 +2,7 @@
 // Designs, presets and tokens follow Reactive Resume (MIT) — persian, scizor, kakuna, smeargle and its
 // density / margin / size / accent presets — redone as CSS variables over our markdown sheet.
 
-export const DOC_TEMPLATES = ["classic", "persian", "scizor", "kakuna", "smeargle"] as const;
+export const DOC_TEMPLATES = ["classic", "persian", "scizor", "kakuna", "smeargle", "harvard", "engineering"] as const;
 export type DocTemplate = (typeof DOC_TEMPLATES)[number];
 export const DOC_FONTS = ["sans", "carlito", "tinos", "serif"] as const;
 export type DocFont = (typeof DOC_FONTS)[number];

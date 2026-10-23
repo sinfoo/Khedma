@@ -276,7 +276,7 @@ export default defineMessages({
       style: {
         title: "Layout",
         template: "Design",
-        templates: { classic: "Classic", persian: "Wall Street", scizor: "Modern", kakuna: "Centered", smeargle: "Magazine" },
+        templates: { classic: "Classic", persian: "Wall Street", scizor: "Modern", kakuna: "Centered", smeargle: "Magazine", harvard: "Harvard", engineering: "Engineering" },
         accent: "Colour",
         accents: ["Moss", "Ink blue", "Teal", "Plum", "Rust", "Burgundy", "Ochre", "Graphite"],
         font: "Font",
@@ -840,7 +840,7 @@ export default defineMessages({
       style: {
         title: "Mise en page",
         template: "Modèle",
-        templates: { classic: "Classique", persian: "Wall Street", scizor: "Moderne", kakuna: "Centré", smeargle: "Magazine" },
+        templates: { classic: "Classique", persian: "Wall Street", scizor: "Moderne", kakuna: "Centré", smeargle: "Magazine", harvard: "Harvard", engineering: "Ingénieur" },
         accent: "Couleur",
         accents: ["Mousse", "Bleu encre", "Sarcelle", "Prune", "Rouille", "Bordeaux", "Ocre", "Graphite"],
         font: "Police",

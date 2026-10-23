@@ -1,6 +1,6 @@
 // Markdown CV → minimal valid .docx (WordprocessingML) using only node built-ins.
 import { zip } from "./zip";
-import { isBullet, stripBullet } from "./sectionize";
+import { isBullet, splitDates, stripBullet } from "./sectionize";
 
 const xmlEsc = (s: string) =>
   s
@@ -43,20 +43,15 @@ function runs(text: string, links: string[]): string {
   return out.join("");
 }
 
-/** "… · July 2025 - Present" / "Sept 2024 - juin 2026": the trailing date range of an entry heading, if any. */
-const DATE = String.raw`(?:[\p{L}.]+\s+)?\d{4}\s*[-–]\s*(?:(?:[\p{L}.]+\s+)?\d{4}|present|présent|aujourd'hui|now|current|en cours)(?:\s*\([^)]*\))?`;
-const DATE_TAIL = new RegExp(String.raw`^(.*?\S)\s+(?:[·|,–-]\s+)?(${DATE})$`, "iu");
-const DATE_ONLY = new RegExp(String.raw`^${DATE}$`, "iu");
-
 /**
  * A paragraph. An entry line ending in a date range gets the dates pushed to the right margin with a right tab,
  * like the PDF's entry rows.
  */
 function para(style: string | null, text: string, links: string[], rightTab: number): string {
-  const d = (style === null || style === "Heading2") && !DATE_ONLY.test(text) ? DATE_TAIL.exec(text) : null;
+  const d = style === null || style === "Heading2" ? splitDates(text) : null;
   const tabs = d ? `<w:tabs><w:tab w:val="right" w:pos="${rightTab}"/></w:tabs>` : "";
   const pPr = style || tabs ? `<w:pPr>${style ? `<w:pStyle w:val="${style}"/>` : ""}${tabs}</w:pPr>` : "";
-  const body = d ? `${runs(d[1], links)}<w:r><w:tab/></w:r>${runs(d[2], links)}` : runs(text, links);
+  const body = d ? `${runs(d[0], links)}<w:r><w:tab/></w:r>${runs(d[1], links)}` : runs(text, links);
   return `<w:p>${pPr}${body}</w:p>`;
 }
 

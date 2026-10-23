@@ -48,7 +48,7 @@ export default async function PrintDoc({ params, searchParams }: PageProps<"/pri
       <style>{`.skip-link { display: none !important; } @media print { html, body, .doc-page { background: none !important; } .doc-page { width: auto !important; } }`}</style>
       {!quiet && <AutoPrint hint={t.apps2.flow.printHint} again={t.apps2.flow.printAgain} />}
       {style.fit && <DocFit steps={fitSteps(style)} paper={paper} pageHeightMm={paper === "A4" ? 297 : 279.4} />}
-      <Markdown className={`doc-sheet ${doc === "letter" ? "doc-letter" : `tpl-${style.template}`}`}>
+      <Markdown dates={doc === "cv"} className={`doc-sheet ${doc === "letter" ? "doc-letter" : `tpl-${style.template}`}`}>
         {hardBreaks(normalizeForAts(fillPlaceholders(raw, docFacts(id, lang)).md))}
       </Markdown>
     </main>
