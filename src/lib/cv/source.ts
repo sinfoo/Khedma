@@ -4,6 +4,7 @@ import path from "node:path";
 import { db, getProfile, migrate, kvGet, kvSet } from "@/lib/db";
 import { docxToText } from "./docx";
 import { unzipEntry } from "./zip";
+import { findGutter, iconLinks, pageText } from "./pdf-layout";
 
 export { sectionizeToMarkdown } from "./sectionize";
 
@@ -74,6 +75,34 @@ function cleanText(s: string): string {
     .slice(0, 60_000);
 }
 
+/**
+ * PDF text in reading order (two-column CVs read column by column) plus profile links hidden behind icons.
+ * Falls back to plain extraction when the layout pass loses text.
+ */
+export async function pdfText(bytes: Uint8Array): Promise<string> {
+  const { getDocumentProxy, extractText, extractTextItems, extractLinks } = await import("unpdf");
+  const pdf = await getDocumentProxy(bytes);
+  const plainPages = (await extractText(pdf, { mergePages: false })).text;
+  const plain = plainPages.join("\n\n");
+  try {
+    const { items } = await extractTextItems(pdf);
+    const pages: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const [x0, y0, x1, y1] = (await pdf.getPage(i + 1)).view;
+      const [w, h] = [x1 - x0, y1 - y0];
+      // Word and browsers already write text in reading order: only a page with a column gutter is re-read.
+      pages.push(findGutter(items[i], w, h) === null ? (plainPages[i] ?? "") : pageText(items[i], w, h));
+    }
+    const text = pages.join("\n\n");
+    const links = iconLinks(text, (await extractLinks(pdf)).links);
+    const out = links.length ? `${text}\n${links.join("\n")}` : text;
+    const letters = (s: string) => s.replace(/\s/g, "").length;
+    return letters(out) >= letters(plain) * 0.9 ? out : plain;
+  } catch {
+    return plain;
+  }
+}
+
 /** Extract plain text from a CV file (PDF, DOCX, TXT, MD). Throws CvImportError. */
 export async function extractCvText(fileName: string, bytes: Uint8Array): Promise<string> {
   if (bytes.byteLength > MAX_CV_BYTES) throw new CvImportError("tooLarge", "File is larger than 8 MB.");
@@ -83,10 +112,7 @@ export async function extractCvText(fileName: string, bytes: Uint8Array): Promis
   let text: string;
   try {
     if (ext === "pdf" || head.startsWith("%PDF")) {
-      const { getDocumentProxy, extractText } = await import("unpdf");
-      const pdf = await getDocumentProxy(new Uint8Array(bytes));
-      const res = await extractText(pdf, { mergePages: false });
-      text = res.text.join("\n\n");
+      text = await pdfText(new Uint8Array(bytes));
     } else if (ext === "docx") {
       const xml = unzipEntry(bytes, "word/document.xml");
       if (!xml) throw new CvImportError("corrupt", "This .docx has no document body.");
