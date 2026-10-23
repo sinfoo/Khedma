@@ -1,7 +1,7 @@
 // Multi-offer comparison (career-ops modes/ofertas.md): 10 dimensions scored 1–5 from data
 // already in the app, weighted total. Pure so the client can recompute as weights change.
 import type { AppState, Evaluation, Job, JobType } from "../types";
-import { extractSalaryMentions } from "../salaries";
+import { TND_PER, extractSalaryMentions } from "../salaries";
 
 export const COMPARE_DIMS = ["fit", "salary", "location", "type", "company", "growth", "speed", "flags", "rating", "deadline"] as const;
 export type CompareDim = (typeof COMPARE_DIMS)[number];
@@ -30,8 +30,9 @@ export function monthlyTnd(description: string): number | null {
   const m = extractSalaryMentions(description)[0];
   if (!m) return null;
   const mid = (m.min + m.max) / 2;
-  const monthly = m.period === "year" ? mid / 12 : mid;
-  return Math.round(m.currency === "EUR" ? monthly * 3.4 : monthly);
+  // ponytail: an hourly rate is taken as full time (35 h a week).
+  const monthly = m.period === "year" ? mid / 12 : m.period === "hour" ? (mid * 35 * 52) / 12 : mid;
+  return Math.round(monthly * TND_PER[m.currency]);
 }
 
 export function scoreDims(i: CompareInput): { scores: DimScores; salary: number | null; daysLeft: number | null } {

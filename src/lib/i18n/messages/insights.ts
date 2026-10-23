@@ -322,6 +322,7 @@ export default defineMessages({
       methodText: "Bands for Grand Tunis were compiled from public job posts, school internship guides and peer reports (2024–2026), then scaled for other regions (Sfax/Sousse/Monastir ×0.9, other ×0.8) and rounded to 50 DT. Internship amounts are gratifications, not salaries, and are not subject to CNSS or IRPP. Net figures use the simplified model above. Nothing here is financial advice.",
       month: "/ month",
       year: "/ year",
+      hour: "/ hour",
     },
   },
   fr: {
@@ -644,6 +645,7 @@ export default defineMessages({
       methodText: "Les fourchettes du Grand Tunis proviennent d'annonces publiques, de guides de stage d'écoles et de témoignages (2024–2026), puis sont ajustées pour les autres régions (Sfax/Sousse/Monastir ×0,9, autres ×0,8) et arrondies à 50 DT. Les montants de stage sont des gratifications, pas des salaires, et ne sont soumis ni à la CNSS ni à l'IRPP. Les montants nets utilisent le modèle simplifié ci-dessus. Rien ici n'est un conseil financier.",
       month: "/ mois",
       year: "/ an",
+      hour: "/ heure",
     },
   },
 });

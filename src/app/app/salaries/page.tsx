@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getDict } from "@/lib/i18n/server";
 import { listJobs } from "@/lib/db";
-import { extractSalaryMentions } from "@/lib/salaries";
+import { CURRENCY_SIGN, extractSalaryMentions } from "@/lib/salaries";
 import { TriangleAlert } from "lucide-react";
 import { CompanyAvatar } from "@/components/kit";
 import { SalaryExplorer } from "@/components/insights/salary-explorer";
@@ -45,8 +45,8 @@ export default async function SalariesPage() {
                 </div>
                 <span className="mono text-sm tabular">
                   {nf.format(s.min)}
-                  {s.max !== s.min && `–${nf.format(s.max)}`} {s.currency === "EUR" ? "€" : "DT"}
-                  {s.period && <span className="text-muted"> {s.period === "month" ? m.month : m.year}</span>}
+                  {s.max !== s.min && `–${nf.format(s.max)}`} {CURRENCY_SIGN[s.currency] ?? s.currency}
+                  {s.period && <span className="text-muted"> {s.period === "month" ? m.month : s.period === "hour" ? m.hour : m.year}</span>}
                 </span>
               </li>
             ))}

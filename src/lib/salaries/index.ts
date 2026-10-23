@@ -72,24 +72,34 @@ export function grossFromNet(netMonthly: number): number {
 }
 
 // ---------- salary mentions in offers ----------
+export type SalaryCurrency = "TND" | "EUR" | "USD" | "GBP" | "CHF" | "CAD" | "AED" | "SAR" | "QAR" | "MAD";
 export interface SalaryMention {
   raw: string;
   min: number;
   max: number;
-  currency: "TND" | "EUR";
-  period: "month" | "year" | null;
+  currency: SalaryCurrency;
+  period: "month" | "year" | "hour" | null;
 }
 
-const NUM = String.raw`\d{1,3}(?:[  .,]\d{3})+|\d+(?:[.,]\d+)?`;
-const CUR = String.raw`dt|tnd|dinars?|€|eur(?:os?)?`;
-// "1 200 DT", "800-1200 TND", "1,5k DT", "€2000", "2.5k€", "30k EUR / an"
+// Currencies and the "100'000" separator after elliottdehn/open-jobs tools/salary.py (CC0).
+const NUM = String.raw`\d{1,3}(?:[  .,'’]\d{3})+|\d+(?:[.,]\d+)?`;
+const PRE = String.raw`(?:us|ca|c)?\$|€|£|\b(?:usd|eur|gbp|chf|cad|aed|sar|qar)\b`;
+const CUR = String.raw`dt|tnd|dinars?|€|eur(?:os?)?|(?:us|ca|c)?\$|usd|£|gbp|chf|cad|aed|sar|qar|mad\b`;
+// "1 200 DT", "800-1200 TND", "1,5k DT", "€2000", "2.5k€", "30k EUR / an", "$120,000 - $150,000", "CHF 100'000", "25 €/h"
 const MENTION_RE = new RegExp(
-  String.raw`(?:(€)\s?)?(${NUM})\s*(k)?(?:\s*(?:-|–|à|to)\s*(${NUM})\s*(k)?)?\s*(${CUR})?(?:(?:[\s/]*(?:par|per|bruts?|nets?))*[\s/]*(mois|monthly|month|mensuel|année|an|yearly|year|annuel)\b)?`,
+  String.raw`(?:(${PRE})\s?)?(${NUM})\s*(k)?(?:\s*(?:-|–|à|to)\s*(?:${PRE})?\s*(${NUM})\s*(k)?)?\s*(${CUR})?(?:(?:[\s/]*(?:par|per|bruts?|nets?|de l'|a|an))*[\s/]*(mois|monthly|month|mensuel|année|an|yearly|year|annuel|heure|hourly|hour|hr|h(?![\w/]))\b)?`,
   "gi",
 );
 
+const CODES: [RegExp, SalaryCurrency][] = [[/€|eur/i, "EUR"], [/£|gbp/i, "GBP"], [/chf/i, "CHF"], [/ca\$|c\$|cad/i, "CAD"], [/aed/i, "AED"], [/sar/i, "SAR"], [/qar/i, "QAR"], [/mad/i, "MAD"], [/\$|usd/i, "USD"]];
+const currencyOf = (token: string): SalaryCurrency => CODES.find(([re]) => re.test(token))?.[1] ?? "TND";
+
+/** Rough TND per unit, for comparing offers only (not a quote). ponytail: fixed rates; refresh yearly or fetch if precision matters. */
+export const TND_PER: Record<SalaryCurrency, number> = { TND: 1, EUR: 3.4, USD: 3.1, GBP: 4, CHF: 3.6, CAD: 2.3, AED: 0.85, SAR: 0.83, QAR: 0.85, MAD: 0.31 };
+export const CURRENCY_SIGN: Partial<Record<SalaryCurrency, string>> = { TND: "DT", EUR: "€", USD: "$", GBP: "£" };
+
 function num(s: string, k: boolean): number {
-  const t = s.replace(/[\s ]/g, "");
+  const t = s.replace(/[\s  '’]/g, "");
   // "1.200" / "1,200" thousands separators vs "1,5" decimals
   const v = /^\d{1,3}([.,]\d{3})+$/.test(t) ? Number(t.replace(/[.,]/g, "")) : Number(t.replace(",", "."));
   return k ? v * 1000 : v;
@@ -98,16 +108,17 @@ function num(s: string, k: boolean): number {
 export function extractSalaryMentions(text: string): SalaryMention[] {
   const out: SalaryMention[] = [];
   for (const m of (text ?? "").matchAll(MENTION_RE)) {
-    const [raw, euroPrefix, a, ka, b, kb, cur, per] = m;
-    if (!euroPrefix && !cur) continue;
-    const currency = euroPrefix || /€|eur/i.test(cur ?? "") ? "EUR" : "TND";
+    const [raw, prefix, a, ka, b, kb, cur, per] = m;
+    if (!prefix && !cur) continue;
+    const currency = currencyOf(`${prefix ?? ""} ${cur ?? ""}`);
     // "30-40k" means 30k-40k; "800-1.2k" keeps 800 as is.
     let min = num(a, !!ka || (!!kb && Number(a.replace(",", ".")) < 100));
     let max = b ? num(b, !!kb || !!ka) : min;
     if (min > max) [min, max] = [max, min];
-    // Sanity bounds: ignore years, phone numbers, tiny numbers.
-    if (min < 100 || max > 500_000) continue;
-    const period = per ? (/mois|month|mensuel/i.test(per) ? "month" : "year") : max >= 15_000 ? "year" : null;
+    const hourly = !!per && /^(heure|hourly|hour|hr|h)$/i.test(per);
+    // Sanity bounds: ignore years, phone numbers, tiny numbers (an hourly rate is small by nature).
+    if (hourly ? min < 5 || max > 500 : min < 100 || max > 500_000) continue;
+    const period = hourly ? "hour" : per ? (/mois|month|mensuel/i.test(per) ? "month" : "year") : max >= 15_000 ? "year" : null;
     out.push({ raw: raw.trim(), min, max, currency, period });
   }
   return out;

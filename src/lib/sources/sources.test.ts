@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { htmlToText, pickJsonLdJobPosting, pickMeta } from "./html";
 import { guessRemote, guessType, matchesProfile, normalizeDate } from "./classify";
 import { parseRss } from "./rss";
+import { ashbyPay } from "./ashby";
 import { mapGreenhouse } from "./greenhouse";
 import { importFromUrl, validatePublicUrl } from "./url";
 import { DEMO_JOBS } from "./demo";
@@ -137,4 +138,9 @@ test("remote: negations and hybrid are not remote", () => {
   assert.equal(guessRemote("Hybrid - Paris"), false);
   assert.equal(guessRemote("Hybride, 100 % télétravail possible"), true);
   assert.equal(guessRemote("Remote (EMEA)"), true);
+});
+
+test("ashby structured pay becomes a salary line", () => {
+  assert.equal(ashbyPay({ scrapeableCompensationSalarySummary: "$211.4K - $290.6K", compensationTiers: [{ components: [{ compensationType: "EquityPercentage", interval: "NONE" }, { compensationType: "Salary", interval: "1 YEAR" }] }] }), "Salary: $211.4K - $290.6K per year");
+  assert.equal(ashbyPay(null), "");
 });

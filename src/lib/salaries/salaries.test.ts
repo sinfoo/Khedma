@@ -49,3 +49,20 @@ test("extractSalaryMentions finds DT, EUR, ranges and k", () => {
   );
   assert.deepEqual(extractSalaryMentions("Call 2026 or visit room 12."), []);
 });
+
+test("extractSalaryMentions reads dollars, pounds, Swiss francs, Gulf currencies and hourly rates", () => {
+  const m = extractSalaryMentions(
+    "Base $120,000 - $150,000 per year. London £35k. Zürich CHF 100'000 - 120'000. Dubai AED 8,000 - 10,000 per month. Freelance 25 €/h. Salary: $211.4K - $290.6K per year. Poste H/F, 35h/semaine.",
+  );
+  assert.deepEqual(
+    m.map((x) => [x.min, x.max, x.currency, x.period]),
+    [
+      [120000, 150000, "USD", "year"],
+      [35000, 35000, "GBP", "year"],
+      [100000, 120000, "CHF", "year"],
+      [8000, 10000, "AED", "month"],
+      [25, 25, "EUR", "hour"],
+      [211400, 290600, "USD", "year"],
+    ],
+  );
+});
