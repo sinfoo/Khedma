@@ -2,6 +2,7 @@
 // already in the app, weighted total. Pure so the client can recompute as weights change.
 import type { AppState, Evaluation, Job, JobType } from "../types";
 import { TND_PER, extractSalaryMentions } from "../salaries";
+import { offerMonthlyTnd, type OfferRecord } from "./offer";
 
 export const COMPARE_DIMS = ["fit", "salary", "location", "type", "company", "growth", "speed", "flags", "rating", "deadline"] as const;
 export type CompareDim = (typeof COMPARE_DIMS)[number];
@@ -20,6 +21,8 @@ export interface CompareInput {
   targetLocations: string[];
   targetTypes: JobType[];
   today: string;
+  /** The offer actually received: its pay, answer-by date and remote days replace the posting's. */
+  offer?: OfferRecord | null;
 }
 
 const clamp = (n: number) => Math.round(Math.min(5, Math.max(1, n)) * 10) / 10;
@@ -36,16 +39,18 @@ export function monthlyTnd(description: string): number | null {
 }
 
 export function scoreDims(i: CompareInput): { scores: DimScores; salary: number | null; daysLeft: number | null } {
-  const salary = monthlyTnd(i.job.description);
+  const salary = (i.offer && offerMonthlyTnd(i.offer)) ?? monthlyTnd(i.job.description);
   const loc = i.job.location.toLowerCase();
   const locHit = i.targetLocations.some((l) => l && loc.includes(l.toLowerCase()));
-  const daysLeft = i.job.deadline ? Math.round((new Date(`${i.job.deadline.slice(0, 10)}T00:00`).getTime() - new Date(`${i.today}T00:00`).getTime()) / DAY) : null;
+  const until = i.offer?.respondBy || i.job.deadline;
+  const daysLeft = until ? Math.round((new Date(`${until.slice(0, 10)}T00:00`).getTime() - new Date(`${i.today}T00:00`).getTime()) / DAY) : null;
+  const remote = i.job.remote || (i.offer?.remoteDays ?? 0) >= 3;
   const applied = i.applied_at ? Math.floor((new Date(`${i.today}T00:00`).getTime() - new Date(i.applied_at).getTime()) / DAY) : null;
   const speed = ["offer", "hired"].includes(i.status) ? 5 : ["responded", "interview"].includes(i.status) ? 4 : i.status === "applied" ? (applied !== null && applied > 21 ? 1 : applied !== null && applied > 7 ? 2 : 3) : 3;
   const scores: DimScores = {
     fit: clamp(i.evaluation?.global ?? 3),
     salary: salary === null ? 3 : salary >= 1500 ? 5 : salary >= 1000 ? 4 : salary >= 600 ? 3 : salary >= 300 ? 2 : 1,
-    location: i.job.remote ? 5 : locHit ? 4 : !loc ? 3 : 2,
+    location: remote ? 5 : locHit ? 4 : !loc ? 3 : 2,
     type: i.targetTypes.includes(i.job.type) ? 5 : 2,
     company: i.companyRating || 3,
     growth: clamp(i.evaluation?.growth ?? 3),

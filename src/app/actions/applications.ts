@@ -5,6 +5,8 @@ import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db"
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
+import { normalizeOffer } from "@/lib/apps/offer";
+import { fmt } from "@/lib/i18n/dict";
 import { setDocStyle } from "@/lib/cv/doc-style-store";
 import { headers } from "next/headers";
 import { printDoc } from "@/lib/cv/pdf";
@@ -41,6 +43,8 @@ import {
   isKind,
   isState,
   listContacts,
+  getOffer,
+  setOffer,
   logEvent,
   saveContact as repoSaveContact,
   saveInterview as repoSaveInterview,
@@ -214,6 +218,21 @@ export async function checkDocPdf(id: number, kind: "cv" | "letter"): Promise<Re
   const phone = md.match(/\+?\d[\d .-]{7,}\d/)?.[0] ?? "";
   const issues = checkPdfText(pages, { name: name.length <= 40 ? name : "", email, phone, maxPages: kind === "cv" ? 2 : 1 });
   return { ok: true, pages: pages.length, issues };
+}
+
+/** The offer received; a new answer-by date becomes a reminder so it shows on Today and in the calendar. */
+export async function saveOffer(id: number, raw: unknown): Promise<Result> {
+  if (!exists(id)) return fail("notFound");
+  const o = normalizeOffer(raw);
+  const before = getOffer(id);
+  setOffer(id, o);
+  if (o.respondBy && o.respondBy !== before.respondBy) {
+    const { t } = await getDict();
+    const job = getJob(getApplication(id)!.job_id);
+    repoAddReminder({ application_id: id, title: fmt(t.apps2.offer.reminder, { company: job?.company ?? "" }), due_at: o.respondBy, kind: "custom" });
+  }
+  refresh();
+  return { ok: true };
 }
 
 /** Look of every sent CV and letter (validated in normalizeDocStyle). */

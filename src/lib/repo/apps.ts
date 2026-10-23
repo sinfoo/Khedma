@@ -3,6 +3,7 @@
 import { db, getApplication, kvGet, kvSet, migrate } from "../db";
 import { companyLatency, computeCadence, type Cadence } from "../apps/cadence";
 import { COMPARE_DIMS, DEFAULT_WEIGHTS, type CompareDim } from "../apps/compare";
+import { normalizeOffer, type OfferRecord } from "../apps/offer";
 import {
   APP_STATES,
   INTERVIEW_KINDS,
@@ -502,4 +503,13 @@ export function trackedDeadlines(fromDate: string): { application_id: number; ti
 export function appLabels(): Map<number, { title: string; company: string }> {
   const rows = db().prepare("SELECT a.id, j.title, j.company FROM applications a JOIN jobs j ON j.id = a.job_id").all() as Row[];
   return new Map(rows.map((r) => [r.id as number, { title: r.title as string, company: r.company as string }]));
+}
+
+// ---------- offer received ----------
+/** The offer received for an application (stored as one JSON value; no schema). */
+export function getOffer(appId: number): OfferRecord {
+  return normalizeOffer(kvGet<unknown>(`offer:${appId}`, null));
+}
+export function setOffer(appId: number, o: OfferRecord): void {
+  kvSet(`offer:${appId}`, o);
 }

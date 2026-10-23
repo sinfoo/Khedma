@@ -13,6 +13,7 @@ import {
   cadenceFor,
   computeChecklist,
   getExtras,
+  getOffer,
   listContacts,
   listInterviews,
   listReminders,
@@ -50,6 +51,8 @@ import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { getDocStyle } from "@/lib/cv/doc-style-store";
 import { DocStylePanel } from "@/components/pipeline/doc-style-panel";
 import { PdfCheck } from "@/components/pipeline/pdf-check";
+import { OfferCard } from "@/components/pipeline/offer-card";
+import { hasOffer } from "@/lib/apps/offer";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
@@ -148,6 +151,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       : null;
   const pack = AFTER_TABS.includes(tab) ? getPack(app.id) : null;
+  const offer = getOffer(app.id);
   const docStyle = getDocStyle();
   // Changes with the style, so the preview frame reloads after "Mise en page" edits.
   const styleKey = encodeURIComponent(Object.values(docStyle).join("-"));
@@ -350,6 +354,11 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               </p>
               {pack && <OutcomeButton id={app.id} pack={pack} />}
               <Link href="/app/pipeline" className="text-[0.8rem] font-semibold text-success">{F.seePipeline}</Link>
+            </div>
+          )}
+          {(app.status === "offer" || app.status === "hired" || hasOffer(offer)) && (
+            <div className="mb-3.5">
+              <OfferCard id={app.id} initial={offer} />
             </div>
           )}
           <div role="tablist" aria-label={a.ws.tabsLabel} className="seg mb-3.5 max-w-full overflow-x-auto no-print">

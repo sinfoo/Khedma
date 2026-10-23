@@ -5,7 +5,8 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { getApplication, getJob, getProfile, latestEvaluation } from "@/lib/db";
 import { companySlug, getCompany } from "@/lib/company";
-import { getCompareWeights, getRatings, localDate } from "@/lib/repo/apps";
+import { getCompareWeights, getOffer, getRatings, localDate } from "@/lib/repo/apps";
+import { hasOffer } from "@/lib/apps/offer";
 import { scoreDims } from "@/lib/apps/compare";
 import { EmptyState, PageHeader } from "@/components/kit";
 import { CompareTable, type CompareRow } from "@/components/pipeline/compare";
@@ -30,6 +31,8 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
     const ev = latestEvaluation(job.id);
     const company = getCompany(companySlug(job.company));
     const personal = ratings[id] ?? 0;
+    const offer = getOffer(id);
+    const real = hasOffer(offer);
     const { scores, salary, daysLeft } = scoreDims({
       job,
       evaluation: ev,
@@ -40,6 +43,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       targetLocations: profile.target_locations,
       targetTypes: profile.target_types,
       today,
+      offer,
     });
     rows.push({
       id,
@@ -50,12 +54,12 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
       personalRating: personal,
       facts: {
         fit: ev ? `${t.verdicts[ev.verdict]} · ${ev.engine === "heuristic" ? t.common.heuristic : ev.engine}` : t.jobs.notEvaluated,
-        salary: salary !== null ? `≈ ${salary.toLocaleString(locale === "fr" ? "fr-FR" : "en-GB")} DT ${t.insights2.sal.month}` : c.unknown,
+        salary: salary !== null ? `${real && offer.pay !== null ? `${t.apps2.offer.received} · ` : ""}≈ ${salary.toLocaleString(locale === "fr" ? "fr-FR" : "en-GB")} DT ${t.insights2.sal.month}${real && offer.months ? ` · ${fmt(t.apps2.offer.monthsShort, { n: offer.months })}` : ""}${real && offer.hireAfter ? ` · ${t.apps2.offer.hireShort}` : ""}` : c.unknown,
         location: [job.remote ? c.remote : "", job.location].filter(Boolean).join(" · ") || c.unknown,
         type: t.jobTypes[job.type],
         company: company?.rating ? "★".repeat(company.rating) : c.unrated,
         speed: app.applied_at ? `${t.states[app.status]} · ${shortDate(app.applied_at, locale)}` : t.states[app.status],
-        deadline: job.deadline ? `${shortDate(job.deadline, locale)}${daysLeft !== null ? ` · ${fmt(c.days, { n: daysLeft })}` : ""}` : c.noDeadline,
+        deadline: real && offer.respondBy ? `${t.apps2.offer.answerBy} ${shortDate(offer.respondBy, locale)}${daysLeft !== null ? ` · ${fmt(c.days, { n: daysLeft })}` : ""}` : job.deadline ? `${shortDate(job.deadline, locale)}${daysLeft !== null ? ` · ${fmt(c.days, { n: daysLeft })}` : ""}` : c.noDeadline,
       },
     });
   }
