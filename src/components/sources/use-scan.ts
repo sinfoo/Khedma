@@ -58,20 +58,16 @@ export function useScan() {
   const busy = useRef(false);
   const ctrl = useRef<AbortController | null>(null);
 
-  const start = useCallback(async (opts: ScanRequest = {}): Promise<ScanOutcome> => {
+  /** Reads one NDJSON scan stream (a new scan, or the running one replayed from its start). */
+  const follow = useCallback(async (req: () => Promise<Response>): Promise<ScanOutcome | null> => {
     if (busy.current) return { kind: "busy" };
     busy.current = true;
     ctrl.current = new AbortController();
     let done: ScanDone | null = null;
     let error: string | undefined;
     try {
-      const res = await fetch("/api/sources/scan", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(opts),
-        signal: ctrl.current.signal,
-      });
-      if (res.status === 204) return { kind: "skipped" };
+      const res = await req();
+      if (res.status === 204) return null;
       if (res.status === 409) return { kind: "busy" };
       if (!res.ok || !res.body) return { kind: "error", error: `HTTP ${res.status}` };
       setRunning(true);
@@ -124,11 +120,23 @@ export function useScan() {
     return { kind: "error", error: error ?? "Scan interrupted" };
   }, []);
 
+  const start = useCallback(
+    async (opts: ScanRequest = {}): Promise<ScanOutcome> =>
+      (await follow(() => fetch("/api/sources/scan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(opts), signal: ctrl.current?.signal }))) ?? { kind: "skipped" },
+    [follow],
+  );
+  /** Reattach to a scan still running on the server (the page was left or reloaded); null when none is. */
+  const attach = useCallback(() => follow(() => fetch("/api/sources/scan", { signal: ctrl.current?.signal })), [follow]);
+
   const finished = plan ? plan.runs.filter((r) => ["done", "error"].includes(status[r.key]?.state ?? "")).length : 0;
   const dropped: Record<string, number> = {};
   for (const r of plan?.runs ?? []) for (const [k, n] of Object.entries(status[r.key]?.dropped ?? {})) dropped[k] = (dropped[k] ?? 0) + n;
-  const stop = useCallback(() => ctrl.current?.abort(), []);
-  return { start, stop, restore: setJobs, running, status, total, finished, plan, jobs, dropped };
+  // Leaving the page keeps the scan running on the server; Stop is the one thing that ends it.
+  const stop = useCallback(() => {
+    void fetch("/api/sources/scan", { method: "DELETE" }).catch(() => {});
+    ctrl.current?.abort();
+  }, []);
+  return { start, attach, stop, restore: setJobs, running, status, total, finished, plan, jobs, dropped };
 }
 
 /**

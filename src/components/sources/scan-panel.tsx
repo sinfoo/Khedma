@@ -39,7 +39,7 @@ import { loadSearchPrefs } from "@/app/actions/sources";
 import { applyTo, evaluateOffer, tailorCvFor, trackOffers } from "@/app/actions/jobs";
 import { SearchPrefsForm } from "./search-prefs";
 import { Picks } from "./picks";
-import { useScan, type FoundJob, type ScanDone, type SourceStatus } from "./use-scan";
+import { useScan, type FoundJob, type ScanDone, type ScanOutcome, type SourceStatus } from "./use-scan";
 
 interface Src {
   id: number;
@@ -73,7 +73,7 @@ export function ScanPanel({
   const m = t.sources2.scan2;
   const toast = useToast();
   const router = useRouter();
-  const { start, stop, restore, running, status, total, finished, plan, jobs, dropped } = useScan();
+  const { start, attach, stop, restore, running, status, total, finished, plan, jobs, dropped } = useScan();
   const [kw, setKw] = useState(keywords.join(", "));
   const [countries, setCountries] = useState<string[]>(places.countries);
   const [remote, setRemote] = useState<Remote>(places.remote);
@@ -104,20 +104,37 @@ export function ScanPanel({
   const terms = kw.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean).slice(0, 6);
   const preview = planSearch({ keywords: terms, countries, remote, enabledSources: sources });
 
+  const settle = (r: ScanOutcome) => {
+    if (r.kind === "done") {
+      setDone(r.done);
+      router.refresh();
+    } else if (r.kind === "busy") toast.info(t.sources2.busy);
+    else if (r.kind === "cancelled") toast.info(m.stopped);
+    else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
+  };
+
   const run = () => {
     setDone(null);
     setElapsed(0);
     startPrepare(async () => {
       const untouched = !typed && terms.join(",").toLowerCase() === keywords.slice(0, 6).join(",").toLowerCase();
       const r = await start({ keywords: untouched ? undefined : terms, countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
-      if (r.kind === "done") {
-        setDone(r.done);
-        router.refresh();
-      } else if (r.kind === "busy") toast.info(t.sources2.busy);
-      else if (r.kind === "cancelled") toast.info(m.stopped);
-      else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
+      // Another tab (or this page before a reload) is scanning: follow that scan instead.
+      const followed = r.kind === "busy" ? await attach() : null;
+      settle(followed ?? r);
     });
   };
+
+  // Back on the page while a scan still runs on the server: pick it up where it is.
+  useEffect(() => {
+    if (autoStart) return;
+    void attach().then((r) => {
+      if (!r || r.kind === "busy") return; // busy = this page already follows it (dev runs effects twice)
+      setElapsed(0);
+      settle(r);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Opening an offer and coming back must not lose the results: keep the last finished scan for this tab.
   useEffect(() => {
@@ -180,19 +197,16 @@ export function ScanPanel({
       <header className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{title}</h1>
-          <p className="mt-1.5 text-muted">{lead}</p>
+          <p className="mt-1.5 text-muted" aria-live="polite">{lead}</p>
         </div>
         <div className="flex gap-2">
-          {running ? (
-            <button type="button" className="btn btn-outline" onClick={stop}>
-              <Square size={15} aria-hidden="true" /> {m.stop}
+          {(busy || finishedAll) && (
+            // One element for Stop / Scanning / Scan again, so keyboard focus is not lost when the scan ends.
+            <button type="button" className="btn btn-outline" disabled={!running && (busy || preview.runs.length === 0)} aria-busy={busy && !running} onClick={running ? stop : run}>
+              {running ? <Square size={15} aria-hidden="true" /> : busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
+              {running ? m.stop : busy ? m.scanning : m.scanAgain}
             </button>
-          ) : busy || finishedAll ? (
-            <button type="button" className="btn btn-outline" disabled={busy || preview.runs.length === 0} aria-busy={busy} onClick={run}>
-              {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={15} aria-hidden="true" />}
-              {busy ? m.scanning : m.scanAgain}
-            </button>
-          ) : null}
+          )}
           <Link href="/app/sources/manage#catalog" className="btn btn-outline">
             <Plus size={15} aria-hidden="true" /> {m.addSource}
           </Link>
@@ -201,7 +215,7 @@ export function ScanPanel({
 
       <div className={`grid items-stretch gap-5 ${showStage && showFeed ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : ""}`} style={{ transition: "grid-template-columns .5s cubic-bezier(.2,.7,.2,1)" }}>
         {showStage && (
-          <section aria-live="polite" aria-busy={scanning} className="card relative flex min-h-[520px] flex-col overflow-hidden">
+          <section aria-busy={scanning} className="card relative flex min-h-[520px] flex-col overflow-hidden">
             <div className="flex items-center gap-2.5 border-b border-line px-[18px] py-3.5">
               {scanning ? <Loader2 size={16} className="animate-spin text-accent-text" aria-hidden="true" /> : <Radar size={16} className="text-muted" aria-hidden="true" />}
               <div className="min-w-0 flex-1">

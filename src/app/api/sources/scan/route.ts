@@ -4,9 +4,23 @@ import { isSameOrigin } from "@/lib/sources/http";
 import { JOB_TYPES, type JobType } from "@/lib/types";
 
 /**
+ * The running scan's events, kept so a page that comes back (navigation, reload) can reattach with GET.
+ * Lives on globalThis so dev reloads of this module keep it. One scan at a time, so one log.
+ */
+interface Live {
+  lines: string[];
+  subs: Set<(line: string | null) => void>;
+  stop: AbortController;
+}
+const g = globalThis as { __khedmaScanLive?: Live | null };
+const NDJSON = { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" };
+const enc = new TextEncoder();
+
+/**
  * POST { keywords?, countries?, remote?, types?, negatives?, includeSenior?, ids?, trigger? }
  * Streams NDJSON events: plan, source running/done/error, job (each kept offer), liveness, sweep, done.
  * 409 when a scan is already running; 204 when an auto scan is not due yet.
+ * Leaving the page does not stop the scan: only DELETE does.
  */
 export async function POST(req: Request) {
   if (!isSameOrigin(req)) return Response.json({ error: "Cross-origin request refused" }, { status: 403 });
@@ -26,49 +40,73 @@ export async function POST(req: Request) {
   const negatives = strs(body.negatives, 12, 40);
   const includeSenior = body.includeSenior === true;
   if (trigger === "auto" && !autoScanDue()) return new Response(null, { status: 204 });
-  if (scanBusy()) return Response.json({ error: "A scan is already running" }, { status: 409 });
+  if (scanBusy() || g.__khedmaScanLive) return Response.json({ error: "A scan is already running" }, { status: 409 });
 
-  const enc = new TextEncoder();
-  // req.signal fires once the streamed response starts, so it cannot mean "user pressed Stop".
-  // The stream's cancel() is the real signal: the browser aborted the fetch.
-  const stopped = new AbortController();
-  const stream = new ReadableStream<Uint8Array>({
-    cancel() {
-      stopped.abort();
-    },
-    async start(controller) {
-      const send = (e: ScanEvent | { type: "error"; error: string }) => {
+  const live: Live = { lines: [], subs: new Set(), stop: new AbortController() };
+  g.__khedmaScanLive = live;
+  const send = (e: ScanEvent | { type: "error"; error: string }) => {
+    const line = `${JSON.stringify(e)}\n`;
+    live.lines.push(line);
+    for (const s of live.subs) s(line);
+  };
+  void (async () => {
+    try {
+      const run = await runScan({
+        ids,
+        trigger,
+        onEvent: send,
+        keywords: keywords.length ? keywords : undefined,
+        countries: countries.length ? countries : undefined,
+        remote,
+        types: types.length ? types : undefined,
+        negatives: negatives.length ? negatives : undefined,
+        includeSenior,
+        signal: live.stop.signal,
+      });
+      if (!run) send({ type: "error", error: "A scan is already running" });
+      else revalidatePath("/app", "layout");
+    } catch (e) {
+      send({ type: "error", error: (e as Error).message });
+    } finally {
+      g.__khedmaScanLive = null;
+      for (const s of live.subs) s(null);
+    }
+  })();
+  return new Response(follow(live), { headers: NDJSON });
+}
+
+/** Reattach to the running scan: every event so far, then the rest live. 204 when no scan is running. */
+export function GET() {
+  const live = g.__khedmaScanLive;
+  return live ? new Response(follow(live), { headers: NDJSON }) : new Response(null, { status: 204 });
+}
+
+/** Stop the running scan (the Stop button). It still records what it found so far. */
+export function DELETE(req: Request) {
+  if (!isSameOrigin(req)) return Response.json({ error: "Cross-origin request refused" }, { status: 403 });
+  g.__khedmaScanLive?.stop.abort();
+  return new Response(null, { status: 204 });
+}
+
+/** A stream of the log from the start, closed when the scan ends; a reader going away only unsubscribes. */
+function follow(live: Live): ReadableStream<Uint8Array> {
+  let sub: ((line: string | null) => void) | null = null;
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      sub = (line) => {
         try {
-          controller.enqueue(enc.encode(`${JSON.stringify(e)}\n`));
+          if (line === null) controller.close();
+          else controller.enqueue(enc.encode(line));
         } catch {
-          // client went away; the scan still finishes and is recorded
+          // reader gone
         }
       };
-      try {
-        const run = await runScan({
-          ids,
-          trigger,
-          onEvent: send,
-          keywords: keywords.length ? keywords : undefined,
-          countries: countries.length ? countries : undefined,
-          remote,
-          types: types.length ? types : undefined,
-          negatives: negatives.length ? negatives : undefined,
-          includeSenior,
-          signal: stopped.signal,
-        });
-        if (!run) send({ type: "error", error: "A scan is already running" });
-        else revalidatePath("/app", "layout");
-      } catch (e) {
-        send({ type: "error", error: (e as Error).message });
-      } finally {
-        try {
-          controller.close();
-        } catch {
-          // already closed
-        }
-      }
+      for (const l of live.lines) controller.enqueue(enc.encode(l));
+      if (g.__khedmaScanLive !== live) controller.close();
+      else live.subs.add(sub);
+    },
+    cancel() {
+      if (sub) live.subs.delete(sub);
     },
   });
-  return new Response(stream, { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" } });
 }

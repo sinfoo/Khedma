@@ -46,6 +46,16 @@ function ensure() {
      );
      CREATE INDEX IF NOT EXISTS scan_runs_started ON scan_runs(started_at DESC);`,
   );
+  // A run left unfinished by a stopped or crashed server would read as "running" forever: close it, once per process.
+  if (!globalThis.__khedmaStuckRunsClosed && !scanBusy()) {
+    globalThis.__khedmaStuckRunsClosed = true;
+    closeStuckRuns();
+  }
+}
+
+/** Marks runs with no finish time (none can be running when this process has no scan) as finished with an error. */
+export function closeStuckRuns(): number {
+  return Number(db().prepare("UPDATE scan_runs SET finished_at = started_at, errors = errors + 1 WHERE finished_at IS NULL").run().changes);
 }
 
 // ---------- sources ----------
@@ -305,6 +315,7 @@ export interface ScanRequest {
 
 declare global {
   var __khedmaScanBusy: boolean | undefined;
+  var __khedmaStuckRunsClosed: boolean | undefined;
 }
 
 export const scanBusy = () => !!globalThis.__khedmaScanBusy;
