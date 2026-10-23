@@ -7,6 +7,7 @@ import { printDoc } from "@/lib/cv/pdf";
 import { fillPlaceholders } from "@/lib/ai/placeholders";
 import { detectLanguage } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
+import { getDocStyle } from "@/lib/cv/doc-style-store";
 
 /**
  * Download the tailored CV or cover letter: ?doc=cv|letter&format=pdf|docx|md|txt[&paper=a4|letter][&inline=1]
@@ -56,7 +57,17 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const text = doc === "cv" ? atsPlainText(md, await getLocale()) : md;
     return new Response(text, { headers: { ...headers, "content-type": "text/plain; charset=utf-8" } });
   }
-  const bytes = markdownToDocx(md, { title: `${job.title} - ${job.company}`, paper });
+  // Same look as the PDF: accent, font and size from the document style; language from the text.
+  const style = getDocStyle();
+  const bytes = markdownToDocx(md, {
+    title: `${doc === "cv" ? "CV" : "Lettre"} - ${job.title} - ${job.company}`,
+    author: getProfile().name,
+    accent: style.accent,
+    font: style.font,
+    size: style.size,
+    lang: detectLanguage(raw),
+    paper,
+  });
   return new Response(bytes as BodyInit, {
     headers: { ...headers, "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
   });

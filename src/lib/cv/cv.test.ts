@@ -189,8 +189,36 @@ test("markdownToDocx produces a valid zip whose document.xml holds the text", ()
   assert.match(new TextDecoder().decode(unzipEntry(bytes, "word/styles.xml")!), /17703f/);
   const text = docxToText(xml);
   assert.match(text, /^Amira$/m);
-  assert.match(text, /• Développé une API & un outil <rapide>/);
+  assert.match(text, /^- Développé une API & un outil <rapide>$/m);
   assert.match(text, /^Texte libre$/m);
+});
+
+test("markdownToDocx: real bullets, live links, right-aligned dates, chosen font and language", () => {
+  const bytes = markdownToDocx(
+    "# Amira\n[GitHub](https://github.com/amira) · amira@example.tn\n\n### Vermeg · Stagiaire · juillet 2025 - août 2025\n- Tableau de bord",
+    { font: "tinos", lang: "en", size: 11 },
+  );
+  const xml = new TextDecoder().decode(unzipEntry(bytes, "word/document.xml")!);
+  const rels = new TextDecoder().decode(unzipEntry(bytes, "word/_rels/document.xml.rels")!);
+  const styles = new TextDecoder().decode(unzipEntry(bytes, "word/styles.xml")!);
+  assert.ok(unzipEntry(bytes, "word/numbering.xml"));
+  assert.ok(unzipEntry(bytes, "docProps/core.xml"));
+  assert.match(xml, /<w:hyperlink r:id="rIdL1"[^>]*><w:r><w:rPr><w:rStyle w:val="Hyperlink"\/><\/w:rPr><w:t xml:space="preserve">GitHub</);
+  assert.match(rels, /Id="rIdL1"[^>]*Target="https:\/\/github.com\/amira" TargetMode="External"/);
+  assert.match(xml, /<w:tab w:val="right" w:pos="9906"\/>.*Vermeg · Stagiaire<\/w:t><\/w:r><w:r><w:tab\/><\/w:r><w:r><w:t xml:space="preserve">juillet 2025 - août 2025</);
+  assert.doesNotMatch(xml, /•/);
+  assert.match(styles, /w:ascii="Times New Roman"/);
+  assert.match(styles, /<w:lang w:val="en-GB"\/>/);
+  assert.match(styles, /<w:sz w:val="22"\/>/);
+  assert.match(docxToText(xml), /^Vermeg · Stagiaire\tjuillet 2025 - août 2025$/m);
+  // Bare addresses become links too; the text stays as typed.
+  const bare = markdownToDocx("+216 21 179 509 | amira.bs@gmail.com | linkedin.com/in/amira_bs | https://amira.dev/cv. Fin");
+  const bareRels = new TextDecoder().decode(unzipEntry(bare, "word/_rels/document.xml.rels")!);
+  assert.deepEqual([...bareRels.matchAll(/Target="([^"]+)" TargetMode/g)].map((x) => x[1]), ["mailto:amira.bs@gmail.com", "https://linkedin.com/in/amira_bs", "https://amira.dev/cv"]);
+  assert.match(docxToText(new TextDecoder().decode(unzipEntry(bare, "word/document.xml")!)), /^\+216 21 179 509 \| amira\.bs@gmail\.com \| linkedin\.com\/in\/amira_bs \| https:\/\/amira\.dev\/cv\. Fin$/m);
+  // A date on its own line stays as typed.
+  const alone = new TextDecoder().decode(unzipEntry(markdownToDocx("Juillet 2025 - Présent"), "word/document.xml")!);
+  assert.doesNotMatch(alone, /<w:tab/);
 });
 
 test("Tunisian phone numbers get +216, others stay as typed", () => {
