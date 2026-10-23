@@ -167,6 +167,11 @@ export default defineMessages({
       badToken: "This bookmark belongs to another Khedma install. Create it again from Sources.",
       seeOffers: "See the offers",
       recreate: "Create the bookmark again",
+      extTitle: "Khedma Fill: fill application forms (Chrome or Edge extension)",
+      extLead: "On an employer's application form, it fills your name, e-mail, phone, links, the letter and the answers saved for that application. It never submits: you check and send.",
+      extStep1: "Open chrome://extensions (or edge://extensions) and turn on Developer mode.",
+      extStep2: "Click \"Load unpacked\" and pick the extension folder inside the Khedma project folder.",
+      extStep3: "In the extension's settings, paste this access code:",
     },
     radar: {
       searching: "Searching {src} for « {kw} »…",
@@ -674,6 +679,11 @@ export default defineMessages({
       badToken: "Ce favori appartient à une autre installation de Khedma. Recrée-le depuis Sources.",
       seeOffers: "Voir les offres",
       recreate: "Recréer le favori",
+      extTitle: "Khedma Fill : remplir les formulaires de candidature (extension Chrome ou Edge)",
+      extLead: "Sur le formulaire d'un employeur, elle remplit ton nom, ton e-mail, ton téléphone, tes liens, la lettre et les réponses enregistrées pour cette candidature. Elle n'envoie jamais : tu vérifies et tu envoies.",
+      extStep1: "Ouvre chrome://extensions (ou edge://extensions) et active le mode développeur.",
+      extStep2: "Clique « Charger l'extension non empaquetée » et choisis le dossier extension du projet Khedma.",
+      extStep3: "Dans les réglages de l'extension, colle ce code d'accès :",
     },
     radar: {
       searching: "Recherche sur {src} : « {kw} »…",

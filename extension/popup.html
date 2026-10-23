@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Khedma Fill</title>
+  <style>
+    body { width: 320px; margin: 0; padding: 14px; font: 14px/1.45 system-ui, sans-serif; color: #1c2430; background: #fbfaf7; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    p { margin: 0 0 10px; color: #4b5563; }
+    label { display: block; font-size: 12px; font-weight: 600; margin: 8px 0 3px; }
+    input { box-sizing: border-box; width: 100%; padding: 6px 8px; border: 1px solid #c9ced6; border-radius: 8px; font: inherit; }
+    button { margin-top: 12px; width: 100%; padding: 8px; border: 0; border-radius: 9px; background: #2f5a8a; color: #fff; font: 600 14px system-ui; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: default; }
+    #out { margin-top: 10px; white-space: pre-line; }
+    details { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Khedma Fill</h1>
+  <p>Remplit le formulaire ouvert avec ton profil et tes réponses enregistrées. N'envoie jamais rien : vérifie, puis envoie toi-même.</p>
+  <button id="fill" type="button">Remplir ce formulaire</button>
+  <div id="out" role="status"></div>
+  <details>
+    <summary>Réglages</summary>
+    <label for="base">Adresse de Khedma</label>
+    <input id="base" type="url" value="http://localhost:3000" />
+    <label for="token">Code d'accès (Khedma &gt; Sources &gt; Gérer les sources &gt; Khedma Fill)</label>
+    <input id="token" type="password" autocomplete="off" />
+  </details>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -57,3 +57,39 @@ test("a scanned PDF CV (no text layer) is read with OCR in the browser and becom
   await expect(page.locator("#cv-md")).toHaveValue(/amira\.bensalah@example\.tn/, { timeout: 150_000 });
   await expect(page.locator("#cv-md")).toHaveValue(/React, Node\.js, Python, SQL, Git/);
 });
+
+test("Khedma Fill: the endpoint needs the access code, and fill.js fills an employer's form without submitting it", async ({ page, request }) => {
+  expect((await request.get("/api/extension/fill?url=https://example.com/apply")).status()).toBe(403);
+  await page.goto("/app/sources/manage");
+  const token = (await page.locator("#extension code").textContent())!.trim();
+  const res = await request.get("/api/extension/fill?url=https://example.com/jobs/1", { headers: { "x-khedma-token": token } });
+  expect(res.status()).toBe(200);
+  expect(res.headers()["access-control-allow-origin"]).toBeUndefined();
+  const data = await res.json();
+  expect(data.job).toEqual({ title: "Stage PFE Développeur Full Stack", company: "Acme Tunisie" });
+
+  let submitted = false;
+  await page.route("https://form.test/**", (r) => {
+    submitted = r.request().method() === "POST";
+    return r.fulfill({ contentType: "text/html; charset=utf-8", body: `<form method="post" action="/send">
+      <label for="f">Prénom</label><input id="f">
+      <label for="l">Nom</label><input id="l">
+      <label>Email <input type="email" name="email"></label>
+      <label for="c">Lettre de motivation</label><textarea id="c"></textarea>
+      <label for="g">Gender</label><input id="g">
+      <label for="p">Phone</label><input id="p" value="déjà rempli">
+      <input type="file" aria-label="CV">
+    </form>` });
+  });
+  await page.goto("https://form.test/apply");
+  await page.addScriptTag({ path: "extension/fill.js" });
+  const r = await page.evaluate((d) => (globalThis as unknown as { __khedmaFill: (x: unknown) => { filled: number } }).__khedmaFill(d), data);
+  expect(r.filled).toBe(4);
+  await expect(page.locator("#f")).toHaveValue("Amira");
+  await expect(page.locator("#l")).toHaveValue("Ben Salah");
+  await expect(page.locator("input[name=email]")).toHaveValue("amira@example.tn");
+  await expect(page.locator("#c")).toHaveValue(/Madame, Monsieur/);
+  await expect(page.locator("#g")).toHaveValue("");
+  await expect(page.locator("#p")).toHaveValue("déjà rempli");
+  expect(submitted).toBe(false);
+});
