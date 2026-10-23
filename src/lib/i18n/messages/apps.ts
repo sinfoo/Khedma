@@ -492,8 +492,9 @@ export default defineMessages({
       closeGhosted: "Close: no answer",
     },
     reply: {
-      emlImport: "Import an e-mail (.eml)",
-      emlTooBig: "This e-mail file is over 2 MB.",
+      emlImport: "Import an e-mail (.eml, .mbox)",
+      emlTooBig: "This file is over {mb} MB.",
+      mboxPick: "Pick the message ({n} newest in the file)",
       emlError: "This file could not be read as an e-mail.",
       title: "Paste a reply you received",
       hint: "Paste the e-mail or LinkedIn message from the company, or import the .eml file. It is classified with the AI set in Settings: an online model (Claude) receives the text, a local one (Ollama or offline) keeps it on this computer.",
@@ -1060,8 +1061,9 @@ export default defineMessages({
       closeGhosted: "Clore : sans réponse",
     },
     reply: {
-      emlImport: "Importer un e-mail (.eml)",
-      emlTooBig: "Ce fichier e-mail dépasse 2 Mo.",
+      emlImport: "Importer un e-mail (.eml, .mbox)",
+      emlTooBig: "Ce fichier dépasse {mb} Mo.",
+      mboxPick: "Choisir le message ({n} plus récents du fichier)",
       emlError: "Ce fichier n'a pas pu être lu comme un e-mail.",
       title: "Coller une réponse reçue",
       hint: "Colle l'e-mail ou le message LinkedIn de l'entreprise, ou importe le fichier .eml. Il est classé avec l'IA choisie dans Réglages : un modèle en ligne (Claude) reçoit le texte, un modèle local (Ollama ou hors ligne) le garde sur cet ordinateur.",

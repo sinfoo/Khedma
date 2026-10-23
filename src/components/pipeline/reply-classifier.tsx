@@ -9,7 +9,8 @@ import { APP_STATES, INTERVIEW_KINDS } from "@/lib/types";
 import type { ReplyResult } from "@/lib/apps/reply";
 import { applyReply, classifyReply } from "@/app/actions/applications";
 import { useRun } from "./use-run";
-import { MAX_EML_BYTES, emailText, parseEml } from "@/lib/apps/mail";
+import { MAX_EML_BYTES, MAX_MBOX_BYTES, emailText, parseEml, parseMbox, type Parsed } from "@/lib/apps/mail";
+import { fmt } from "@/lib/i18n/dict";
 
 type Res = ReplyResult & { engine: string };
 const KIND_CLS: Record<ReplyResult["kind"], string> = { interview: "chip-saffron", offer: "chip-success", rejected: "chip-danger", responded: "chip-accent", noise: "" };
@@ -45,13 +46,29 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
       },
     );
 
-  /** A saved e-mail (.eml) fills the box with sender, subject, date and body; parsed in the browser, never uploaded. */
+  /**
+   * A saved e-mail (.eml) fills the box with sender, subject, date and body; a mailbox export (.mbox) lists its
+   * newest messages to pick from. Parsed in the browser, never uploaded.
+   */
+  const [mbox, setMbox] = useState<Parsed[]>([]);
+  const pick = (m: Parsed) => {
+    setText(emailText(m, locale));
+    setRes(null);
+  };
   const loadEml = async (file: File | undefined) => {
     if (!file) return;
-    if (file.size > MAX_EML_BYTES) return toast.error(r.emlTooBig);
+    const isMbox = /\.mbox$/i.test(file.name) || file.type === "application/mbox";
+    const max = isMbox ? MAX_MBOX_BYTES : MAX_EML_BYTES;
+    if (file.size > max) return toast.error(fmt(r.emlTooBig, { mb: max / 1_000_000 }));
     try {
-      setText(emailText(await parseEml(await file.arrayBuffer()), locale));
-      setRes(null);
+      if (!isMbox) {
+        setMbox([]);
+        return pick(await parseEml(await file.arrayBuffer()));
+      }
+      const msgs = await parseMbox(await file.arrayBuffer());
+      if (!msgs.length) return toast.error(r.emlError);
+      setMbox(msgs.length > 1 ? msgs : []);
+      pick(msgs[0]);
     } catch {
       toast.error(r.emlError);
     }
@@ -70,7 +87,7 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           const f = e.dataTransfer.files[0];
-          if (f && /\.eml$/i.test(f.name)) {
+          if (f && /\.(eml|mbox)$/i.test(f.name)) {
             e.preventDefault();
             loadEml(f);
           }
@@ -82,8 +99,18 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
         </button>
         <label className="btn btn-ghost btn-sm cursor-pointer">
           <FileUp size={14} aria-hidden="true" /> {r.emlImport}
-          <input type="file" accept=".eml,message/rfc822" className="sr-only" onChange={(e) => { loadEml(e.target.files?.[0]); e.target.value = ""; }} />
+          <input type="file" accept=".eml,.mbox,message/rfc822,application/mbox" className="sr-only" onChange={(e) => { loadEml(e.target.files?.[0]); e.target.value = ""; }} />
         </label>
+        {mbox.length > 1 && (
+          <>
+            <label className="sr-only" htmlFor="reply-mbox">{fmt(r.mboxPick, { n: mbox.length })}</label>
+            <select id="reply-mbox" className="input !h-8 !w-auto max-w-[min(100%,22rem)] !py-0 text-sm" title={fmt(r.mboxPick, { n: mbox.length })} onChange={(e) => pick(mbox[Number(e.target.value)])}>
+              {mbox.map((m, i) => (
+                <option key={i} value={i}>{[m.date?.slice(0, 10), m.from?.name || m.from?.address, m.subject].filter(Boolean).join(" · ").slice(0, 90)}</option>
+              ))}
+            </select>
+          </>
+        )}
         {text.trim().length > 0 && text.trim().length < 10 && <span className="text-xs text-muted">{r.tooShort}</span>}
       </div>
 

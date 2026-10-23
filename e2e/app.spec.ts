@@ -34,3 +34,16 @@ test("the sent letter has no placeholder left and the PDF is readable", async ({
   expect(pdf.headers()["content-type"]).toContain("application/pdf");
   expect((await pdf.body()).byteLength).toBeGreaterThan(5000);
 });
+
+test("a mailbox export (.mbox) lists its messages and fills the reply box with the newest", async ({ page }) => {
+  await page.goto("/app/pipeline/1?tab=messages");
+  const mbox = [
+    "From a@x Mon Oct 19 09:00:00 2026", "From: Sarra <sarra@vermeg.com>", "Subject: Accuse de reception", "Date: Mon, 19 Oct 2026 09:00:00 +0100", "", "Bien recu.", "",
+    "From b@x Thu Oct 22 10:00:00 2026", "From: RH Acme <rh@acme.tn>", "Subject: =?UTF-8?Q?Convocation_=C3=A0_un_entretien?=", "Date: Thu, 22 Oct 2026 10:00:00 +0100", "", "Entretien le 29/10/2026 a 14h00.", "",
+  ].join("\n");
+  await page.locator('input[type=file][accept*=".mbox"]').setInputFiles({ name: "inbox.mbox", mimeType: "application/mbox", buffer: Buffer.from(mbox) });
+  await expect(page.locator("#reply-text")).toHaveValue(/Objet : Convocation à un entretien/);
+  await expect(page.locator("#reply-mbox option")).toHaveCount(2);
+  await page.locator("#reply-mbox").selectOption({ index: 1 });
+  await expect(page.locator("#reply-text")).toHaveValue(/Objet : Accuse de reception/);
+});
