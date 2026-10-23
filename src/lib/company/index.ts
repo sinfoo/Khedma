@@ -3,6 +3,7 @@ import { db, listJobs, migrate, type JobWithMeta } from "@/lib/db";
 import type { AppState } from "@/lib/types";
 import { extractSkills } from "@/lib/ai/heuristic";
 import { canonicalName, companySlug } from "./normalize";
+import { canonicalPostingUrl } from "@/lib/sources/url";
 
 export { normalizeCompany, companySlug, canonicalName } from "./normalize";
 
@@ -276,6 +277,37 @@ export function saveCheck(c: Omit<JobCheck, "checked_at">): JobCheck {
     )
     .run(c.job_id, c.status, c.http_status, c.reason);
   return db().prepare("SELECT * FROM job_checks WHERE job_id = ?").get(c.job_id) as unknown as JobCheck;
+}
+
+/**
+ * After a complete listing of one board: its stored offers that are no longer listed are closed (check + archived;
+ * tracked ones stay in the pipeline with the closed mark), and closed ones that came back are open again.
+ * Returns the ids closed now.
+ */
+export function syncBoard(source: string, listed: { urls: string[]; companies: string[] }): number[] {
+  ensureSchema();
+  if (!listed.urls.length || !listed.companies.length) return [];
+  const live = new Set(listed.urls.map(canonicalPostingUrl));
+  const rows = db()
+    .prepare(
+      `SELECT j.id, j.url, j.archived, c.status, (SELECT 1 FROM applications a WHERE a.job_id = j.id) AS tracked
+       FROM jobs j LEFT JOIN job_checks c ON c.job_id = j.id
+       WHERE j.source = ? AND j.company IN (${listed.companies.map(() => "?").join(",")})`,
+    )
+    .all(source, ...listed.companies) as Row[];
+  const closed: number[] = [];
+  for (const r of rows) {
+    const id = r.id as number;
+    const isLive = live.has(canonicalPostingUrl(r.url as string));
+    if (!isLive && r.status !== "closed") {
+      saveCheck({ job_id: id, status: "closed", http_status: null, reason: "no longer listed on the employer's board" });
+      if (!r.tracked && !r.archived) db().prepare("UPDATE jobs SET archived = 1 WHERE id = ?").run(id);
+      closed.push(id);
+    } else if (isLive && r.status === "closed") {
+      saveCheck({ job_id: id, status: "open", http_status: null, reason: "listed again on the employer's board" });
+    }
+  }
+  return closed;
 }
 
 export function getChecks(ids: number[]): Map<number, JobCheck> {

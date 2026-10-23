@@ -45,8 +45,27 @@ export interface Classified {
 }
 
 /** Pure classifier: HTTP status + page HTML/text -> open / closed / unknown. */
-export function classifyLiveness(httpStatus: number, html: string): Classified {
+/**
+ * A posting that sends you to the board's listing is gone: Greenhouse answers 200 on job-boards.greenhouse.io/<board>?error=true,
+ * other boards drop the job segment from the path.
+ */
+export function redirectedToBoard(requested: string, final: string): boolean {
+  if (!final || final === requested) return false;
+  try {
+    const a = new URL(requested);
+    const b = new URL(final);
+    if (b.searchParams.get("error") === "true") return true;
+    const pa = a.pathname.replace(/\/$/, "");
+    const pb = b.pathname.replace(/\/$/, "");
+    return a.hostname === b.hostname && pb.length < pa.length && pa.startsWith(pb) && /\/(jobs?|postings?|offres?|vacancy|o)\//i.test(pa);
+  } catch {
+    return false;
+  }
+}
+
+export function classifyLiveness(httpStatus: number, html: string, redirected = false): Classified {
   if (httpStatus === 404 || httpStatus === 410) return { status: "closed", reason: `HTTP ${httpStatus}` };
+  if (redirected && httpStatus < 400) return { status: "closed", reason: "redirected to the job board" };
   if (httpStatus === 0) return { status: "unknown", reason: "unreachable" };
   if (httpStatus === 401 || httpStatus === 403 || httpStatus === 429 || httpStatus >= 500) return { status: "unknown", reason: `HTTP ${httpStatus}` };
   if (httpStatus >= 300) return { status: "unknown", reason: `HTTP ${httpStatus}` };
@@ -64,7 +83,7 @@ export async function checkUrl(url: string): Promise<Classified & { http_status:
   const f = await politeFetch(url);
   if (f.blocked) return { status: "unknown", reason: f.error ?? "blocked", http_status: null };
   if (f.status === 0) return { status: "unknown", reason: f.error ?? "unreachable", http_status: null };
-  return { ...classifyLiveness(f.status, f.html), http_status: f.status };
+  return { ...classifyLiveness(f.status, f.html, redirectedToBoard(url, f.finalUrl)), http_status: f.status };
 }
 
 /** Check a batch of offers (3 in flight, 250ms gap) and persist each result. Unknown ids are skipped. */

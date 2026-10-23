@@ -7,6 +7,7 @@ import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type Scan
 import { mapLimit } from "../sources/http";
 import { trustScore, type HostClass } from "../sources/trust";
 import { checkJobs } from "../company/liveness";
+import { syncBoard } from "../company";
 import { planSearch, planSources, type PlanRun, type PlanSkipped, type Remote } from "../search/plan";
 import { buildFilter, compileKeyword, fold } from "../search/filter";
 import { companyKey, scoreJob, type RankContext } from "../search/rank";
@@ -315,12 +316,14 @@ const TIER_MIN: Record<Tier, number> = { 1: 10, 2: 3, 3: 0 };
 async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Omit<ScanOptions, "keywords">): Promise<ScanResult & { tierOf: Map<string, Tier> }> {
   const usesKeywords = CATALOG.find((c) => c.kind === run.kind)?.keywords ?? false;
   const tierOf = new Map<string, Tier>();
+  let listed: ScanResult["listed"];
   let out: ScanResult = { jobs: [], total: 0, matched: 0, known: 0, dropped: {} };
   const order: Tier[] = usesKeywords ? [1, 2, 3] : [1];
   for (const t of order) {
     const keywords = t === 1 ? run.keywords : tiers[t];
     if (t > 1 && (out.total >= TIER_MIN[(t - 1) as Tier] || !keywords.length)) break;
     const r = await scanSource(run, profile, { ...opts, keywords });
+    if (r.listed) listed = r.listed;
     for (const j of r.jobs) if (!tierOf.has(j.url)) tierOf.set(j.url, t);
     const seen = new Set(out.jobs.map((j) => j.url));
     out = {
@@ -332,7 +335,7 @@ async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Om
       error: r.error ?? out.error,
     };
   }
-  return { ...out, tierOf };
+  return { ...out, tierOf, listed };
 }
 
 /**
@@ -381,6 +384,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const found: FoundJob[] = [];
     const dropped: Record<string, number> = {};
     let duplicates = 0;
+    const gone: number[] = [];
 
     const detail = await mapLimit(runs, 3, async (run): Promise<RunSourceDetail> => {
       if (opts.signal?.aborted) return { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: 0, matched: 0, kept: 0, added: 0, known: 0, dropped: {}, ms: 0 };
@@ -425,6 +429,8 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       }
       duplicates += res.known;
       for (const [k, n] of Object.entries(res.dropped)) dropped[k] = (dropped[k] ?? 0) + n;
+      // A complete board listing closes the offers it no longer has.
+      if (res.listed) gone.push(...syncBoard(run.kind, res.listed));
       const error = res.error && !res.jobs.length && !res.total ? res.error.slice(0, 300) : undefined;
       if (run.sourceId) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
       const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, ms: Date.now() - t0 };
@@ -433,12 +439,12 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     });
 
     // Liveness: the best new offers are opened once; closed ones are archived with the check as the note.
-    let closed: number[] = [];
+    let closed: number[] = [...gone];
     const top = opts.signal?.aborted ? [] : [...found].sort((a, b) => b.relevance - a.relevance).slice(0, LIVENESS_TOP);
     if (top.length) {
       try {
         const checks = await checkJobs(top.map((j) => j.id));
-        closed = checks.filter((c) => c.status === "closed").map((c) => c.job_id);
+        closed = [...gone, ...checks.filter((c) => c.status === "closed").map((c) => c.job_id)];
         for (const id of closed) updateJob(id, { archived: true });
         emit({ type: "liveness", checked: checks.length, closed });
       } catch (e) {

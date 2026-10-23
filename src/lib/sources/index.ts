@@ -133,7 +133,16 @@ export interface ScanOptions {
   decide?: (job: NewJob) => Decision;
 }
 
+/**
+ * Boards that return every open offer in one response: when one of them answers without error, an offer it no
+ * longer lists is gone. Paged or capped readers stay out (a short page would close live offers).
+ * Contract after elliottdehn/open-jobs' ok/gone/partial board results (CC0).
+ */
+const FULL_BOARDS = new Set<string>(["greenhouse", "lever", "ashby", "workable", "recruitee", "gem", "rippling", "flatchr", "jobscore"]);
+
 export interface ScanResult {
+  /** Every offer URL and employer name of a complete board listing (FULL_BOARDS only), to close what disappeared. */
+  listed?: { urls: string[]; companies: string[] };
   jobs: NewJob[];
   /** Raw listing count before filtering. */
   total: number;
@@ -191,5 +200,6 @@ export async function scanSource(source: { kind: string; handle: string }, profi
     }, provider.detailGapMs ?? 400);
     out = [...enriched, ...fresh.slice(cap)].filter(keep);
   }
-  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, dropped, error };
+  const complete = !error && jobs.length && FULL_BOARDS.has(source.kind) ? { urls: jobs.map((j) => j.url), companies: [...new Set(jobs.map((j) => j.company))] } : undefined;
+  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, dropped, error, listed: complete };
 }

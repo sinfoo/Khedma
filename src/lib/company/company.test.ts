@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { canonicalName, companySlug, normalizeCompany } from "./normalize";
-import { classifyLiveness } from "./liveness";
+import { classifyLiveness, redirectedToBoard } from "./liveness";
 import { parseRobots, robotsAllow } from "./robots";
 import { extractFacts, findLink } from "./research";
 
@@ -79,4 +79,12 @@ test("research: link discovery and fact extraction from fixture HTML", () => {
   for (const k of ["Transparency", "Mentoring", "Hybrid"]) assert.ok(f.culture.includes(k), `culture ${k}`);
   assert.deepEqual(f.pages, [base.href]);
   assert.ok(f.excerpt.includes("Payments, reinvented"));
+});
+
+test("a posting redirected to its board listing is closed", () => {
+  assert.equal(redirectedToBoard("https://job-boards.greenhouse.io/doctolib/jobs/7996919003", "https://job-boards.greenhouse.io/doctolib?error=true"), true);
+  assert.equal(redirectedToBoard("https://jobs.lever.co/acme/abc-123", "https://jobs.lever.co/acme/abc-123"), false);
+  assert.equal(redirectedToBoard("https://acme.com/careers/jobs/42", "https://acme.com/careers"), true);
+  assert.equal(redirectedToBoard("https://acme.com/blog/post", "https://acme.com/blog"), false);
+  assert.equal(classifyLiveness(200, "x".repeat(200), true).status, "closed");
 });
