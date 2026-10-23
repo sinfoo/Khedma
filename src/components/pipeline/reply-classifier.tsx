@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ClipboardPaste, Loader2, Wand2 } from "lucide-react";
+import { ClipboardPaste, FileUp, Loader2, Wand2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { EngineChip } from "@/components/ui";
 import { useToast } from "@/components/kit/toast";
@@ -9,13 +9,14 @@ import { APP_STATES, INTERVIEW_KINDS } from "@/lib/types";
 import type { ReplyResult } from "@/lib/apps/reply";
 import { applyReply, classifyReply } from "@/app/actions/applications";
 import { useRun } from "./use-run";
+import { MAX_EML_BYTES, emailText, parseEml } from "@/lib/apps/mail";
 
 type Res = ReplyResult & { engine: string };
 const KIND_CLS: Record<ReplyResult["kind"], string> = { interview: "chip-saffron", offer: "chip-success", rejected: "chip-danger", responded: "chip-accent", noise: "" };
 
 /** Paste a reply → classification card → apply (stage move, interview, timeline). */
 export function ReplyClassifier({ id, currentStatus }: { id: number; currentStatus: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const r = t.apps2.reply;
   const toast = useToast();
   const [text, setText] = useState("");
@@ -44,6 +45,18 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
       },
     );
 
+  /** A saved e-mail (.eml) fills the box with sender, subject, date and body; parsed in the browser, never uploaded. */
+  const loadEml = async (file: File | undefined) => {
+    if (!file) return;
+    if (file.size > MAX_EML_BYTES) return toast.error(r.emlTooBig);
+    try {
+      setText(emailText(await parseEml(await file.arrayBuffer()), locale));
+      setRes(null);
+    } catch {
+      toast.error(r.emlError);
+    }
+  };
+
   const showInterview = res && (res.kind === "interview" || stage === "interview");
 
   return (
@@ -53,12 +66,24 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
       </h2>
       <p className="hint mt-1">{r.hint}</p>
       <label className="sr-only" htmlFor="reply-text">{r.title}</label>
-      <textarea id="reply-text" className="input mt-3 !min-h-32" maxLength={8000} placeholder={r.placeholder} value={text} onChange={(e) => setText(e.target.value)} />
+      <textarea id="reply-text" className="input mt-3 !min-h-32" maxLength={8000} placeholder={r.placeholder} value={text} onChange={(e) => setText(e.target.value)}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          const f = e.dataTransfer.files[0];
+          if (f && /\.eml$/i.test(f.name)) {
+            e.preventDefault();
+            loadEml(f);
+          }
+        }} />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-secondary btn-sm" onClick={classify} disabled={classifying || text.trim().length < 10} aria-busy={classifying}>
           {classifying ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Wand2 size={14} aria-hidden="true" />}
           {classifying ? r.classifying : r.classify}
         </button>
+        <label className="btn btn-ghost btn-sm cursor-pointer">
+          <FileUp size={14} aria-hidden="true" /> {r.emlImport}
+          <input type="file" accept=".eml,message/rfc822" className="sr-only" onChange={(e) => { loadEml(e.target.files?.[0]); e.target.value = ""; }} />
+        </label>
         {text.trim().length > 0 && text.trim().length < 10 && <span className="text-xs text-muted">{r.tooShort}</span>}
       </div>
 
