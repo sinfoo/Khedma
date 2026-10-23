@@ -4,41 +4,21 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { db, getProfile, kvGet, kvSet, updateProfile } from "@/lib/db";
 import { aiText, getEngine } from "@/lib/ai";
-import { ollamaHealth } from "@/lib/ai/ollama";
 import { claudeConfigured, claudeHealth } from "@/lib/ai/anthropic";
 import { resetAll } from "@/app/api/backup/backup";
 import type { Settings } from "@/lib/types";
 
-const PROVIDERS: Settings["provider"][] = ["auto", "claude", "ollama", "offline"];
+const PROVIDERS: Settings["provider"][] = ["auto", "offline"];
 const CLAUDE_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5-20251001"];
 // The shell reads this cookie to set <html data-motion="reduce">.
 const MOTION_COOKIE = "khedma_motion";
-
-function cleanUrl(raw: unknown): string | null {
-  try {
-    const u = new URL(String(raw ?? "").trim());
-    return u.protocol === "http:" || u.protocol === "https:" ? u.toString().replace(/\/+$/, "") : null;
-  } catch {
-    return null;
-  }
-}
-const cleanModel = (raw: unknown) => {
-  const m = String(raw ?? "").trim();
-  return /^[\w.:/-]{1,100}$/.test(m) ? m : null;
-};
-
-export async function checkOllama(url: string) {
-  const u = cleanUrl(url);
-  if (!u) return { ok: false, models: [] as string[] };
-  return ollamaHealth(u);
-}
 
 /** Claude status for the settings page. Never returns or logs the key itself. */
 export async function claudeStatus(): Promise<{ configured: boolean; working: boolean }> {
   return { configured: claudeConfigured(), working: await claudeHealth() };
 }
 
-type EngineInput = { provider?: string; claude_model?: string; ollama_url?: string; ollama_model?: string };
+type EngineInput = { provider?: string; claude_model?: string };
 
 /** Validated settings merged over the saved ones (unknown values keep the current setting). */
 function merge(input: EngineInput): Settings {
@@ -47,8 +27,6 @@ function merge(input: EngineInput): Settings {
     ...cur,
     provider: PROVIDERS.includes(input.provider as Settings["provider"]) ? (input.provider as Settings["provider"]) : cur.provider,
     claude_model: CLAUDE_MODELS.includes(String(input.claude_model)) ? String(input.claude_model) : cur.claude_model,
-    ollama_url: input.ollama_url !== undefined ? cleanUrl(input.ollama_url) ?? cur.ollama_url : cur.ollama_url,
-    ollama_model: input.ollama_model !== undefined ? cleanModel(input.ollama_model) ?? cur.ollama_model : cur.ollama_model,
   };
 }
 

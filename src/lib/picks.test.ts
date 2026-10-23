@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { rankCandidates, type Candidate } from "./picks";
 
 const c = (id: number, p: Partial<Candidate> = {}): Candidate => ({ id, deadline: null, tracked: false, ev: null, relevance: 0, ...p });
-const ai = (global: number, verdict = "apply") => ({ global, verdict, engine: "ollama" });
+const ai = (global: number, verdict = "apply") => ({ global, verdict, engine: "claude:claude-sonnet-5-5" });
 
 test("post-scan shortlist keeps open untracked offers, best fit first, AI before estimates", () => {
   const r = rankCandidates(

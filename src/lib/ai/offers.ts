@@ -101,8 +101,8 @@ export function heuristicAnswer(job: Job, cvText: string, question: string, loca
   const fr = locale === "fr";
   const q = fold(question);
   const note = fr
-    ? "\n\n_Réponse hors ligne : extraits de l'annonce. Lancez Ollama pour une réponse rédigée._"
-    : "\n\n_Offline answer: excerpts from the posting. Start Ollama for a written answer._";
+    ? "\n\n_Réponse hors ligne : extraits de l'annonce. Ajoutez une clé d'IA dans Réglages pour une réponse rédigée._"
+    : "\n\n_Offline answer: excerpts from the posting. Add an AI key in Settings for a written answer._";
   const jobSkills = extractSkills(`${job.title}\n${job.tags.join(", ")}\n${job.description}`);
   const cvSkills = new Set(extractSkills(cvText).map((s) => s.toLowerCase()));
 

@@ -34,7 +34,7 @@ export default async function Landing() {
   const V = L.features.v;
 
   const vignettes = [
-    <ScoreVignette key="score" v={V} locale={locale} engine="Ollama · llama3.1" verdict={L.demo.verdict} />,
+    <ScoreVignette key="score" v={V} locale={locale} engine="Claude" verdict={L.demo.verdict} />,
     <AtsVignette key="ats" v={V} />,
     <TailorVignette key="tailor" v={V} />,
     <CoachVignette key="coach" v={V} />,
@@ -224,7 +224,7 @@ export default async function Landing() {
 
               <dl className="mt-12 space-y-8">
                 {[
-                  { Icon: Cpu, t: L.privacy.ollamaTitle, d: L.privacy.ollamaText },
+                  { Icon: Cpu, t: L.privacy.aiTitle, d: L.privacy.aiText },
                   { Icon: WifiOff, t: L.privacy.offlineTitle, d: L.privacy.offlineText },
                   { Icon: Globe, t: L.privacy.netTitle, d: L.privacy.netText },
                 ].map(({ Icon, t: title, d }) => (
@@ -250,7 +250,7 @@ export default async function Landing() {
                   {[
                     { icon: <Logo size={22} />, name: L.privacy.diagram.app, sub: `${L.privacy.diagram.local}:3000` },
                     { icon: <Database size={20} aria-hidden="true" className="text-accent-text" />, name: L.privacy.diagram.db, sub: "khedma.db" },
-                    { icon: <Cpu size={20} aria-hidden="true" className="text-saffron" />, name: L.privacy.diagram.ai, sub: `${L.privacy.diagram.local}:11434` },
+                    { icon: <Cpu size={20} aria-hidden="true" className="text-saffron" />, name: L.privacy.diagram.ai, sub: L.privacy.diagram.aiSub },
                   ].flatMap((n, i) => [
                     ...(i > 0
                       ? [

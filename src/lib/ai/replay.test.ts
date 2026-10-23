@@ -37,7 +37,7 @@ const job: Job = {
 const profile: Profile = {
   id: 1, name: "Amira Ben Salah", email: "amira@example.tn", headline: "Élève ingénieure ENIT",
   cv_md: "# Amira Ben Salah\namira@example.tn\n\n## Expérience\n**Vermeg** · Stagiaire · juillet 2025 - août 2025\n- Tableau de bord React, 73 % de temps de chargement en moins.\n\n## Compétences\n- React, Node.js, SQL, Git",
-  skills: ["React", "Node.js", "SQL"], target_roles: ["développeur full stack"], target_locations: ["Tunis"], target_types: ["pfe"], languages: ["fr", "en"], settings: { ...DEFAULT_SETTINGS, provider: "claude" },
+  skills: ["React", "Node.js", "SQL"], target_roles: ["développeur full stack"], target_locations: ["Tunis"], target_types: ["pfe"], languages: ["fr", "en"], settings: { ...DEFAULT_SETTINGS, provider: "auto" },
 };
 const ai = () => import("./index");
 

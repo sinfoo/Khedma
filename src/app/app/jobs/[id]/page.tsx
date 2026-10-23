@@ -354,7 +354,7 @@ function FitTab({ jobId, ev, appId, marginals, gates, match, t, locale }: { jobI
                     {delta === null ? "" : delta > 0 ? `+${delta.toFixed(1)}` : delta === 0 ? "±0" : delta.toFixed(1)}
                   </span>
                   <span className="min-w-0 flex-1 truncate text-muted">
-                    {fmtDate(h.created_at, locale)} · {h.engine === "heuristic" ? t.common.heuristic : h.engine.replace("ollama:", "")}
+                    {fmtDate(h.created_at, locale)} · {h.engine === "heuristic" ? t.common.heuristic : h.engine.replace("claude:", "")}
                   </span>
                   {i === 0 && <span className="chip chip-accent">{o.latest}</span>}
                 </li>

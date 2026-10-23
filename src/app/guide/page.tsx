@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const INSTALL_CMDS = [["winget install OpenJS.NodeJS.LTS"], [`git clone ${GITHUB_URL}.git`, "cd Khedma"], ["npm install"], ["npm run dev"]];
-const OLLAMA_CMDS = [["winget install Ollama.Ollama"], ["ollama pull llama3.1"], ["ollama list"]];
+const AI_CMDS = [[], ["ANTHROPIC_API_KEY=..."], ["npm run dev"]];
 
 function Steps({ steps, cmds }: { steps: { t: string; d: string }[]; cmds?: string[][] }) {
   return (
@@ -73,7 +73,7 @@ export default async function GuidePage() {
   const G = t.landing2.guide;
   const toc = [
     { id: "install", label: G.sections.install },
-    { id: "ollama", label: G.sections.ollama },
+    { id: "ai", label: G.sections.ai },
     { id: "first-steps", label: G.sections.first },
     { id: "shortcuts", label: G.sections.shortcuts },
     { id: "data", label: G.sections.data },
@@ -95,7 +95,7 @@ export default async function GuidePage() {
             <h1 className="mt-4 max-w-3xl text-[clamp(2.4rem,6vw,4.5rem)] leading-[0.98]">{G.title}</h1>
             <p className="mt-5 max-w-2xl text-lg text-ink-2">{G.lede}</p>
             <ul className="mt-7 flex flex-wrap gap-2">
-              {["Windows 10 / 11", "Node.js 24+", "Ollama · llama3.1", "SQLite"].map((x) => (
+              {["Windows 10 / 11", "Node.js 24+", "SQLite"].map((x) => (
                 <li key={x} className="chip mono">
                   {x}
                 </li>
@@ -132,13 +132,13 @@ export default async function GuidePage() {
               <p className="mt-8 text-sm text-muted">{G.install.note}</p>
             </section>
 
-            <section aria-labelledby="ollama">
-              <Heading id="ollama">{G.sections.ollama}</Heading>
-              <p className="mt-3 text-lg text-ink-2">{G.ollama.intro}</p>
-              <Steps steps={G.ollama.steps} cmds={OLLAMA_CMDS} />
+            <section aria-labelledby="ai">
+              <Heading id="ai">{G.sections.ai}</Heading>
+              <p className="mt-3 text-lg text-ink-2">{G.ai.intro}</p>
+              <Steps steps={G.ai.steps} cmds={AI_CMDS} />
               <p className="mt-8 flex gap-3 rounded-2xl bg-saffron-soft p-4 text-sm text-ink">
                 <Lightbulb size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-saffron" />
-                {G.ollama.tip}
+                {G.ai.tip}
               </p>
             </section>
 

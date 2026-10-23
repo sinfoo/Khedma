@@ -88,7 +88,7 @@ function heuristicJobQuestions(job: Job, lang: Lang): SessionQuestion[] {
   return out;
 }
 
-/** Two questions tailored to the posting. Ollama when online, templates from the posting's skills otherwise. */
+/** Two questions tailored to the posting. The AI when available, templates from the posting's skills otherwise. */
 export async function generateJobQuestions(job: Job, profile: Profile, lang: Lang): Promise<{ questions: SessionQuestion[]; engine: string }> {
   return aiJSON(
     profile.settings,

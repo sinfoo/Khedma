@@ -147,6 +147,11 @@ export function migrate(id: string, sql: string): void {
   }
 }
 
+/** Stored settings over the defaults. Any engine choice other than "offline" (older ones included) means "auto". */
+function normalizeSettings(s: Partial<Settings>): Settings {
+  return { ...DEFAULT_SETTINGS, ...s, provider: s.provider === "offline" ? "offline" : "auto" };
+}
+
 /** Shared tables several areas read (pipeline writes them, calendar/dashboard read them). */
 function runCoreMigrations(d: DatabaseSync) {
   void d;
@@ -286,7 +291,7 @@ export function getProfile(): Profile {
     target_locations: j<string[]>(r.target_locations, []),
     target_types: j<Profile["target_types"]>(r.target_types, ["stage", "pfe"]),
     languages: j<string[]>(r.languages, ["fr", "en"]),
-    settings: { ...DEFAULT_SETTINGS, ...j<Partial<Settings>>(r.settings, {}) },
+    settings: normalizeSettings(j<Partial<Settings>>(r.settings, {})),
   };
 }
 

@@ -7,7 +7,7 @@ import { getDict, getTheme } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { db, getProfile } from "@/lib/db";
 import { getEngine } from "@/lib/ai";
-import { checkOllama, claudeStatus, getMotion, getNotify } from "@/app/actions/settings";
+import { claudeStatus, getMotion, getNotify } from "@/app/actions/settings";
 import { storageInfo } from "@/app/api/backup/backup";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import { AiEngine } from "@/components/settings/ai-engine";
@@ -39,7 +39,7 @@ export default async function SettingsPage() {
   const [{ t }, theme, motion, notify] = await Promise.all([getDict(), getTheme(), getMotion(), getNotify()]);
   const st = t.sources2.settings;
   const { settings } = getProfile();
-  const [engine, claude, ollama] = await Promise.all([getEngine(settings), claudeStatus(), checkOllama(settings.ollama_url)]);
+  const [engine, claude] = await Promise.all([getEngine(settings), claudeStatus()]);
   const storage = storageInfo();
   const count = (sql: string) => (db().prepare(sql).get() as { n: number }).n;
   const k = st.about.keys;
@@ -69,9 +69,8 @@ export default async function SettingsPage() {
         <div className="min-w-0 max-w-[760px] space-y-3.5">
           <SettingsSection id="ai" i={1} icon={<Bot size={18} />} title={st.sections.ai} lead={st.ai.lead}>
             <AiEngine
-              settings={{ provider: settings.provider, claude_model: settings.claude_model, ollama_url: settings.ollama_url, ollama_model: settings.ollama_model }}
+              settings={{ provider: settings.provider, claude_model: settings.claude_model }}
               claude={claude}
-              ollama={ollama}
               engine={engine.label}
             />
           </SettingsSection>

@@ -1,4 +1,4 @@
-// Prompt + JSON-schema builders for Ollama structured output.
+// Prompt + JSON-schema builders for structured output.
 import type { Job, Locale, Profile, SkillGap } from "../types";
 import type { CompanySummary } from "../company";
 import type { DocFacts } from "./placeholders";

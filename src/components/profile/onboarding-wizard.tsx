@@ -363,8 +363,7 @@ function AiStep() {
     };
   }, []);
 
-  const model = s?.model ?? "llama3.1";
-  const cmds = ["winget install Ollama.Ollama", `ollama pull ${model}`];
+  const keyLine = "ANTHROPIC_API_KEY=...";
   const copy = (c: string) => navigator.clipboard?.writeText(c).then(() => toast.success(a.copied, c));
 
   return (
@@ -374,12 +373,12 @@ function AiStep() {
           <>
             <Loader2 size={18} className="animate-spin text-muted" aria-hidden="true" /> <span>{a.checking}</span>
           </>
-        ) : s.ollama ? (
+        ) : s.online ? (
           <>
             <CheckCircle2 size={18} className="text-success" aria-hidden="true" />
             <div className="flex-1">
               <p className="font-semibold">{a.online}</p>
-              <p className="text-sm text-muted">{s.hasModel ? fmt(a.model, { m: model }) : fmt(a.modelMissing, { m: model })}</p>
+              <p className="text-sm text-muted mono">{s.engine.replace("claude:", "")}</p>
             </div>
           </>
         ) : (
@@ -393,26 +392,28 @@ function AiStep() {
         </button>
       </div>
 
-      {s && (!s.ollama || !s.hasModel) && (
+      {s && !s.online && (
         <div className="rounded-xl bg-surface-2 p-4">
           <h3 className="text-base font-semibold" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
             {a.installTitle}
           </h3>
           <ol className="mt-3 space-y-3 text-sm">
-            {[a.s1, a.s2].map((label, i) => (
-              <li key={label} className={!s.ollama || i === 1 ? "" : "opacity-60"}>
-                <p className="mb-1.5">
-                  <span className="mr-1.5 tabular font-semibold">{i + 1}.</span>
-                  {label}
-                </p>
-                <div className="flex items-center gap-2">
-                  <code className="mono flex-1 overflow-x-auto rounded-lg border border-line bg-surface px-3 py-2 text-[0.82rem]">{cmds[i]}</code>
-                  <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={`${a.copy}: ${cmds[i]}`} onClick={() => copy(cmds[i])}>
-                    <Copy size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              </li>
-            ))}
+            <li>
+              <span className="mr-1.5 tabular font-semibold">1.</span>
+              {a.s1}
+            </li>
+            <li>
+              <p className="mb-1.5">
+                <span className="mr-1.5 tabular font-semibold">2.</span>
+                {a.s2}
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="mono flex-1 overflow-x-auto rounded-lg border border-line bg-surface px-3 py-2 text-[0.82rem]">{keyLine}</code>
+                <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={`${a.copy}: ${keyLine}`} onClick={() => copy(keyLine)}>
+                  <Copy size={14} aria-hidden="true" />
+                </button>
+              </div>
+            </li>
             <li>
               <span className="mr-1.5 tabular font-semibold">3.</span>
               {a.s3}
@@ -420,7 +421,7 @@ function AiStep() {
           </ol>
         </div>
       )}
-      {s && !s.ollama && (
+      {s && !s.online && (
         <button type="submit" className="btn btn-secondary">
           <WifiOff size={16} aria-hidden="true" /> {a.offlineMode}
         </button>

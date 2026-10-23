@@ -55,7 +55,7 @@ export async function getShellData(): Promise<ShellData> {
   let drills = 0;
   for (const st of drillStates().values()) if (st.due_at <= now.toISOString()) drills++;
 
-  const label = engine.label.replace("ollama:", "Ollama ").replace("claude:", "Claude ");
+  const label = engine.label.replace("claude:", "Claude ");
   return {
     name: profile.name,
     initials: initialsOf(profile.name),

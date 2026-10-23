@@ -41,18 +41,14 @@ export interface Profile {
 export interface Settings {
   locale: Locale;
   theme: "system" | "light" | "dark";
-  ollama_url: string;
-  ollama_model: string;
-  /** "auto" = Claude when ANTHROPIC_API_KEY works, else Ollama, else heuristic. */
-  provider: "auto" | "claude" | "ollama" | "offline";
+  /** "auto" = the online model when ANTHROPIC_API_KEY works, else heuristics; "offline" = heuristics only. */
+  provider: "auto" | "offline";
   claude_model: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   locale: "fr",
   theme: "system",
-  ollama_url: "http://127.0.0.1:11434",
-  ollama_model: "llama3.1",
   provider: "auto",
   claude_model: "claude-sonnet-5-5",
 };
@@ -123,7 +119,7 @@ export interface Evaluation {
   flags: string[];
   verdict: "apply_now" | "apply" | "maybe" | "skip";
   summary: string;
-  engine: string; // "ollama:llama3.1" | "heuristic"
+  engine: string; // "claude:<model>" | "heuristic"
   created_at: string;
   // v2 (optional: rows written before the v2 migration have none)
   requirements?: Requirement[];

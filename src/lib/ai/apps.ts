@@ -128,7 +128,7 @@ const PURPOSE: Record<MessageType, string> = {
   accept: "a reply accepting a job/internship offer and asking for next steps",
 };
 
-/** Message draft via Ollama when available, else the template. Never invents facts; lint findings travel with the draft. */
+/** Message draft by the AI when available, else the template. Never invents facts; lint findings travel with the draft. */
 export async function generateMessage(type: MessageType, c: MessageCtx): Promise<{ subject: string; body: string; engine: string; lint: LintFinding[] }> {
   const fallback = heuristicMessage(type, c);
   const lang = c.locale === "fr" ? "French" : "English";

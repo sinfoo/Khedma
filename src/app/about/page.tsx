@@ -11,7 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const TEAM = ["Safwen Bibeni", "Mahmoud Abid"];
-const STACK = ["Next.js", "React", "TypeScript", "Tailwind CSS", "SQLite", "Claude", "Ollama"];
+const STACK = ["Next.js", "React", "TypeScript", "Tailwind CSS", "SQLite", "Claude"];
 const DOES_ICONS = [Search, ShieldCheck, FileText, Send, Brain, Sparkles];
 const VALUE_ICONS = [Lock, ShieldCheck, Hand, Accessibility];
 

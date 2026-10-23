@@ -52,7 +52,7 @@ export default async function DiscoverPage() {
         </div>
         <div className="flex items-center gap-2 text-[0.78rem] text-muted">
           <span>
-            {fmt(m.generatedAt, { time })} · {model.engine === "heuristic" ? t.common.heuristic : model.engine.replace("ollama:", "Ollama · ").replace("claude:", "Claude · ")}
+            {fmt(m.generatedAt, { time })} · {model.engine === "heuristic" ? t.common.heuristic : model.engine.replace("claude:", "Claude · ")}
           </span>
           <RefreshButton />
         </div>

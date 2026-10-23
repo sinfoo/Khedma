@@ -60,7 +60,7 @@ export async function logFollowup(appId: number) {
   revalidatePath("/app", "layout");
 }
 
-/** Score up to 5 unscored offers (Ollama when available, heuristic otherwise). */
+/** Score up to 5 unscored offers (the AI when available, heuristic otherwise). */
 export async function evaluatePending(): Promise<number> {
   const profile = getProfile();
   const todo = listJobs().filter((j) => !j.evaluation).slice(0, 5);

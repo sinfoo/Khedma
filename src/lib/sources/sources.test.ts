@@ -16,7 +16,7 @@ const job = (over: Partial<NewJob>): NewJob => ({
 });
 const profile = (over: Partial<Profile>): Profile => ({
   id: 1, name: "", email: "", headline: "", cv_md: "", skills: [], target_roles: [], target_locations: [],
-  target_types: [], languages: [], settings: { locale: "fr", theme: "system", ollama_url: "", ollama_model: "", provider: "offline", claude_model: "" }, ...over,
+  target_types: [], languages: [], settings: { locale: "fr", theme: "system", provider: "offline", claude_model: "" }, ...over,
 });
 
 test("htmlToText drops scripts, keeps lists and decodes entities", () => {

@@ -163,7 +163,7 @@ export function heuristicAnswer(c: CompanyRow, question: string, locale: Locale)
   const fr = locale === "fr";
   const q = fold(question);
   const f = c.research?.facts;
-  const note = fr ? "\n\n_Réponse hors ligne à partir des faits extraits. Lancez Ollama pour une réponse rédigée._" : "\n\n_Offline answer from extracted facts. Start Ollama for a written answer._";
+  const note = fr ? "\n\n_Réponse hors ligne à partir des faits extraits. Ajoutez une clé d'IA dans Réglages pour une réponse rédigée._" : "\n\n_Offline answer from extracted facts. Add an AI key in Settings for a written answer._";
   const facts: string[] = [];
   if (/secteur|sector|industry|domaine|font|do\b|activit/.test(q)) facts.push(`${fr ? "Secteur" : "Sector"}: ${c.sector || f?.sector || (fr ? "inconnu" : "unknown")}`, c.description || f?.description || "");
   if (/taille|size|employ|combien de personnes|how many|big|grande|petite/.test(q)) facts.push(`${fr ? "Taille" : "Size"}: ${c.size || f?.size || (fr ? "non indiquée" : "not stated")}`);

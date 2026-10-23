@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { getProfile, updateProfile } from "@/lib/db";
 import { JOB_TYPES, type JobType } from "@/lib/types";
 import { getEngine } from "@/lib/ai";
-import { ollamaHealth } from "@/lib/ai/ollama";
 import { getProfileExtra, updateProfileExtra } from "@/lib/cv/profile-extra";
 import { ONBOARDING_STEPS, mergeSkills, type ProfileDraft } from "@/lib/cv/model";
 import { extractSkills } from "@/lib/ai/heuristic";
@@ -67,24 +66,10 @@ export async function finishOnboarding(): Promise<void> {
   revalidatePath("/app", "layout");
 }
 
-/** Ollama reachability + whether the configured model is pulled, and the engine Khedma will actually use. */
-export async function aiStatus(): Promise<{ ollama: boolean; hasModel: boolean; model: string; engine: string }> {
-  const s = getProfile().settings;
-  const [h, e] = await Promise.all([ollamaHealth(s.ollama_url), getEngine(s)]);
-  const hasModel = h.models.some((m) => m === s.ollama_model || m.split(":")[0] === s.ollama_model);
-  return { ollama: h.ok, hasModel, model: s.ollama_model, engine: e.label };
-}
-
-export async function saveSettings(formData: FormData) {
-  const cur = getProfile().settings;
-  updateProfile({
-    settings: {
-      ...cur,
-      ollama_url: str(formData.get("ollama_url"), 300).replace(/\/+$/, "") || cur.ollama_url,
-      ollama_model: str(formData.get("ollama_model"), 100) || cur.ollama_model,
-    },
-  });
-  revalidatePath("/app", "layout");
+/** Whether the online AI is in use (an API key that works), and the engine label. */
+export async function aiStatus(): Promise<{ online: boolean; engine: string }> {
+  const e = await getEngine(getProfile().settings);
+  return { online: e.online, engine: e.label };
 }
 
 export async function runCvReview(): Promise<{ ok: true; review: import("@/lib/ai/cv-review").CvReview } | { ok: false; error: string }> {

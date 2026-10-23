@@ -1,4 +1,4 @@
-// Public AI API: try Claude (if a key is configured), then Ollama, validate the output, fall back to heuristics.
+// Public AI API: the online model when a key is configured, output validated, heuristics otherwise.
 import { COMPANY_TYPES, type CompanyType, type Evaluation, type InterviewPrep, type Job, type Locale, type Profile, type Settings, type UpskillPlan } from "../types";
 import { heuristicV2Fields, shapeRequirements } from "./eval-v2";
 import {
@@ -12,55 +12,37 @@ import {
   cautiousVerdict,
   verdictFor,
 } from "./heuristic";
-import { ollamaChatJSON, ollamaChatStream, ollamaChatText, ollamaHealth, type ChatMessage } from "./ollama";
-import { claudeHealth, claudeJSON, claudeStream, claudeText } from "./anthropic";
+import { claudeHealth, claudeJSON, claudeStream, claudeText, type ChatMessage } from "./anthropic";
 import { coverLetterPrompt, evaluatePrompt, interviewPrompt, tailorCvPrompt, upskillPrompt, type DocCtx, type Prompt } from "./prompts";
 import { applyGates, type Gate } from "./gates";
 
 export { detectLanguage, computeSkillGaps };
 
 interface Engine {
-  kind: "claude" | "ollama";
-  url: string;
   model: string;
   label: string;
 }
 
 export const DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5";
 
-/**
- * Pick the engine for this call, honouring settings.provider:
- * "auto" = Claude if a working key is configured, else Ollama, else heuristic.
- */
-export async function pickEngine(settings: Settings): Promise<{ engine: Engine | null; models: string[] }> {
-  const provider = settings.provider ?? "auto";
-  if (provider === "offline") return { engine: null, models: [] };
-  if ((provider === "auto" || provider === "claude") && (await claudeHealth())) {
-    const model = settings.claude_model || DEFAULT_CLAUDE_MODEL;
-    return { engine: { kind: "claude", url: "", model, label: `claude:${model}` }, models: [] };
-  }
-  if (provider === "claude") return { engine: null, models: [] };
-  const h = await ollamaHealth(settings.ollama_url);
-  if (!h.ok || h.models.length === 0) return { engine: null, models: h.models };
-  const want = settings.ollama_model;
-  const model = h.models.find((m) => m === want || m.split(":")[0] === want) ?? h.models[0];
-  return { engine: { kind: "ollama", url: settings.ollama_url, model, label: `ollama:${model}` }, models: h.models };
+/** The engine for this call: the online model when settings allow it and the key works, else none (heuristics). */
+export async function pickEngine(settings: Settings): Promise<{ engine: Engine | null }> {
+  if (settings.provider === "offline" || !(await claudeHealth())) return { engine: null };
+  const model = settings.claude_model || DEFAULT_CLAUDE_MODEL;
+  return { engine: { model, label: `claude:${model}` } };
 }
 
-const runJSON = (e: Engine, prompt: Prompt) =>
-  e.kind === "claude" ? claudeJSON<unknown>({ model: e.model, ...prompt }) : ollamaChatJSON<unknown>({ url: e.url, model: e.model, ...prompt });
-const runText = (e: Engine, messages: ChatMessage[]) =>
-  e.kind === "claude" ? claudeText({ model: e.model, messages }) : ollamaChatText({ url: e.url, model: e.model, messages });
-const runStream = (e: Engine, messages: ChatMessage[]) =>
-  e.kind === "claude" ? claudeStream({ model: e.model, messages }) : ollamaChatStream({ url: e.url, model: e.model, messages });
+const runJSON = (e: Engine, prompt: Prompt) => claudeJSON<unknown>({ model: e.model, ...prompt });
+const runText = (e: Engine, messages: ChatMessage[]) => claudeText({ model: e.model, messages });
+const runStream = (e: Engine, messages: ChatMessage[]) => claudeStream({ model: e.model, messages });
 
-export async function getEngine(settings: Settings): Promise<{ online: boolean; label: string; models: string[] }> {
-  const { engine, models } = await pickEngine(settings);
-  return { online: !!engine, label: engine?.label ?? "heuristic", models };
+export async function getEngine(settings: Settings): Promise<{ online: boolean; label: string }> {
+  const { engine } = await pickEngine(settings);
+  return { online: !!engine, label: engine?.label ?? "heuristic" };
 }
 
-/** Run a prompt through the picked engine and shape the result; null on any failure so the caller falls back. */
-export async function tryOllama<T>(settings: Settings, prompt: Prompt, shape: (raw: unknown, label: string) => T): Promise<T | null> {
+/** Run a prompt through the engine and shape the result; null on any failure so the caller falls back. */
+export async function tryEngine<T>(settings: Settings, prompt: Prompt, shape: (raw: unknown, label: string) => T): Promise<T | null> {
   const { engine } = await pickEngine(settings);
   if (!engine) return null;
   try {
@@ -90,7 +72,7 @@ export async function evaluateJob(job: Job, profile: Profile, gates: Gate[] = []
   const locale = profile.settings.locale;
   // Legitimacy, comp reliability and the deterministic defaults never come from the model.
   const v2 = heuristicV2Fields(job, profile);
-  const fromOllama = await tryOllama(profile.settings, evaluatePrompt(job, profile, locale, calibration), (raw, label) => {
+  const fromModel = await tryEngine(profile.settings, evaluatePrompt(job, profile, locale, calibration), (raw, label) => {
     const r = obj(raw);
     if (r.global === undefined && r.match === undefined) throw new Error("missing scores");
     const global = score(r.global);
@@ -121,11 +103,11 @@ export async function evaluateJob(job: Job, profile: Profile, gates: Gate[] = []
       company_type: (COMPANY_TYPES as readonly string[]).includes(String(r.company_type)) ? (r.company_type as CompanyType) : v2.company_type,
     };
   });
-  return applyGates(fromOllama ?? { job_id: job.id, ...heuristicEvaluate(job, profile), ...v2 }, gates, locale === "fr");
+  return applyGates(fromModel ?? { job_id: job.id, ...heuristicEvaluate(job, profile), ...v2 }, gates, locale === "fr");
 }
 
 async function markdownTask(settings: Settings, prompt: Prompt, fallback: () => string): Promise<{ md: string; engine: string }> {
-  const r = await tryOllama(settings, prompt, (raw, label) => {
+  const r = await tryEngine(settings, prompt, (raw, label) => {
     const md = stripFences(text(obj(raw).md));
     if (md.length < 40) throw new Error("empty markdown");
     return { md, engine: label };
@@ -142,7 +124,7 @@ export function writeCoverLetter(job: Job, profile: Profile, locale: Locale, ctx
 }
 
 export async function prepareInterview(job: Job, profile: Profile, locale: Locale, ctx: DocCtx = {}): Promise<InterviewPrep> {
-  const r = await tryOllama(profile.settings, interviewPrompt(job, profile, locale, ctx), (raw, label) => {
+  const r = await tryEngine(profile.settings, interviewPrompt(job, profile, locale, ctx), (raw, label) => {
     const o = obj(raw);
     const likely_questions = (Array.isArray(o.likely_questions) ? o.likely_questions : [])
       .map((q) => ({ question: text(obj(q).question), why: text(obj(q).why), approach: text(obj(q).approach) }))
@@ -163,7 +145,7 @@ export async function prepareInterview(job: Job, profile: Profile, locale: Local
 
 export async function buildUpskillPlan(jobs: Job[], profile: Profile, locale: Locale): Promise<UpskillPlan> {
   const gaps = computeSkillGaps(jobs, profile);
-  const r = await tryOllama(profile.settings, upskillPrompt(gaps, profile, locale), (raw, label) => {
+  const r = await tryEngine(profile.settings, upskillPrompt(gaps, profile, locale), (raw, label) => {
     const plan = (Array.isArray(obj(raw).plan) ? (obj(raw).plan as unknown[]) : [])
       .map((p) => {
         const x = obj(p);
@@ -190,14 +172,14 @@ export async function buildUpskillPlan(jobs: Job[], profile: Profile, locale: Lo
 // ---------- generic helpers for feature modules (src/lib/ai/<feature>.ts) ----------
 export type { ChatMessage, Prompt };
 
-/** Structured task: Ollama with a JSON schema, shaped/validated, else the deterministic fallback. */
+/** Structured task: the model with a JSON schema, shaped/validated, else the deterministic fallback. */
 export async function aiJSON<T>(
   settings: Settings,
   prompt: Prompt,
   shape: (raw: unknown, engineLabel: string) => T,
   fallback: () => T,
 ): Promise<T> {
-  return (await tryOllama(settings, prompt, shape)) ?? fallback();
+  return (await tryEngine(settings, prompt, shape)) ?? fallback();
 }
 
 /** Free-text task (markdown, emails…). Returns the text and which engine produced it. */
@@ -221,7 +203,7 @@ export async function aiText(
 /**
  * Streaming chat for route handlers: returns a text/plain streaming Response.
  * The `x-engine` header says which engine answered. Falls back to a single
- * heuristic chunk when Ollama is offline or fails before the first token.
+ * heuristic chunk when no engine is available or it fails before the first token.
  */
 export async function aiStreamResponse(settings: Settings, messages: ChatMessage[], fallback: () => string): Promise<Response> {
   const { engine } = await pickEngine(settings);

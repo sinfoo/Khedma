@@ -1,6 +1,9 @@
 // Thin client for the Claude Messages API. No SDK: three calls via fetch.
 // The key is read from the environment only (.env.local, gitignored) and never stored or returned.
-import type { ChatMessage } from "./ollama";
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
 
 const API = "https://api.anthropic.com/v1/messages";
 const VERSION = "2023-06-01";
