@@ -1,5 +1,6 @@
 /* Khedma Fill: runs in the form's page when the popup asks. Fills empty text fields only, never submits,
-   never touches files, checkboxes, radios, passwords or anything it cannot match with confidence. */
+   never touches files, checkboxes, radios, passwords or anything it cannot match with confidence.
+   Label lookup and the native value setter follow averatec0773/offeros (Apache-2.0). */
 (function () {
   // Order matters: "Nom et prénom" is the full name before it is a first name.
   var RULES = [
