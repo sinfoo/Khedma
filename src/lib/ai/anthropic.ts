@@ -47,48 +47,66 @@ async function post(body: object, timeoutMs: number): Promise<Response> {
 }
 
 /**
- * Structured output: offer one "submit" tool whose input must match the schema.
- * Newer models reject forced tool_choice, so we ask for it and also accept a JSON text answer.
+ * A prompt schema made acceptable to structured outputs: numeric/string/array bounds are not supported there
+ * (our callers clamp values themselves) and every object must close with `additionalProperties: false`.
  */
+export function strictSchema(s: unknown): unknown {
+  if (Array.isArray(s)) return s.map(strictSchema);
+  if (!s || typeof s !== "object") return s;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(s)) {
+    if (["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength", "minItems", "maxItems", "uniqueItems"].includes(k)) continue;
+    out[k] = k === "properties" ? Object.fromEntries(Object.entries(v as object).map(([p, ps]) => [p, strictSchema(ps)])) : strictSchema(v);
+  }
+  if (out.type === "object") out.additionalProperties = false;
+  return out;
+}
+
+type Reply = { stop_reason?: string; content?: { type: string; text?: string }[] };
+
+/** Text of a reply; a refusal or a reply cut at max_tokens is an error, so callers fall back instead of using half an answer. */
+function replyText(data: Reply): string {
+  if (data.stop_reason === "refusal") throw new ClaudeUnavailable("Claude declined this request");
+  if (data.stop_reason === "max_tokens") throw new Error("Claude reply truncated at max_tokens");
+  return (data.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+}
+
+// Thinking is on by default on current models and counts against max_tokens: leave room for it.
+// ponytail: 16000 is the non-streaming ceiling that stays clear of HTTP timeouts; stream if outputs ever need more.
+const MAX_TOKENS = 16_000;
+
+/** Structured output (output_config.format): the reply is JSON that matches the schema. */
 export async function claudeJSON<T>(opts: { model: string; system: string; user: string; schema: object; timeoutMs?: number }): Promise<T> {
   const r = await post(
     {
       model: opts.model,
-      max_tokens: 4096,
-      system: `${opts.system}
-
-Respond only by calling the "submit" tool with the complete result.`,
+      max_tokens: MAX_TOKENS,
+      system: opts.system,
       messages: [{ role: "user", content: opts.user }],
-      tools: [{ name: "submit", description: "Return the complete result.", input_schema: opts.schema }],
-      tool_choice: { type: "auto" },
+      output_config: { format: { type: "json_schema", schema: strictSchema(opts.schema) } },
     },
     opts.timeoutMs ?? 120_000,
   );
-  const data = (await r.json()) as { content?: { type: string; input?: unknown; text?: string }[] };
-  const block = data.content?.find((b) => b.type === "tool_use");
-  if (block) return block.input as T;
-  const text = (data.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
-  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  if (!json) throw new Error("Claude returned no structured result");
-  return JSON.parse(json) as T;
+  const text = replyText((await r.json()) as Reply);
+  if (!text.trim()) throw new Error("Claude returned no structured result");
+  return JSON.parse(text) as T;
 }
 
 // No temperature: current Claude models reject it; defaults are fine for these tasks.
 export async function claudeText(opts: { model: string; messages: ChatMessage[]; timeoutMs?: number }): Promise<string> {
   const { system, turns } = split(opts.messages);
   const r = await post(
-    { model: opts.model, max_tokens: 4096, system, messages: turns },
+    { model: opts.model, max_tokens: MAX_TOKENS, system, messages: turns },
     opts.timeoutMs ?? 120_000,
   );
-  const data = (await r.json()) as { content?: { type: string; text?: string }[] };
-  return (data.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+  return replyText((await r.json()) as Reply);
 }
 
 /** Streaming text: parses server-sent events and yields text deltas. */
 export async function* claudeStream(opts: { model: string; messages: ChatMessage[]; timeoutMs?: number }): AsyncGenerator<string> {
   const { system, turns } = split(opts.messages);
   const r = await post(
-    { model: opts.model, max_tokens: 4096, system, messages: turns, stream: true },
+    { model: opts.model, max_tokens: MAX_TOKENS, system, messages: turns, stream: true },
     opts.timeoutMs ?? 300_000,
   );
   if (!r.body) return;
