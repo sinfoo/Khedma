@@ -49,6 +49,7 @@ import { atsKind, knockouts } from "@/lib/apply/knockout";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { getDocStyle } from "@/lib/cv/doc-style-store";
 import { DocStylePanel } from "@/components/pipeline/doc-style-panel";
+import { PdfCheck } from "@/components/pipeline/pdf-check";
 
 const TABS = ["overview", "documents", "messages", "interviews", "contacts", "reminders", "timeline"] as const;
 type Tab = (typeof TABS)[number];
@@ -222,6 +223,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                         </>
                       )}
                     </div>
+                    {text?.trim() && <PdfCheck id={app.id} kind={k} />}
                   </li>
                 ))}
               </ul>

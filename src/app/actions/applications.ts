@@ -6,6 +6,11 @@ import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
 import { setDocStyle } from "@/lib/cv/doc-style-store";
+import { headers } from "next/headers";
+import { printDoc } from "@/lib/cv/pdf";
+import { checkPdfText, type PdfIssue } from "@/lib/cv/pdf-check";
+import { paperFor, paperForLocation } from "@/lib/cv/export";
+import { getProfileExtra } from "@/lib/cv/profile-extra";
 import type { DocStyle } from "@/lib/cv/doc-style";
 import { companySlug, getCompany } from "@/lib/company";
 import { getPack, isChannel, listAnswers, setPack } from "@/lib/apply/repo";
@@ -184,6 +189,31 @@ export async function generateDoc(id: number, kind: "cv" | "letter"): Promise<Re
   } catch {
     return fail("generic");
   }
+}
+
+/**
+ * Render the CV or letter exactly as it would be downloaded and read its text back, as an ATS would:
+ * blank pages, unreadable glyphs, leftover placeholders, missing name / e-mail / phone, too many pages.
+ */
+export async function checkDocPdf(id: number, kind: "cv" | "letter"): Promise<Result<{ pages: number; issues: PdfIssue[] }>> {
+  if (!exists(id)) return fail("notFound");
+  if (kind !== "cv" && kind !== "letter") return fail("invalid");
+  const app = getApplication(id)!;
+  const job = getJob(app.job_id);
+  const md = kind === "cv" ? app.cv_md : app.cover_letter_md;
+  if (!job || !md?.trim()) return fail("invalid");
+  const port = (await headers()).get("host")?.split(":")[1] || process.env.PORT || "3000";
+  const paper = paperForLocation(job.location) ?? paperFor(getProfileExtra().places.countries);
+  const pdf = await printDoc(port, id, kind, paper).catch(() => null);
+  if (!pdf) return { ok: false, error: (await getDict()).t.apps2.flow.pdfCheck.noPrinter };
+  const { getDocumentProxy, extractText } = await import("unpdf");
+  const pages = (await extractText(await getDocumentProxy(pdf), { mergePages: false })).text;
+  // What the document itself says is what the PDF must still carry.
+  const name = md.split("\n").map((l) => l.replace(/[*#_\\]/g, "").trim()).find(Boolean) ?? "";
+  const email = md.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/)?.[0] ?? "";
+  const phone = md.match(/\+?\d[\d .-]{7,}\d/)?.[0] ?? "";
+  const issues = checkPdfText(pages, { name: name.length <= 40 ? name : "", email, phone, maxPages: kind === "cv" ? 2 : 1 });
+  return { ok: true, pages: pages.length, issues };
 }
 
 /** Look of every sent CV and letter (validated in normalizeDocStyle). */

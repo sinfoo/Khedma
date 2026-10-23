@@ -3,7 +3,7 @@ import { markdownToDocx } from "@/lib/cv/docx";
 import { atsPlainText, normalizeForAts, paperFor, paperForLocation } from "@/lib/cv/export";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { getLocale } from "@/lib/i18n/server";
-import { printToPdf } from "@/lib/cv/pdf";
+import { printDoc } from "@/lib/cv/pdf";
 import { fillPlaceholders } from "@/lib/ai/placeholders";
 import { detectLanguage } from "@/lib/ai/heuristic";
 import { docFacts } from "@/lib/apply/doc-facts";
@@ -28,9 +28,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const p = sp.get("paper");
   const paper = p === "a4" || p === "letter" ? p : (paperForLocation(job.location) ?? paperFor(getProfileExtra().places.countries));
   if (format === "pdf") {
-    // Print our own print page on loopback (never the Host header) so the PDF matches the preview.
-    const port = new URL(req.url).port || process.env.PORT || "3000";
-    const pdf = await printToPdf(`http://127.0.0.1:${port}/print/${id}?doc=${doc}&paper=${paper}&pdf=1`).catch(() => null);
+    const pdf = await printDoc(new URL(req.url).port || process.env.PORT || "3000", id, doc, paper).catch(() => null);
     if (!pdf) return new Response("No PDF printer available", { status: 501 });
     // The name the document itself carries (first line), else the profile's.
     const first = md.split("\n").map((l) => l.replace(/[*#_\\]/g, "").trim()).find(Boolean) ?? "";

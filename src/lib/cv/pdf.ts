@@ -56,3 +56,8 @@ export async function printToPdf(url: string): Promise<Uint8Array | null> {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/** An application's CV or letter as sent: our own print page, printed on loopback (never the Host header). */
+export function printDoc(port: string, id: number, doc: "cv" | "letter", paper: string): Promise<Uint8Array | null> {
+  return printToPdf(`http://127.0.0.1:${port}/print/${id}?doc=${doc}&paper=${paper}&pdf=1`);
+}
