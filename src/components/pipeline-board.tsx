@@ -11,6 +11,7 @@ import { ScoreRing, StateChip, scoreLabel } from "./ui";
 import { useStageMove } from "./pipeline/stage";
 import { shortDate } from "./pipeline/format";
 import { CadenceChip, type CadenceView } from "./pipeline/cadence";
+import { fold } from "@/lib/sources/classify";
 
 export interface BoardItem {
   id: number;
@@ -71,8 +72,8 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
   }, [focusId, opt]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return opt.filter((x) => !needle || `${x.title} ${x.company}`.toLowerCase().includes(needle));
+    const needle = fold(q.trim());
+    return opt.filter((x) => !needle || fold(`${x.title} ${x.company}`).includes(needle));
   }, [opt, q]);
 
   const switchView = (v: "board" | "table") => {

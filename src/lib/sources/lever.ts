@@ -44,7 +44,13 @@ export function mapLever(json: LeverPosting[], slug: string): NewJob[] {
 
 export async function scan(handle: string): Promise<{ jobs: NewJob[]; error?: string }> {
   const slug = handle.trim().toLowerCase();
-  const { data, error } = await getJson<LeverPosting[]>(`https://api.lever.co/v0/postings/${encodeURIComponent(slug)}?mode=json`);
+  const url = (host: string) => `https://${host}/v0/postings/${encodeURIComponent(slug)}?mode=json`;
+  let { data, error } = await getJson<LeverPosting[]>(url("api.lever.co"));
+  // Boards on jobs.eu.lever.co return 404 "Document not found" on the global host.
+  if (!Array.isArray(data)) {
+    const eu = await getJson<LeverPosting[]>(url("api.eu.lever.co"));
+    if (Array.isArray(eu.data)) ({ data, error } = eu);
+  }
   if (!data) return { jobs: [], error };
   if (!Array.isArray(data)) return { jobs: [], error: `Unexpected Lever response for ${slug}` };
   return { jobs: mapLever(data, slug) };

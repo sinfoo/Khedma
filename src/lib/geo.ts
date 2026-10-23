@@ -14,7 +14,7 @@ export interface Country {
 }
 
 export const COUNTRIES: Country[] = [
-  { code: "TN", flag: "🇹🇳", fr: "Tunisie", en: "Tunisia", aliases: ["tunisie", "tunisia", "tunisian"], cities: ["tunis", "ariana", "lac", "la marsa", "ben arous", "manouba", "sfax", "sousse", "monastir", "nabeul", "hammamet", "bizerte", "gabes", "kairouan", "gafsa", "mahdia", "beja", "jendouba", "kef", "medenine", "tataouine", "tozeur", "kebili", "zaghouan", "siliana", "sidi bouzid", "kasserine", "enfidha", "technopole", "ghazala", "charguia"], search: "Tunisia" },
+  { code: "TN", flag: "🇹🇳", fr: "Tunisie", en: "Tunisia", aliases: ["tunisie", "tunisia", "tunisian"], cities: ["tunis", "ariana", "lac 1", "lac 2", "berges du lac", "la marsa", "ben arous", "manouba", "sfax", "sousse", "monastir", "nabeul", "hammamet", "bizerte", "gabes", "kairouan", "gafsa", "mahdia", "beja", "jendouba", "kef", "medenine", "tataouine", "tozeur", "kebili", "zaghouan", "siliana", "sidi bouzid", "kasserine", "enfidha", "technopole", "ghazala", "charguia"], search: "Tunisia" },
   { code: "FR", flag: "🇫🇷", fr: "France", en: "France", aliases: ["france", "french", "ile-de-france", "idf"], cities: ["paris", "lyon", "marseille", "toulouse", "nantes", "lille", "bordeaux", "grenoble", "nice", "rennes", "strasbourg", "montpellier", "sophia"], search: "France" },
   { code: "DE", flag: "🇩🇪", fr: "Allemagne", en: "Germany", aliases: ["germany", "allemagne", "deutschland"], cities: ["berlin", "munich", "munchen", "hamburg", "frankfurt", "stuttgart", "cologne", "koln", "dusseldorf"], search: "Germany" },
   { code: "CA", flag: "🇨🇦", fr: "Canada", en: "Canada", aliases: ["canada", "quebec", "québec"], cities: ["montreal", "toronto", "ottawa", "vancouver", "quebec city"], search: "Canada" },
@@ -49,11 +49,14 @@ export const countryName = (code: string, locale: "fr" | "en") => (code === REMO
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Best-guess ISO code for a free-text location ("Lac 2, Tunis" → "TN"), null if unknown. */
+/** `a` as a whole word in `l` (both folded): "uk" is not in "ukraine", "usa" not in "busan". */
+const word = (l: string, a: string) => new RegExp(`(^|[^a-z])${a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`).test(l);
+
 export function countryOf(location: string): string | null {
   const l = fold(location);
   if (!l.trim()) return null;
-  for (const c of COUNTRIES) if (c.aliases.some((a) => l.includes(a))) return c.code;
-  for (const c of COUNTRIES) if (c.cities.some((a) => new RegExp(`(^|[^a-z])${a}([^a-z]|$)`).test(l))) return c.code;
+  for (const c of COUNTRIES) if (c.aliases.some((a) => word(l, a))) return c.code;
+  for (const c of COUNTRIES) if (c.cities.some((a) => word(l, a))) return c.code;
   if (/\b(remote|teletravail|télétravail|a distance|anywhere|worldwide)\b/.test(l)) return REMOTE_CODE;
   return null;
 }

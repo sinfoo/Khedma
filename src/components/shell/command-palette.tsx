@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n/client";
 import { searchEverything, type SearchHit } from "@/app/actions/shell";
 import { setLocale, setTheme } from "@/app/actions/prefs";
 import { NAV_ITEMS } from "./nav-items";
+import { fold } from "@/lib/sources/classify";
 
 interface Cmd {
   id: string;
@@ -148,8 +149,8 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
       Icon: h.kind === "offer" ? Briefcase : KanbanSquare,
       run: () => go(h.href),
     }));
-    const needle = q.trim().toLowerCase();
-    const match = (c: Cmd) => !needle || c.label.toLowerCase().includes(needle);
+    const needle = fold(q.trim());
+    const match = (c: Cmd) => !needle || fold(c.label).includes(needle);
     return [...found, ...pages.filter(match), ...actions.filter(match)];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [t, hits, q, theme, locale]);

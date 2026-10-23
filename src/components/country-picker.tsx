@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Globe2, Search, Wifi } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { COUNTRIES, REMOTE_CODE, TN_CITIES, countryName } from "@/lib/geo";
+import { fold } from "@/lib/sources/classify";
 
 export interface Places {
   countries: string[];
@@ -27,9 +28,9 @@ export function CountryPicker({ value, onChange, compact = false }: { value: Pla
     onChange({ ...value, countries: value.countries.includes(code) ? value.countries.filter((x) => x !== code) : [...value.countries, code], cities: code === "TN" && value.countries.includes("TN") ? [] : value.cities });
   const toggleCity = (city: string) => onChange({ ...value, cities: value.cities.includes(city) ? value.cities.filter((x) => x !== city) : [...value.cities, city] });
   const list = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = fold(q.trim());
     const base = showAll || needle ? COUNTRIES : COUNTRIES.filter((x) => FEATURED.includes(x.code));
-    return needle ? COUNTRIES.filter((x) => `${x.fr} ${x.en} ${x.code}`.toLowerCase().includes(needle)) : base;
+    return needle ? COUNTRIES.filter((x) => fold(`${x.fr} ${x.en} ${x.code}`).includes(needle)) : base;
   }, [q, showAll]);
   const summary = value.countries.map((code) => countryName(code, L)).join(", ");
 

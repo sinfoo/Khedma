@@ -87,7 +87,7 @@ export function normalizeExtra(raw: unknown): ProfileExtra {
     school: r.school === undefined ? EMPTY_EXTRA.school : s(r.school, 120),
     level: s(r.level, 80),
     specialty: s(r.specialty, 120),
-    phone: s(r.phone, 40),
+    phone: tnPhone(s(r.phone, 40)),
     city: s(r.city, 80),
     skill_levels: levels,
     langs,
@@ -192,4 +192,10 @@ export function suggestHeadline(locale: "fr" | "en", x: { school: string; level:
   }
   const what = wantsPfe ? "a final-year project (PFE) internship" : "an internship";
   return `${spec ? `${spec} ` : ""}engineering student${school ? ` at ${school}` : ""}${level ? ` (${level})` : ""}, looking for ${what}`;
+}
+
+/** Tunisian numbers get their +216 so a CV sent abroad stays callable; any other number is kept as typed. */
+export function tnPhone(p: string): string {
+  const m = p.replace(/[\s.\-()]/g, "").match(/^(?:\+216|00216|216)?([2-9]\d{7})$/);
+  return m ? `+216 ${m[1].slice(0, 2)} ${m[1].slice(2, 5)} ${m[1].slice(5)}` : p;
 }

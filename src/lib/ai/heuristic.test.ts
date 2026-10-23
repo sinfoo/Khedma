@@ -115,3 +115,10 @@ test("skill gaps from offers you nearly fit rank first", () => {
   assert.ok(k8s.weight > tf.weight, `${k8s.weight} > ${tf.weight}`);
   assert.ok(gaps.indexOf(k8s) < gaps.indexOf(tf));
 });
+
+test("language: French job titles with accents are French; a tie keeps the fallback", () => {
+  assert.equal(detectLanguage("Stage PFE: Développeur Full Stack"), "fr");
+  assert.equal(detectLanguage("Ingénieur DevOps H/F – CDI à Sfax"), "fr");
+  assert.equal(detectLanguage("Software Engineering Internship 2027"), "en");
+  assert.equal(detectLanguage("Full Stack Developer", "fr"), "fr");
+});

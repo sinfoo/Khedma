@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { htmlToText, pickJsonLdJobPosting, pickMeta } from "./html";
-import { guessType, matchesProfile, normalizeDate } from "./classify";
+import { guessRemote, guessType, matchesProfile, normalizeDate } from "./classify";
 import { parseRss } from "./rss";
 import { mapGreenhouse } from "./greenhouse";
 import { importFromUrl, validatePublicUrl } from "./url";
@@ -129,4 +129,12 @@ test("demo data is well formed", () => {
     assert.ok(j.deadline! > new Date().toISOString().slice(0, 10));
     assert.ok(j.tags.length > 0, j.title);
   }
+});
+
+test("remote: negations and hybrid are not remote", () => {
+  assert.equal(guessRemote("No remote work possible"), false);
+  assert.equal(guessRemote("Pas de télétravail"), false);
+  assert.equal(guessRemote("Hybrid - Paris"), false);
+  assert.equal(guessRemote("Hybride, 100 % télétravail possible"), true);
+  assert.equal(guessRemote("Remote (EMEA)"), true);
 });

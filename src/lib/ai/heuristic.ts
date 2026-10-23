@@ -78,13 +78,16 @@ export function extractSkills(text: string): string[] {
 }
 
 // ---------- language ----------
-const FR_STOP = /\b(le|la|les|des|et|une|pour|dans|vous|nous|avec|sur|est|sont|du|au|aux|ou|chez|cette|notre|votre|être)\b/gi;
-const EN_STOP = /\b(the|and|you|with|for|our|are|will|that|this|from|have|we|your|to|of|in|is|be)\b/gi;
+// `\b` is ASCII-only: "à", "être" and "ingénieur" need Unicode letter edges.
+const words = (list: string) => new RegExp(`(?<!\\p{L})(${list})(?!\\p{L})`, "giu");
+const FR_STOP = words("le|la|les|des|et|une|un|de|du|en|à|pour|dans|vous|nous|avec|sur|est|sont|au|aux|ou|chez|cette|notre|votre|être|stage|stagiaire|poste|ingénieur|candidature|entreprise|expérience|compétences");
+const EN_STOP = words("the|and|you|with|for|our|are|will|that|this|from|have|we|your|to|of|in|is|be|internship|intern|engineer|role|team|skills|experience|requirements");
 
-export function detectLanguage(text: string): Locale {
+/** "fr" or "en" by common words; a tie (title-only text, "Full Stack Developer") returns `fallback`. */
+export function detectLanguage(text: string, fallback: Locale = "en"): Locale {
   const fr = (text.match(FR_STOP) ?? []).length;
   const en = (text.match(EN_STOP) ?? []).length;
-  return fr > en ? "fr" : "en";
+  return fr === en ? fallback : fr > en ? "fr" : "en";
 }
 
 /** Language a letter should be written in: the posting's, when there is enough text to tell. */

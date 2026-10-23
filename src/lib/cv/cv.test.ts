@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { headingKey, parseCv, sectionizeToMarkdown, toPlainText } from "./sectionize";
 import { cvHealth } from "./health";
 import { profileStrength, type StrengthInput } from "./completeness";
-import { normalizeExtra } from "./model";
+import { normalizeExtra, tnPhone } from "./model";
 import { markdownToDocx, docxToText } from "./docx";
 import { crc32, unzipEntry } from "./zip";
 
@@ -191,4 +191,12 @@ test("markdownToDocx produces a valid zip whose document.xml holds the text", ()
   assert.match(text, /^Amira$/m);
   assert.match(text, /• Développé une API & un outil <rapide>/);
   assert.match(text, /^Texte libre$/m);
+});
+
+test("Tunisian phone numbers get +216, others stay as typed", () => {
+  assert.equal(tnPhone("98123456"), "+216 98 123 456");
+  assert.equal(tnPhone("+216 98.123.456"), "+216 98 123 456");
+  assert.equal(tnPhone("0021671234567"), "+216 71 234 567");
+  assert.equal(tnPhone("+33 6 12 34 56 78"), "+33 6 12 34 56 78");
+  assert.equal(tnPhone(""), "");
 });

@@ -33,7 +33,13 @@ export function guessType(title: string, description = ""): JobType {
   return "emploi";
 }
 
+// Negation and hybrid patterns after elliottdehn/open-jobs tools/locparse.py (CC0).
+const NO_REMOTE = /\b(no|not|non|pas de|sans|aucun)\b[^.\n]{0,25}\b(remote|t[ée]l[ée]travail)|\b(remote|t[ée]l[ée]travail)\b[^.\n]{0,15}\b(not possible|impossible|non possible|not available|exclu)/i;
+const FULL_REMOTE = /\b(full[- ]?remote|fully remote|100 ?% (remote|t[ée]l[ée]travail)|remote[- ]first)\b/i;
+
 export function guessRemote(text: string): boolean {
+  if (NO_REMOTE.test(text)) return false;
+  if (/\bhybrid|\bhybride/i.test(text) && !FULL_REMOTE.test(text)) return false;
   return /\b(remote|teletravail|télétravail|full[- ]remote|work from home|a distance|à distance|anywhere)\b/i.test(text);
 }
 

@@ -30,3 +30,12 @@ test("placesToLocations gives readable free-text locations", () => {
   assert.deepEqual(placesToLocations({ countries: ["TN", "FR"], cities: ["Sfax"], remote: "yes" }), ["Sfax", "France", "Remote"]);
   assert.deepEqual(placesToLocations({ countries: ["DE"], cities: [], remote: "no" }), ["Allemagne"]);
 });
+
+test("country aliases match whole words only", () => {
+  assert.equal(countryOf("Milwaukee, WI, United States"), "US");
+  assert.equal(countryOf("Busan, South Korea"), "KR");
+  assert.equal(countryOf("Kyiv, Ukraine"), null);
+  assert.equal(countryOf("Lac Léman, Genève"), "CH");
+  assert.equal(countryOf("Les Berges du Lac, Tunis"), "TN");
+  assert.equal(countryOf("London, UK"), "GB");
+});

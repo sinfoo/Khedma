@@ -14,6 +14,7 @@ import {
   type Source,
 } from "./types";
 import { stripHidden } from "./ai/text";
+import { fold } from "./sources/classify";
 
 const DATA_DIR = process.env.KHEDMA_DATA ?? path.join(process.cwd(), "data");
 const DB_PATH = process.env.KHEDMA_DB ?? path.join(DATA_DIR, "khedma.db");
@@ -119,6 +120,8 @@ export function db(): DatabaseSync {
   mkdirSync(path.dirname(DB_PATH), { recursive: true });
   const d = new DatabaseSync(DB_PATH);
   d.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+  // Accent- and case-insensitive search: SQL `fold(col) LIKE fold(query)`.
+  d.function("fold", { deterministic: true }, (s) => fold(String(s ?? "")));
   d.exec(SCHEMA);
   globalThis.__khedmaDb = d;
   runCoreMigrations(d);
@@ -358,8 +361,8 @@ export function listJobs(opts: { q?: string; type?: string; archived?: boolean }
   const where: string[] = ["archived = ?"];
   const args: (string | number)[] = [opts.archived ? 1 : 0];
   if (opts.q) {
-    where.push("(title LIKE ? OR company LIKE ? OR location LIKE ? OR tags LIKE ?)");
-    const like = `%${opts.q}%`;
+    where.push("(fold(title) LIKE ? OR fold(company) LIKE ? OR fold(location) LIKE ? OR fold(tags) LIKE ?)");
+    const like = `%${fold(opts.q)}%`;
     args.push(like, like, like, like);
   }
   if (opts.type) {
