@@ -34,13 +34,31 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
   const hintId = useId();
 
   const fail = (code: ErrCode) => toast.error(t.common.error, c.errors[code] ?? c.errors.bad_request);
+  // A PDF with no text layer (a scan, a flattened Canva export) can be read with OCR in this browser.
+  const [scanned, setScanned] = useState<File | null>(null);
+  const [ocrStep, setOcrStep] = useState<string | null>(null);
+  const readScan = async (file: File) => {
+    setOcrStep(c.ocrLoading);
+    try {
+      const { ocrPdf } = await import("@/lib/cv/ocr");
+      const text = await ocrPdf(file, (done, total) => setOcrStep(done < total ? fmt(c.ocrPage, { n: done + 1, total }) : c.reading));
+      setScanned(null);
+      send(file, text);
+    } catch {
+      toast.error(t.common.error, c.ocrFailed);
+    } finally {
+      setOcrStep(null);
+    }
+  };
 
-  const send = (file: File) => {
+  const send = (file: File, ocr?: string) => {
     if (!/\.(pdf|docx|txt|md|markdown)$/i.test(file.name)) return fail("unsupported");
     if (file.size > MAX) return fail("tooLarge");
     if (!file.size) return fail("empty");
+    setScanned(null);
     const fd = new FormData();
     fd.append("file", file);
+    if (ocr) fd.append("ocr", ocr);
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/cv/upload");
     xhr.responseType = "json";
@@ -52,7 +70,10 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
     xhr.onload = () => {
       setProgress(null);
       const r = xhr.response as { ok?: boolean; code?: ErrCode; text?: string; fileName?: string; uploadedAt?: string; size?: number; markdown?: string; skills?: string[] } | null;
-      if (!r?.ok || !r.text) return fail(r?.code ?? "bad_request");
+      if (!r?.ok || !r.text) {
+        if (r?.code === "empty" && !ocr && /\.pdf$/i.test(file.name)) return setScanned(file);
+        return fail(r?.code ?? "bad_request");
+      }
       onUploaded({ fileName: r.fileName ?? file.name, uploadedAt: r.uploadedAt ?? new Date().toISOString(), size: r.size ?? file.size }, r.text, typeof r.markdown === "string" ? r.markdown : undefined, Array.isArray(r.skills) ? r.skills : undefined);
       toast.success(c.uploadedToast, fmt(c.uploadedBody, { n: wordCount(r.text) }));
     };
@@ -60,7 +81,7 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
     xhr.send(fd);
   };
 
-  const busy = progress !== null;
+  const busy = progress !== null || ocrStep !== null;
   return (
     <div
       className={`relative rounded-xl border border-dashed p-4 transition-colors ${over ? "border-accent bg-accent-soft" : "border-line-strong bg-surface-2/50"}`}
@@ -127,7 +148,19 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
       <p id={hintId} className={`hint ${upload ? "" : "text-center"}`}>
         {c.formats}
       </p>
-      {busy && (
+      {scanned && !ocrStep && (
+        <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-sm" role="status">
+          <p className="font-semibold">{c.scannedTitle}</p>
+          <p className="mt-0.5 text-muted">{c.scannedHint}</p>
+          <button type="button" className="btn btn-primary btn-sm mt-2" onClick={() => readScan(scanned)}>
+            {c.ocrRun}
+          </button>
+        </div>
+      )}
+      {ocrStep && (
+        <p className="mt-3 text-sm text-muted" role="status">{ocrStep}</p>
+      )}
+      {progress !== null && (
         <div className="mt-3" aria-live="polite">
           <p className="mb-1 text-xs text-muted tabular">{progress! < 100 ? fmt(c.uploading, { p: progress! }) : c.reading}</p>
           <div role="progressbar" aria-label={c.browse} aria-valuenow={progress!} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-surface-3">

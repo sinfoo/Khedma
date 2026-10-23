@@ -47,3 +47,13 @@ test("a mailbox export (.mbox) lists its messages and fills the reply box with t
   await page.locator("#reply-mbox").selectOption({ index: 1 });
   await expect(page.locator("#reply-text")).toHaveValue(/Objet : Accuse de reception/);
 });
+
+test("a scanned PDF CV (no text layer) is read with OCR in the browser and becomes the CV", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/app/profile");
+  await page.locator('input[type=file][accept*=".docx"]').first().setInputFiles("e2e/fixtures/scanned-cv.pdf");
+  await page.getByRole("button", { name: "Le lire avec l'OCR" }).click();
+  // Only in the scanned image (the seeded CV says amira@example.tn and has no skills line).
+  await expect(page.locator("#cv-md")).toHaveValue(/amira\.bensalah@example\.tn/, { timeout: 150_000 });
+  await expect(page.locator("#cv-md")).toHaveValue(/React, Node\.js, Python, SQL, Git/);
+});

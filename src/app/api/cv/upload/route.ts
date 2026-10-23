@@ -8,15 +8,18 @@ const STATUS = { tooLarge: 413, unsupported: 415, empty: 422, corrupt: 422 } as 
 /** Upload the profile CV (multipart field "file"). The text is converted to Markdown and becomes the editable CV. */
 export async function POST(req: Request) {
   let file: FormDataEntryValue | null = null;
+  let ocr: FormDataEntryValue | null = null;
   try {
-    file = (await req.formData()).get("file");
+    const form = await req.formData();
+    file = form.get("file");
+    ocr = form.get("ocr");
   } catch {
     return Response.json({ ok: false, code: "bad_request", error: "Expected multipart/form-data with a file field." }, { status: 400 });
   }
   if (!(file instanceof File) || !file.size) return Response.json({ ok: false, code: "empty", error: "No file received." }, { status: 400 });
   if (file.size > MAX_CV_BYTES) return Response.json({ ok: false, code: "tooLarge", error: "File is larger than 8 MB." }, { status: 413 });
   try {
-    const { text } = await saveUploadedCv(file.name, new Uint8Array(await file.arrayBuffer()));
+    const { text } = await saveUploadedCv(file.name, new Uint8Array(await file.arrayBuffer()), typeof ocr === "string" ? ocr : undefined);
     const up = getUpload();
     // Automatic conversion: the Markdown becomes the editable, AI-readable CV; the original file stays downloadable.
     const markdown = sectionizeToMarkdown(text);

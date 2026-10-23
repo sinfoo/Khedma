@@ -161,9 +161,20 @@ export function readUploadBytes(u: CvUpload): Uint8Array | null {
 }
 
 /** Store the original file under data/cv (latest + one backup) and its extracted text. Leaves cv_md untouched. */
-export async function saveUploadedCv(fileName: string, bytes: Uint8Array): Promise<{ text: string }> {
+/**
+ * `ocrText`: what the browser read from a scanned PDF (lib/cv/ocr.ts). Used only when the file itself has no
+ * text layer, so a PDF with real text always wins over OCR.
+ */
+export async function saveUploadedCv(fileName: string, bytes: Uint8Array, ocrText?: string): Promise<{ text: string }> {
   ensure();
-  const text = await extractCvText(fileName, bytes);
+  let text: string;
+  try {
+    text = await extractCvText(fileName, bytes);
+  } catch (e) {
+    const ocr = cleanText((ocrText ?? "").slice(0, 40_000));
+    if (!(e instanceof CvImportError && e.code === "empty" && ocr.replace(/\s/g, "").length >= 20)) throw e;
+    text = ocr;
+  }
   setCvSourcePref("upload");
   const ext = extOf(fileName);
   const safeBase =
