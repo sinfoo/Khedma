@@ -194,9 +194,11 @@ export interface UpskillPlan {
 
 export interface Contact {
   id: number;
-  application_id: number;
+  /** null: a person in the network, not tied to one application. */
+  application_id: number | null;
   name: string;
   role: string;
+  company: string;
   email: string;
   phone: string;
   linkedin: string;

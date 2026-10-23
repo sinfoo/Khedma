@@ -367,9 +367,10 @@ export function undoStageChange(id: number, s: MoveSnapshot): boolean {
 // ---------- contacts ----------
 const rowToContact = (r: Row): Contact => ({
   id: r.id as number,
-  application_id: r.application_id as number,
+  application_id: (r.application_id as number | null) ?? null,
   name: r.name as string,
   role: r.role as string,
+  company: (r.company as string) ?? "",
   email: r.email as string,
   phone: r.phone as string,
   linkedin: r.linkedin as string,
@@ -385,18 +386,28 @@ export function contactCounts(): Map<number, number> {
   const rows = db().prepare("SELECT application_id AS id, COUNT(*) AS n FROM contacts GROUP BY application_id").all() as Row[];
   return new Map(rows.map((r) => [r.id as number, r.n as number]));
 }
-export function saveContact(appId: number, c: ContactInput, contactId?: number): void {
+/** Everyone, application-linked or not, with the offer they were met through. */
+export type NetworkContact = Contact & { job_title: string | null };
+export function listAllContacts(): NetworkContact[] {
+  return (
+    db()
+      .prepare("SELECT c.*, j.title AS job_title FROM contacts c LEFT JOIN applications a ON a.id = c.application_id LEFT JOIN jobs j ON j.id = a.job_id ORDER BY c.name COLLATE NOCASE, c.id")
+      .all() as Row[]
+  ).map((r) => ({ ...rowToContact(r), job_title: (r.job_title as string) ?? null }));
+}
+/** appId null = a network contact. `IS` matches both a number and NULL. */
+export function saveContact(appId: number | null, c: ContactInput, contactId?: number): void {
   if (contactId)
     db()
-      .prepare("UPDATE contacts SET name=?, role=?, email=?, phone=?, linkedin=?, notes=? WHERE id=? AND application_id=?")
-      .run(c.name, c.role, c.email, c.phone, c.linkedin, c.notes, contactId, appId);
+      .prepare("UPDATE contacts SET name=?, role=?, company=?, email=?, phone=?, linkedin=?, notes=? WHERE id=? AND application_id IS ?")
+      .run(c.name, c.role, c.company, c.email, c.phone, c.linkedin, c.notes, contactId, appId);
   else
     db()
-      .prepare("INSERT INTO contacts (application_id, name, role, email, phone, linkedin, notes) VALUES (?,?,?,?,?,?,?)")
-      .run(appId, c.name, c.role, c.email, c.phone, c.linkedin, c.notes);
+      .prepare("INSERT INTO contacts (application_id, name, role, company, email, phone, linkedin, notes) VALUES (?,?,?,?,?,?,?,?)")
+      .run(appId, c.name, c.role, c.company, c.email, c.phone, c.linkedin, c.notes);
 }
-export function deleteContact(appId: number, contactId: number): void {
-  db().prepare("DELETE FROM contacts WHERE id = ? AND application_id = ?").run(contactId, appId);
+export function deleteContact(appId: number | null, contactId: number): void {
+  db().prepare("DELETE FROM contacts WHERE id = ? AND application_id IS ?").run(contactId, appId);
 }
 
 // ---------- interviews ----------

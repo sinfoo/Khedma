@@ -464,17 +464,20 @@ export async function deleteInterview(id: number, interviewId: number): Promise<
 export interface ContactForm {
   name: string;
   role: string;
+  company?: string;
   email: string;
   phone: string;
   linkedin: string;
   notes: string;
 }
 
-export async function saveContact(id: number, f: ContactForm, contactId?: number): Promise<Result> {
-  if (!exists(id)) return fail("notFound");
+/** id null = a network contact (Contacts page), else one application's. */
+export async function saveContact(id: number | null, f: ContactForm, contactId?: number): Promise<Result> {
+  if (id !== null && !exists(id)) return fail("notFound");
   const c = {
     name: clamp(f?.name, 120),
     role: clamp(f?.role, 120),
+    company: clamp(f?.company, 120) || (id !== null ? (getJob(getApplication(id)!.job_id)?.company ?? "") : ""),
     email: clamp(f?.email, 200),
     phone: clamp(f?.phone, 40),
     linkedin: clamp(f?.linkedin, 300),
@@ -489,8 +492,8 @@ export async function saveContact(id: number, f: ContactForm, contactId?: number
   return { ok: true };
 }
 
-export async function deleteContact(id: number, contactId: number): Promise<Result> {
-  if (!exists(id) || !okId(contactId)) return fail("invalid");
+export async function deleteContact(id: number | null, contactId: number): Promise<Result> {
+  if ((id !== null && !exists(id)) || !okId(contactId)) return fail("invalid");
   repoDeleteContact(id, contactId);
   refresh();
   return { ok: true };

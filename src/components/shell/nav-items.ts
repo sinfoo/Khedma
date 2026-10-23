@@ -12,6 +12,7 @@ import {
   Settings,
   Compass,
   Building2,
+  Users,
   FileBarChart,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export type NavKey =
   | "discover"
   | "offers"
   | "companies"
+  | "contacts"
   | "reports"
   | "pipeline"
   | "calendar"
@@ -62,6 +64,7 @@ export const NAV_GROUPS: { key: NavGroupKey; items: NavItem[] }[] = [
     items: [
       { key: "pipeline", href: "/app/pipeline", Icon: KanbanSquare, g: "p", badge: "pipeline" },
       { key: "companies", href: "/app/companies", Icon: Building2 },
+      { key: "contacts", href: "/app/contacts", Icon: Users },
       { key: "calendar", href: "/app/calendar", Icon: CalendarDays, g: "c", badge: "calendar" },
     ],
   },

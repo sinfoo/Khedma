@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
+import { fold } from "@/lib/sources/classify";
 import { Dialog } from "@/components/kit/dialog";
 import { EmptyState } from "@/components/kit";
 import type { Contact, Interview } from "@/lib/types";
@@ -132,28 +133,41 @@ export function InterviewsPanel({ appId, interviews, today }: { appId: number; i
 }
 
 // ---------- contacts ----------
-const FIELDS = ["name", "role", "email", "phone", "linkedin", "notes"] as const;
+const FIELDS = ["name", "role", "company", "email", "phone", "linkedin", "notes"] as const;
 
-export function ContactsPanel({ appId, contacts }: { appId: number; contacts: Contact[] }) {
+/**
+ * One application's contacts (appId), or the whole network (appId null: the Contacts page, where each person
+ * keeps the application they came from and a search appears once the list is long).
+ */
+export function ContactsPanel({ appId, contacts, title }: { appId: number | null; contacts: (Contact & { job_title?: string | null })[]; title?: string }) {
   const { t } = useT();
   const c = t.apps2.contacts;
   const [edit, setEdit] = useState<Partial<Contact> | null>(null);
+  const [q, setQ] = useState("");
   const [pending, run] = useRun();
   const formId = "contact-form";
+  const needle = fold(q.trim());
+  const shown = needle ? contacts.filter((p) => fold([p.name, p.role, p.company, p.email, p.notes, p.job_title ?? ""].join(" ")).includes(needle)) : contacts;
 
   return (
     <section aria-labelledby="ct-h">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 id="ct-h" className="text-lg">{c.title}</h2>
+        <h2 id="ct-h" className="text-lg">{title ?? c.title}</h2>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => setEdit({})}>
           <Plus size={14} aria-hidden="true" /> {c.add}
         </button>
       </div>
+      {contacts.length > 6 && (
+        <div className="mb-3">
+          <label htmlFor="ct-q" className="sr-only">{c.search}</label>
+          <input id="ct-q" type="search" className="input" placeholder={c.search} value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+      )}
       {contacts.length === 0 ? (
         <EmptyState icon={<UserRound size={22} aria-hidden="true" />} title={c.empty} hint={c.emptyHint} />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
-          {contacts.map((p) => (
+          {shown.map((p) => (
             <li key={p.id} className="card p-4">
               <div className="flex items-start gap-3">
                 <span aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft font-semibold text-accent-text">
@@ -161,7 +175,12 @@ export function ContactsPanel({ appId, contacts }: { appId: number; contacts: Co
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{p.name}</p>
-                  {p.role && <p className="text-sm text-muted">{p.role}</p>}
+                  {(p.role || p.company) && <p className="text-sm text-muted">{[p.role, p.company].filter(Boolean).join(" · ")}</p>}
+                  {appId === null && p.application_id !== null && (
+                    <Link href={`/app/pipeline/${p.application_id}?tab=overview`} className="text-sm text-accent-text hover:underline">
+                      {fmt(c.metVia, { offer: p.job_title ?? `#${p.application_id}` })}
+                    </Link>
+                  )}
                 </div>
               </div>
               <ul className="mt-3 space-y-1 text-sm">
@@ -197,7 +216,7 @@ export function ContactsPanel({ appId, contacts }: { appId: number; contacts: Co
                   className="btn btn-ghost btn-sm text-danger"
                   disabled={pending}
                   aria-label={`${t.common.delete} — ${p.name}`}
-                  onClick={() => window.confirm(c.deleteConfirm) && run(() => deleteContact(appId, p.id), c.deleted)}
+                  onClick={() => window.confirm(c.deleteConfirm) && run(() => deleteContact(p.application_id, p.id), c.deleted)}
                 >
                   <Trash2 size={14} aria-hidden="true" /> {t.common.delete}
                 </button>
@@ -225,7 +244,7 @@ export function ContactsPanel({ appId, contacts }: { appId: number; contacts: Co
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
               const f = Object.fromEntries(FIELDS.map((k) => [k, String(fd.get(k) ?? "")])) as Record<(typeof FIELDS)[number], string>;
-              run(() => saveContact(appId, f, edit.id), c.saved, () => setEdit(null));
+              run(() => saveContact(edit.id ? (edit.application_id ?? null) : appId, f, edit.id), c.saved, () => setEdit(null));
             }}
           >
             {FIELDS.map((k) => (

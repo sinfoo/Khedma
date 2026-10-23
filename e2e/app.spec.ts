@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
-const PAGES = ["/app", "/app/jobs", "/app/sources", "/app/pipeline", "/app/pipeline/1?tab=overview", "/app/pipeline/1?tab=documents&doc=cv", "/app/salaries", "/app/profile", "/app/settings"];
+const PAGES = ["/app", "/app/jobs", "/app/sources", "/app/pipeline", "/app/pipeline/1?tab=overview", "/app/pipeline/1?tab=documents&doc=cv", "/app/salaries", "/app/contacts", "/app/profile", "/app/settings"];
 
 for (const url of PAGES) {
   test(`${url} renders without errors and without serious accessibility issues`, async ({ page }) => {

@@ -187,6 +187,29 @@ function runCoreMigrations(d: DatabaseSync) {
      );
      CREATE INDEX IF NOT EXISTS reminders_due ON reminders(done, due_at);`,
   );
+  // People are a network, not one application's attachment: application optional (deleting it keeps the
+  // person), company kept on the person.
+  migrate(
+    "core:002-contacts-network",
+    `CREATE TABLE contacts_new (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       application_id INTEGER REFERENCES applications(id) ON DELETE SET NULL,
+       name TEXT NOT NULL,
+       role TEXT NOT NULL DEFAULT '',
+       company TEXT NOT NULL DEFAULT '',
+       email TEXT NOT NULL DEFAULT '',
+       phone TEXT NOT NULL DEFAULT '',
+       linkedin TEXT NOT NULL DEFAULT '',
+       notes TEXT NOT NULL DEFAULT '',
+       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+     );
+     INSERT INTO contacts_new (id, application_id, name, role, company, email, phone, linkedin, notes, created_at)
+       SELECT c.id, c.application_id, c.name, c.role, COALESCE(j.company, ''), c.email, c.phone, c.linkedin, c.notes, c.created_at
+       FROM contacts c LEFT JOIN applications a ON a.id = c.application_id LEFT JOIN jobs j ON j.id = a.job_id;
+     DROP TABLE contacts;
+     ALTER TABLE contacts_new RENAME TO contacts;
+     CREATE INDEX IF NOT EXISTS contacts_app ON contacts(application_id);`,
+  );
 }
 
 // ---------- helpers ----------

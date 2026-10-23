@@ -52,3 +52,4 @@ AGENTS.md
 /.next-e2e/
 /test-results/
 /playwright-report/
+/dev-server.log
