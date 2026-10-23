@@ -13,6 +13,7 @@ import {
   type Settings,
   type Source,
 } from "./types";
+import { stripHidden } from "./ai/text";
 
 const DATA_DIR = process.env.KHEDMA_DATA ?? path.join(process.cwd(), "data");
 const DB_PATH = process.env.KHEDMA_DB ?? path.join(DATA_DIR, "khedma.db");
@@ -299,14 +300,14 @@ export function upsertJob(job: NewJob): { id: number; inserted: boolean } {
        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
     )
     .run(
-      job.title,
+      stripHidden(job.title),
       job.company,
       job.location,
       job.remote ? 1 : 0,
       job.url,
       job.source,
       job.type,
-      job.description,
+      stripHidden(job.description),
       JSON.stringify(job.tags),
       job.posted_at,
       job.deadline,

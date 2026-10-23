@@ -267,7 +267,7 @@ export function heuristicCvChanges(job: Job, profile: Profile, reqs: Requirement
   const partial = reqs.filter((r) => r.met === "partial" && r.proof);
   const matched = reqs.filter((r) => r.met === "yes").map((r) => r.text).slice(0, 3);
   out.push(fr ? `Résumé en tête de CV nommant le poste « ${job.title} » chez ${job.company}${matched.length ? ` et vos atouts : ${matched.join(", ")}` : ""}.` : `Summary at the top naming the “${job.title}” role at ${job.company}${matched.length ? ` and your strengths: ${matched.join(", ")}` : ""}.`);
-  for (const r of partial.slice(0, 2)) out.push(fr ? `Renforcer la ligne « ${r.proof} » avec le vocabulaire de l'offre (${r.text}) — reformuler, jamais inventer.` : `Strengthen the line “${r.proof}” with the posting's wording (${r.text}) — reformulate, never invent.`);
+  for (const r of partial.slice(0, 2)) out.push(fr ? `Renforcer la ligne « ${r.proof} » avec le vocabulaire de l'offre (${r.text}) : reformuler, jamais inventer.` : `Strengthen the line “${r.proof}” with the posting's wording (${r.text}): reformulate, never invent.`);
   for (const r of unmet.filter((x) => x.met === "no").slice(0, 2)) out.push(fr ? `« ${r.text} » : absent du CV. N'ajoutez ce point que si un projet ou un cours le couvre réellement ; sinon préparez une réponse honnête en entretien.` : `“${r.text}”: missing from your CV. Add it only if a project or course genuinely covers it; otherwise prepare an honest interview answer.`);
   out.push(fr ? "Placer en premier le projet le plus proche des missions de l'offre ; une ligne de résultat par projet." : "Move the project closest to the posting's missions first; one result line per project.");
   return out.slice(0, 5);

@@ -43,3 +43,6 @@ next-env.d.ts
 # local data
 data/
 AGENTS.md
+
+# third-party repos cloned for research (never committed)
+/research/

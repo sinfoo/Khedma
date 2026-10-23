@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party repos cloned for research, never part of the app.
+    "research/**",
   ]),
 ]);
 

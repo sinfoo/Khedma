@@ -2,9 +2,10 @@
 import type { Locale, Settings } from "../types";
 import { aiJSON, type ChatMessage, type Prompt } from "./index";
 import type { CompanyFacts, CompanyRow, CompanySummary } from "../company";
+import { clip } from "./text";
 
 const MAX = 6000;
-const cut = (s: string) => (s.length > MAX ? `${s.slice(0, MAX)}\n[...truncated]` : s);
+const cut = (s: string) => clip(s, MAX);
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const LANG = { fr: "French", en: "English" } as const;
 

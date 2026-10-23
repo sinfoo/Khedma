@@ -3,6 +3,7 @@ import type { Job, Locale } from "../types";
 import type { ChatMessage } from "./index";
 import { extractSkills } from "./heuristic";
 import { fold } from "../sources/classify";
+import { clip } from "./text";
 
 // ---------- ATS keywords ----------
 const STOP = new Set(
@@ -54,7 +55,7 @@ export function atsKeywords(job: Pick<Job, "title" | "description" | "tags">, cv
 
 // ---------- ask about this offer ----------
 const MAX = 6000;
-const cut = (s: string) => (s.length > MAX ? `${s.slice(0, MAX)}\n[...truncated]` : s);
+const cut = (s: string) => clip(s, MAX);
 
 export function askSystemPrompt(job: Job, cvText: string, locale: Locale): string {
   return `You are Khedma, a careful career assistant for a Tunisian engineering student. Answer questions about ONE job posting.

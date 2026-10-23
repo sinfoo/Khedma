@@ -6,9 +6,10 @@ import { extractSkills } from "@/lib/ai/heuristic";
 import type { Lang, QType } from "@/lib/coach/bank";
 import { QTYPES } from "@/lib/coach/bank";
 import { stems, tipText, type AnswerScore, type SessionQuestion, type StoryInput } from "@/lib/coach/logic";
+import { clip } from "./text";
 
 const LANG = { fr: "French", en: "English" } as const;
-const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "\n[...]" : s);
+const cut = clip;
 const text = (x: unknown) => String(x ?? "").trim();
 const obj = (x: unknown): Record<string, unknown> => (x && typeof x === "object" ? (x as Record<string, unknown>) : {});
 
