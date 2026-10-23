@@ -600,3 +600,114 @@ export async function hackerNews(): Promise<Scan> {
     return { jobs: [], error: "Invalid JSON from the HN API" };
   }
 }
+
+// ---------- Gem, Rippling, Flatchr, JobScore: public board APIs (endpoints after elliottdehn/open-jobs, CC0) ----------
+interface GemPost { title?: string; absolute_url?: string; content_plain?: string; content?: string; location?: { name?: string }; location_type?: string; employment_type?: string; first_published_at?: string; created_at?: string }
+export function mapGem(posts: GemPost[], slug: string): NewJob[] {
+  return posts
+    .filter((p) => p.title && p.absolute_url)
+    .map((p) =>
+      job({
+        title: p.title!,
+        company: prettySlug(slug),
+        location: p.location?.name ?? "",
+        // in_office / hybrid / remote: only a fully remote post counts as remote.
+        remote: p.location_type === "remote",
+        url: p.absolute_url!,
+        source: "gem",
+        kind: p.employment_type,
+        description: p.content_plain?.trim() || htmlToText(p.content ?? ""),
+        posted: p.first_published_at ?? p.created_at,
+      }),
+    );
+}
+export async function gem(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  const { data, error } = await getJson<GemPost[]>(`https://api.gem.com/job_board/v0/${encodeURIComponent(slug)}/job_posts/`);
+  if (!data) return { jobs: [], error };
+  return Array.isArray(data) ? { jobs: mapGem(data, slug) } : { jobs: [], error: `Unexpected Gem response for ${slug}` };
+}
+
+interface RipplingItem { uuid?: string; name?: string; url?: string; workLocation?: { label?: string } }
+export function mapRippling(items: RipplingItem[], slug: string): NewJob[] {
+  return items
+    .filter((i) => i.name?.trim() && i.url)
+    .map((i) => job({ title: i.name!, company: prettySlug(slug), location: i.workLocation?.label ?? "", url: i.url!, source: "rippling", description: "" }));
+}
+/** The whole board in one call; descriptions come from the per-job detail. */
+export async function rippling(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  const { data, error } = await getJson<RipplingItem[]>(`https://api.rippling.com/platform/api/ats/v1/board/${encodeURIComponent(slug)}/jobs`);
+  if (!data) return { jobs: [], error };
+  return Array.isArray(data) ? { jobs: mapRippling(data, slug) } : { jobs: [], error: `Unexpected Rippling response for ${slug}` };
+}
+interface RipplingDetail { description?: { company?: string; role?: string }; workLocations?: string[]; employmentType?: { id?: string }; createdOn?: string; companyName?: string; payRangeDetails?: { currency?: string; frequency?: string; rangeStart?: number; rangeEnd?: number; isRemote?: boolean }[] }
+export async function ripplingDetail(j: NewJob): Promise<Partial<NewJob> | null> {
+  const m = /ats\.rippling\.com\/([^/]+)\/jobs\/([0-9a-f-]{36})/i.exec(j.url);
+  if (!m) return null;
+  const { data } = await getJson<RipplingDetail>(`https://ats.rippling.com/api/v2/board/${m[1]}/jobs/${m[2]}`);
+  if (!data) return null;
+  const pay = data.payRangeDetails?.find((p) => p.rangeStart);
+  const salary = pay ? `\n\nSalary: ${pay.currency ?? ""} ${pay.rangeStart} - ${pay.rangeEnd ?? pay.rangeStart} per ${String(pay.frequency ?? "year").toLowerCase()}` : "";
+  const description = `${htmlToText(data.description?.role ?? "")}\n\n${htmlToText(data.description?.company ?? "")}`.trim() + salary;
+  return {
+    company: data.companyName?.trim() || j.company,
+    location: data.workLocations?.join(" · ") || j.location,
+    remote: j.remote || !!pay?.isRemote,
+    description,
+    type: guessType(`${j.title} ${data.employmentType?.id ?? ""}`, description),
+    tags: extractTags(j.title, description),
+    posted_at: normalizeDate(data.createdOn) ?? j.posted_at,
+  };
+}
+
+// Flatchr (French SMEs): full offers with salary, contract and remote policy in one company JSON.
+interface FlatchrVacancy { title?: string; slug?: string; description?: string; mission?: string; profile?: string; salary?: number | null; salary_max?: number | null; currency?: string; mensuality?: string; remote?: string; contract_type?: string; addressFormatted?: string; address?: { locality?: string }; company?: { name?: string }; created_at?: string; start_date?: string | null }
+export function mapFlatchr(json: { items?: { vacancy?: FlatchrVacancy; published?: boolean }[] }, slug: string): NewJob[] {
+  return (json.items ?? [])
+    .filter((i) => i.published !== false && i.vacancy?.title && i.vacancy.slug)
+    .map(({ vacancy: v }) => {
+      const pay = v!.salary ? `Salaire : ${v!.salary}${v!.salary_max && v!.salary_max !== v!.salary ? ` - ${v!.salary_max}` : ""} ${v!.currency ?? "EUR"} ${v!.mensuality === "m" ? "par mois" : "par an"}` : "";
+      const description = [v!.description, v!.mission, v!.profile].map((h) => htmlToText(h ?? "")).filter(Boolean).join("\n\n") + (pay ? `\n\n${pay}` : "");
+      return job({
+        title: v!.title!,
+        company: v!.company?.name?.trim() || prettySlug(slug),
+        location: v!.address?.locality || v!.addressFormatted || "",
+        // "notime" = no remote; only a value saying full remote counts (partial remote days don't).
+        remote: /full|total/i.test(v!.remote ?? ""),
+        url: `https://careers.flatchr.io/company/${slug}/vacancy/${v!.slug}/`,
+        source: "flatchr",
+        kind: v!.contract_type,
+        description,
+        posted: v!.created_at,
+      });
+    });
+}
+export async function flatchr(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  const { data, error } = await getJson<{ items?: { vacancy?: FlatchrVacancy; published?: boolean }[] }>(`https://careers.flatchr.io/company/${encodeURIComponent(slug)}.json`);
+  return data ? { jobs: mapFlatchr(data, slug) } : { jobs: [], error };
+}
+
+interface JobScoreFeed { company_name?: string; jobs?: { title?: string; detail_url?: string; location?: string; city?: string; state?: string; country?: string; description?: string; job_type?: string; opened_date?: string; created_on?: string }[] }
+export function mapJobScore(json: JobScoreFeed, slug: string): NewJob[] {
+  return (json.jobs ?? [])
+    .filter((j) => j.title && j.detail_url)
+    .map((j) =>
+      job({
+        title: j.title!,
+        company: json.company_name?.trim() || prettySlug(slug),
+        location: j.location || join(j.city, j.state, j.country),
+        url: j.detail_url!,
+        source: "jobscore",
+        kind: j.job_type,
+        description: htmlToText(j.description ?? ""),
+        posted: j.opened_date ?? j.created_on,
+      }),
+    );
+}
+export async function jobScore(handle: string): Promise<Scan> {
+  const slug = slugOf(handle);
+  const { data, error } = await getJson<JobScoreFeed>(`https://careers.jobscore.com/careers/${encodeURIComponent(slug)}/feed.json`);
+  return data ? { jobs: mapJobScore(data, slug) } : { jobs: [], error };
+}

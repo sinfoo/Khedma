@@ -5,7 +5,7 @@ export const PROVIDER_KINDS = [
   "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
-  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "join", "softgarden", "successfactors", "icims", "rss", "careers",
+  "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "gem", "rippling", "flatchr", "jobscore", "join", "softgarden", "successfactors", "icims", "rss", "careers",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -185,6 +185,10 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "teamtailor", name: "Teamtailor", country: "INT", method: "html", site: "https://www.teamtailor.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "bamboohr", name: "BambooHR", country: "INT", method: "api", site: "https://www.bamboohr.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "breezy", name: "Breezy HR", country: "INT", method: "api", site: "https://breezy.hr", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "gem", name: "Gem", country: "INT", method: "api", site: "https://www.gem.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "rippling", name: "Rippling", country: "INT", method: "api", site: "https://www.rippling.com/recruiting", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "flatchr", name: "Flatchr", country: "FR", method: "api", site: "https://flatchr.io", handle: { type: "slug", placeholder: "acme" }, keywords: false },
+  { kind: "jobscore", name: "JobScore", country: "INT", method: "api", site: "https://www.jobscore.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "join", name: "JOIN", country: "DE", method: "api", site: "https://join.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "softgarden", name: "softgarden", country: "DE", method: "html", site: "https://softgarden.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "successfactors", name: "SAP SuccessFactors", country: "INT", method: "html", site: "https://www.sap.com/products/hcm.html", handle: { type: "slug", placeholder: "jobs.acme.com" }, keywords: false },

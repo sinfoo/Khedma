@@ -10,7 +10,7 @@ export interface Trust {
   host: HostClass;
 }
 
-const ATS_HOSTS = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|teamtailor\.com|bamboohr\.com|workable\.com|icims\.com|successfactors\.(com|eu)|taleo\.net|jobvite\.com|personio\.(de|com)|pinpointhq\.com|myworkdaysite\.com|breezy\.hr|softgarden\.io|join\.com)$/i;
+const ATS_HOSTS = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|smartrecruiters\.com|recruitee\.com|teamtailor\.com|bamboohr\.com|workable\.com|icims\.com|successfactors\.(com|eu)|taleo\.net|jobvite\.com|personio\.(de|com)|pinpointhq\.com|myworkdaysite\.com|breezy\.hr|jobs\.gem\.com|ats\.rippling\.com|careers\.flatchr\.io|careers\.jobscore\.com|softgarden\.io|join\.com)$/i;
 const PORTAL_HOSTS = /(linkedin\.com|indeed\.com|keejob\.com|tanitjobs\.com|emploitunisie\.com|farojob\.net|jobs\.ch|jobup\.ch|job-room\.ch|jobbank\.gc\.ca|arbeitnow\.\w+|arbeitsagentur\.de|europa\.eu|englishjobs\.(de|fr)|englishjobsearch\.ch|daijob\.com|wantedly\.com|remoteok\.com|jobicy\.com|himalayas\.app|remotive\.com|artificialintelligencejobs\.co|adzuna\.\w+|jooble\.org|reed\.co\.uk|findwork\.dev|glassdoor\.\w+|welcometothejungle\.com|hellowork\.com|apec\.fr|francetravail\.fr|stepstone\.\w+|xing\.com|python\.org|weworkremotely\.com|bayt\.com|thehub\.io|landing\.jobs|ycombinator\.com)$/i;
 const SUSPICIOUS = /(^|\.)(bit\.ly|tinyurl\.com|t\.co|goo\.gl|shorturl\.at|forms\.gle|docs\.google\.com|t\.me|telegram\.(me|org)|wa\.me|whatsapp\.com|cutt\.ly|rb\.gy|is\.gd|linktr\.ee)$/i;
 const WEBMAIL = /\b[\w.+-]+@(gmail|yahoo|hotmail|outlook|live|aol|protonmail|icloud|mail)\.(com|fr|tn)\b/i;

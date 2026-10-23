@@ -19,7 +19,7 @@ export type AppState = (typeof APP_STATES)[number];
 export const TERMINAL_STATES: AppState[] = ["offer", "hired", "rejected", "discarded"];
 
 export type SourceKind =
-  | "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "workday" | "teamtailor" | "bamboohr" | "breezy" | "join" | "softgarden" | "successfactors" | "icims" | "thehub" | "hackernews" | "rss" | "keejob" | "tanitjobs" | "emploitunisie" | "farojob" | "linkedin"
+  | "greenhouse" | "lever" | "ashby" | "workable" | "smartrecruiters" | "recruitee" | "personio" | "pinpoint" | "workday" | "teamtailor" | "bamboohr" | "breezy" | "gem" | "rippling" | "flatchr" | "jobscore" | "join" | "softgarden" | "successfactors" | "icims" | "thehub" | "hackernews" | "rss" | "keejob" | "tanitjobs" | "emploitunisie" | "farojob" | "linkedin"
   | "arbeitnow" | "englishjobs_de" | "englishjobs_fr" | "englishjobs_ch" | "jobsch" | "jobup" | "jobroom" | "jobbank" | "daijob" | "wantedly"
   | "remoteok" | "jobicy" | "himalayas" | "remotive" | "aijobs" | "adzuna" | "jooble" | "reed" | "findwork" | "arbeitsagentur" | "weworkremotely" | "eures"
   | "url" | "manual" | "demo";

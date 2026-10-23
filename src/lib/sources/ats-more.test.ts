@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mapPersonio, mapRecruitee, mapWorkable } from "./ats-more";
+import { mapFlatchr, mapGem, mapJobScore, mapPersonio, mapRecruitee, mapRippling, mapWorkable } from "./ats-more";
 import { detectAtsUrl } from "./ats";
 
 test("employer boards map to offers that link to the employer", () => {
@@ -113,4 +113,29 @@ test("new careers URLs are recognised; apply pages and board ads lead to the emp
   assert.equal(employerLink("https://www.arbeitnow.com/jobs/x", "Apply here: https://jobs.lever.co/acme/abc-123."), "https://jobs.lever.co/acme/abc-123");
   assert.equal(employerLink("https://www.arbeitnow.com/jobs/x", "See https://jobs.lever.co/acme for all roles"), null);
   assert.equal(employerLink("https://jobs.lever.co/acme/1", "https://jobs.lever.co/acme/2"), null);
+});
+
+// Shapes trimmed from real responses (2026-10-23).
+test("gem, rippling, flatchr and jobscore boards map to offers", () => {
+  const [g] = mapGem([{ title: "Rotational Operations Program", absolute_url: "https://jobs.gem.com/soeffects/am9i", content_plain: "Company Overview: Second Order Effects", location: { name: "El Segundo, United States" }, location_type: "in_office", employment_type: "full_time", first_published_at: "2026-07-12T15:55:21.518Z" }], "soeffects");
+  assert.equal(g.title, "Rotational Operations Program");
+  assert.equal(g.remote, false);
+  assert.equal(g.location, "El Segundo, United States");
+  const [r] = mapRippling([{ uuid: "ef0b", name: " Account Executive, Broker Channel ", url: "https://ats.rippling.com/rippling/jobs/ef0b", workLocation: { label: "AR" } }], "rippling");
+  assert.equal(r.title, "Account Executive, Broker Channel");
+  assert.equal(r.source, "rippling");
+  const [f] = mapFlatchr({ items: [{ published: true, vacancy: { title: "Account exective _HR Tech ", slug: "d86r-account", description: "<p>Rejoins Flatchr</p>", mission: "<p>Ton rôle</p>", salary: 35000, salary_max: 60000, currency: "EUR", mensuality: "y", remote: "notime", contract_type: "CDI", address: { locality: "Boulogne-Billancourt" }, company: { name: "Flatchr" } } }] }, "flatchr");
+  assert.equal(f.url, "https://careers.flatchr.io/company/flatchr/vacancy/d86r-account/");
+  assert.equal(f.remote, false);
+  assert.match(f.description, /Salaire : 35000 - 60000 EUR par an/);
+  const [s] = mapJobScore({ company_name: "Atlantic BT", jobs: [{ title: "Cloud Operations Engineer", detail_url: "https://careers.jobscore.com/careers/atlanticbt/jobs/cloud-ops", location: "Raleigh, NC / Full-time Remote", description: "<p>Atlantic BT helps clients</p>", job_type: "Full Time" }] }, "atlanticbt");
+  assert.equal(s.company, "Atlantic BT");
+  assert.equal(s.remote, true);
+});
+
+test("gem, rippling, flatchr and jobscore board URLs are recognised", () => {
+  assert.equal(detectAtsUrl("https://jobs.gem.com/soeffects/am9i")?.kind, "gem");
+  assert.equal(detectAtsUrl("https://ats.rippling.com/rippling/jobs")?.kind, "rippling");
+  assert.deepEqual([detectAtsUrl("https://careers.flatchr.io/fr/company/flatchr/vacancy/x/")?.kind, detectAtsUrl("https://careers.flatchr.io/company/flatchr.json")?.handle], ["flatchr", "flatchr"]);
+  assert.equal(detectAtsUrl("https://careers.jobscore.com/careers/atlanticbt")?.handle, "atlanticbt");
 });
