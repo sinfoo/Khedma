@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { CheckCircle2, AlertTriangle, Info, X } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 type Tone = "success" | "error" | "info";
 interface Toast {
@@ -31,6 +32,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [dismiss],
   );
   const value = useMemo(() => push, [push]);
+  const kit = useT().t.shell2.kit;
   return (
     <Ctx.Provider value={value}>
       {children}
@@ -47,7 +49,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           return (
             <div
               key={t.id}
-              role="status"
               className="relative flex items-center gap-3 overflow-hidden rounded-[14px] bg-ink px-3.5 py-3 text-bg shadow-[var(--shadow-lg)]"
               style={{ animation: "pop .22s cubic-bezier(.2,.7,.2,1) both" }}
             >
@@ -68,7 +69,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   {t.action.label}
                 </button>
               )}
-              <button type="button" className="grid size-7 place-items-center opacity-70 hover:opacity-100" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
+              <button type="button" className="grid size-7 place-items-center opacity-70 hover:opacity-100" aria-label={kit.dismiss} onClick={() => dismiss(t.id)}>
                 <X size={14} aria-hidden="true" />
               </button>
               <span aria-hidden="true" className="absolute bottom-0 left-0 h-[2px]" style={{ background: color, animation: `toast-bar ${life(t)}s linear both` }} />

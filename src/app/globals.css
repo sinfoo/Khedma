@@ -417,6 +417,12 @@ dialog::backdrop { background: rgb(5 8 12 / 0.55); backdrop-filter: blur(3px); }
   color: var(--ink);
   box-shadow: var(--shadow-lg);
   min-width: 12rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+/* Without anchor positioning the popover would sit top-left: centre it instead. */
+@supports not (anchor-name: --a) {
+  [popover].menu { margin: auto; }
 }
 .menu-item {
   display: flex;

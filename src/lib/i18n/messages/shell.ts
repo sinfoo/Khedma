@@ -3,6 +3,7 @@ import { defineMessages } from "../define";
 // Owned by the app shell (sidebar, top bar, command palette). Access as t.shell2.<key>.
 export default defineMessages({
   en: {
+    kit: { close: "Close", dismiss: "Dismiss notification", loading: "Loading…" },
     groups: { find: "Find", apply: "Apply", prepare: "Prepare", review: "Look back" },
     nav: {
       today: "Today",
@@ -89,6 +90,7 @@ export default defineMessages({
     },
   },
   fr: {
+    kit: { close: "Fermer", dismiss: "Fermer la notification", loading: "Chargement…" },
     groups: { find: "Trouver", apply: "Postuler", prepare: "Se préparer", review: "Faire le point" },
     nav: {
       today: "Aujourd'hui",

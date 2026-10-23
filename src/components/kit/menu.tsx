@@ -4,7 +4,8 @@ import { useId } from "react";
 
 /**
  * Dropdown menu on the native Popover API (light dismiss, Esc, top layer for free).
- * Anchored under its trigger with CSS anchor positioning where supported.
+ * Anchored under its trigger with CSS anchor positioning where supported (centred otherwise, see globals.css).
+ * Plain buttons in Tab order, not role="menu": that role promises arrow-key navigation this does not do.
  */
 export function Menu({
   label,
@@ -29,7 +30,6 @@ export function Menu({
       <div
         id={`menu-${id}`}
         popover="auto"
-        role="menu"
         aria-label={label}
         className="menu"
         style={
@@ -54,12 +54,12 @@ export function MenuItem({ children, onClick, danger, href }: { children: React.
   const cls = `menu-item ${danger ? "!text-danger" : ""}`;
   if (href)
     return (
-      <a role="menuitem" href={href} className={cls} data-close>
+      <a href={href} className={cls} data-close>
         {children}
       </a>
     );
   return (
-    <button type="button" role="menuitem" className={cls} onClick={onClick} data-close>
+    <button type="button" className={cls} onClick={onClick} data-close>
       {children}
     </button>
   );

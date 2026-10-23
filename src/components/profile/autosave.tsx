@@ -70,7 +70,10 @@ export function SaveIndicator({ status, at, onRetry }: { status: SaveStatus; at:
     }
   }
   return (
-    <span className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted tabular" aria-live="polite">
+    <span className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted tabular">
+      <span className="sr-only" aria-live="polite">
+        {status === "saving" ? s.saving : status === "pending" ? s.unsaved : status === "saved" ? fmt(s.savedAgo, { ago: s.justNow }) : s.error}
+      </span>
       {status === "saving" && (
         <>
           <Loader2 size={14} className="animate-spin" aria-hidden="true" /> {s.saving}

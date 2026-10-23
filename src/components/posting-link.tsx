@@ -50,7 +50,6 @@ export function PostingLink({
       <div
         id={id}
         popover="auto"
-        role="menu"
         aria-label={label}
         className="menu"
         style={{ positionAnchor: `--${id}`, top: "anchor(bottom)", left: "anchor(left)", marginTop: 6 } as React.CSSProperties}
@@ -59,7 +58,7 @@ export function PostingLink({
           {fr ? "Chercher cette offre sur" : "Search this offer on"}
         </p>
         {search.map((s) => (
-          <a key={s.platform} role="menuitem" href={s.url} target="_blank" rel="noopener noreferrer" className="menu-item">
+          <a key={s.platform} href={s.url} target="_blank" rel="noopener noreferrer" className="menu-item">
             <ExternalLink size={14} aria-hidden="true" /> {s.platform}
           </a>
         ))}

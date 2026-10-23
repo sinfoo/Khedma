@@ -1,19 +1,17 @@
-/** Route-level skeleton while a page's data loads. Mirrors the Today layout so nothing jumps. */
-export default function AppLoading() {
+import { getDict } from "@/lib/i18n/server";
+
+/** Route-level placeholder while a page's data loads: a title and three plain blocks, so no layout is implied. */
+export default async function AppLoading() {
+  const { t } = await getDict();
   return (
-    <div aria-busy="true" aria-live="polite" className="fade">
+    <div aria-busy="true" className="fade">
+      <p role="status" className="sr-only">{t.shell2.kit.loading}</p>
       <div className="skeleton mb-2.5 h-3.5 w-[120px] rounded-[7px]" />
-      <div className="skeleton mb-7 h-[34px] w-[300px] rounded-[9px]" />
-      <div className="grid gap-7 lg:grid-cols-[1.6fr_1fr]">
-        <div className="flex flex-col gap-3">
-          <div className="skeleton h-[120px] rounded-[14px]" />
-          <div className="skeleton h-24 rounded-[14px]" />
-          <div className="skeleton h-24 rounded-[14px]" />
-        </div>
-        <div className="flex flex-col gap-3">
-          <div className="skeleton h-[200px] rounded-[14px]" />
-          <div className="skeleton h-[140px] rounded-[14px]" />
-        </div>
+      <div className="skeleton mb-7 h-[34px] w-[300px] max-w-full rounded-[9px]" />
+      <div className="flex flex-col gap-3">
+        <div className="skeleton h-24 rounded-[14px]" />
+        <div className="skeleton h-24 rounded-[14px]" />
+        <div className="skeleton h-24 rounded-[14px]" />
       </div>
     </div>
   );

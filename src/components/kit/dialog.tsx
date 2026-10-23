@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { useT } from "@/lib/i18n/client";
 
 /**
  * Modal or side drawer on the native <dialog> element: focus trap, Esc to close
@@ -27,6 +28,8 @@ export function Dialog({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const downOnBackdrop = useRef(false);
+  const kit = useT().t.shell2.kit;
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
@@ -42,9 +45,10 @@ export function Dialog({
       aria-labelledby="dlg-title"
       aria-describedby={description ? "dlg-desc" : undefined}
       onClose={onClose}
+      onMouseDown={(e) => (downOnBackdrop.current = e.target === e.currentTarget)}
       onClick={(e) => {
-        // Click on the backdrop (the dialog element itself) closes it.
-        if (e.target === e.currentTarget) onClose();
+        // A click that both starts and ends on the backdrop (the dialog element itself) closes it.
+        if (e.target === e.currentTarget && downOnBackdrop.current) onClose();
       }}
     >
       {open && (
@@ -54,7 +58,7 @@ export function Dialog({
               <h2 id="dlg-title" className="text-lg">{title}</h2>
               {description && <p id="dlg-desc" className="text-sm text-muted mt-0.5">{description}</p>}
             </div>
-            <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label="Close" onClick={onClose}>
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={kit.close} onClick={onClose}>
               <X size={16} aria-hidden="true" />
             </button>
           </header>
