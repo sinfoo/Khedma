@@ -65,10 +65,12 @@ const DEFAULT_ON: QuestionId[] = ["why_company", "why_role", "why_you"];
  */
 export const SENSITIVE_IDS: QuestionId[] = ["salary", "availability", "mobility"];
 const SENSITIVE_TEXT =
-  /\b(salaire|salary|r[ée]mun[ée]ration|gratification|pr[ée]tention|compensation|stipend|visa|sponsor|nationalit|citizen|citoyen|permis de (travail|s[ée]jour)|work (permit|authori)|autorisation de travail|disponib|availab|date de (d[ée]but|d[ée]marrage)|start date|handicap|disabilit|rqth|[âa]ge\b|date de naissance|birth|sexe|gender|genre|situation (familiale|matrimoniale)|marital|religion|ethni|origine|veteran|v[ée]t[ée]ran|casier|criminal|background check|relocat|d[ée]m[ée]nag|service militaire|military)\b/i;
+  /\b(salaire|salary|r[ée]mun[ée]ration|gratification|pr[ée]tention|compensation|stipend|visa|sponsor|nationalit|citizen|citoyen|permis de (travail|s[ée]jour)|work (permit|authori)|autorisation de travail|disponib|availab|date de (d[ée]but|d[ée]marrage)|start date|handicap|disabilit|rqth|[âa]ge\b|date de naissance|birth|sexe|gender|genre|situation (familiale|matrimoniale)|marital|religion|ethni|origine|veteran|v[ée]t[ée]ran|casier|criminal|background check|relocat|d[ée]m[ée]nag|service militaire|military|consent|privacy|gdpr|rgpd|acknowledg|j'accepte|donn[ée]es personnelles|pronoun|orientation sexuelle|sexual orientation|lgbt)/i; // stems: no trailing \b ("disponib" must match "disponibilité")
+/** A form question whose options are listed ("… (choix : Oui / Non)"): see ats-questions.questionText. */
+export const CHOICE_RE = /\((?:choix|options) : ([^)]*)\)$/;
 
 export function isSensitiveQuestion(qid: string, question = ""): boolean {
-  return isQuestionId(qid) ? SENSITIVE_IDS.includes(qid) : SENSITIVE_TEXT.test(question);
+  return isQuestionId(qid) ? SENSITIVE_IDS.includes(qid) : SENSITIVE_TEXT.test(question) || CHOICE_RE.test(question);
 }
 
 const DETECT: Record<QuestionId, RegExp> = {

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_SETTINGS, type Job, type Profile } from "../types";
 import { extractSkills } from "../ai/heuristic";
-import { QUESTION_IDS, clampLimit, cvFacts, cvProjects, detectQuestions, heuristicAnswer, heuristicCustomAnswer } from "./questions";
+import { QUESTION_IDS, clampLimit, cvFacts, cvProjects, detectQuestions, heuristicAnswer, heuristicCustomAnswer, isSensitiveQuestion } from "./questions";
 import { fallbackAnswers } from "../ai/apply";
 
 const POSTING = `Stage PFE développeur embarqué (6 mois)
@@ -90,4 +90,10 @@ test("clampLimit keeps the length inside [80, 2000] and defaults on garbage", ()
   assert.equal(clampLimit(99999), 2000);
   assert.equal(clampLimit("abc"), 600);
   assert.equal(clampLimit(450.4), 450);
+});
+
+test("sensitive form questions: stems, consent and choice questions never go to the model", () => {
+  for (const q of ["Quelles sont vos disponibilités ?", "Will you require visa sponsorship?", "Are you open to relocation?", "I consent to the privacy policy", "Pubblico Ufficiale? (choix : Sì / No)"])
+    assert.equal(isSensitiveQuestion("custom", q), true, q);
+  assert.equal(isSensitiveQuestion("custom", "Why do you want to join us?"), false);
 });

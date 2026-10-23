@@ -5,7 +5,9 @@ import { getApplication, getJob, getProfile } from "@/lib/db";
 import { getCvSource } from "@/lib/cv/source";
 import { getDict } from "@/lib/i18n/server";
 import { fallbackAnswers, generateAnswers, generateFields, type AskedQuestion, type GeneratedAnswer } from "@/lib/ai/apply";
-import { QUESTION_LABEL, clampChars, clampLimit, isQuestionId, isSensitiveQuestion } from "@/lib/apply/questions";
+import { CHOICE_RE, QUESTION_LABEL, clampChars, clampLimit, isQuestionId, isSensitiveQuestion } from "@/lib/apply/questions";
+import { questionText } from "@/lib/apply/ats-questions";
+import { getApplyForm } from "@/lib/apply-form";
 import { deleteAnswer as repoDeleteAnswer, getPack, isOutcome, listAnswers, saveAnswer as repoSaveAnswer, setFields, setPack, type Pack } from "@/lib/apply/repo";
 import { bumpBankUse, deleteBankAnswer, findBankAnswer, listBank, profileFactAnswer, updateBankAnswer, upsertBankAnswer, type BankAnswer } from "@/lib/apply/bank";
 import type { FormFields } from "@/lib/apply/fields";
@@ -39,14 +41,29 @@ const slug = (s: string) =>
     .slice(0, 40);
 
 /** Normalise a list of asked questions: bank ids get their label, custom ones a stable "custom:" id. */
+/** A real form can ask a dozen questions of its own. */
+const MAX_CUSTOM = 15;
+
 function askedList(qids: unknown, custom: unknown, locale: "fr" | "en"): AskedQuestion[] {
   const out: AskedQuestion[] = [];
   for (const q of Array.isArray(qids) ? qids.slice(0, 12) : []) if (isQuestionId(q)) out.push({ qid: q, question: QUESTION_LABEL[locale][q] });
-  for (const c of Array.isArray(custom) ? custom.slice(0, 6) : []) {
-    const question = clamp(c, 200);
+  for (const c of Array.isArray(custom) ? custom.slice(0, MAX_CUSTOM) : []) {
+    const question = clamp(c, 320);
     if (question.length >= 3) out.push({ qid: slug(question), question });
   }
   return out;
+}
+
+// ---------- the form's own questions ----------
+/** The employer's own form questions (Greenhouse, Ashby, Workable, Recruitee), ready to be added as custom questions. */
+export async function importFormQuestions(id: number): Promise<Result<{ questions: string[]; choices: number }>> {
+  const ctx = load(id);
+  if (!ctx) return fail("notFound");
+  const { t, locale } = await getDict();
+  const form = await getApplyForm(ctx.job.url, t.apps2.flow.form.basicsLabels);
+  if (!form) return fail("generic");
+  const questions = form.questions.map((q) => questionText(q, locale)).filter((q): q is string => !!q).slice(0, MAX_CUSTOM);
+  return { ok: true, questions, choices: questions.filter((q) => CHOICE_RE.test(q)).length };
 }
 
 // ---------- answers ----------
@@ -71,8 +88,16 @@ export async function generateFormAnswers(id: number, qids: string[], custom: st
     for (const q of asked) {
       if (isSensitiveQuestion(q.qid, q.question)) {
         const fact = q.qid === "availability" || q.qid === "english" || q.qid === "mobility" || q.qid === "salary" ? profileFactAnswer(q.qid, profile, extra, locale) : null;
-        const answer = fact ? clampChars(fact.answer, limit) : fallbackAnswers([q], c)[0].answer;
+        // A form's choice question is picked by the candidate: the options stay in brackets until they do.
+        const choice = q.question.match(CHOICE_RE);
+        const answer = fact ? clampChars(fact.answer, limit) : choice ? `[${choice[1]}]` : fallbackAnswers([q], c)[0].answer;
         done.set(q.qid, { ...q, answer, engine: fact && !fact.confirm ? "profile" : "heuristic", confirm: true });
+        continue;
+      }
+      // Profile links answer link questions; the model would only guess them.
+      const link = /linkedin/i.test(q.question) ? extra.links.linkedin : /github/i.test(q.question) ? extra.links.github : /portfolio|site web|website|personal site/i.test(q.question) ? extra.links.portfolio : null;
+      if (link !== null) {
+        done.set(q.qid, { ...q, answer: link || (locale === "fr" ? "[ton lien]" : "[your link]"), engine: link ? "profile" : "heuristic", confirm: !link });
         continue;
       }
       const hit = findBankAnswer(q.question);

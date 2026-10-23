@@ -43,6 +43,7 @@ import { SafetyCard } from "@/components/apply/readiness";
 import { AnswersStep } from "@/components/apply/answers";
 import { OutcomeButton } from "@/components/apply/outcome";
 import { detectQuestions } from "@/lib/apply/questions";
+import { formReadable } from "@/lib/apply-form";
 import { getFields, getPack, listAnswers, priorApplications } from "@/lib/apply/repo";
 import { atsKind, knockouts } from "@/lib/apply/knockout";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
@@ -226,7 +227,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               </ul>
             </div>
             {review && (
-              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} />
+              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
             )}
             <div className="card p-[18px]">
               <h2 className="mb-1 text-[1.15rem] tracking-[-0.01em]">{F.howToApply}</h2>

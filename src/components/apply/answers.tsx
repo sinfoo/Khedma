@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Loader2, Minus, Plus, RefreshCw, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Loader2, Minus, Plus, RefreshCw, ShieldAlert, Sparkles, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { EngineChip } from "@/components/ui";
@@ -9,22 +9,37 @@ import { useRun } from "@/components/pipeline/use-run";
 import { DEFAULT_MAX, MAX_LIMIT, MIN_LIMIT, QUESTION_LABEL, isQuestionId, isSensitiveQuestion, type DetectedQuestion } from "@/lib/apply/questions";
 import type { SavedAnswer } from "@/lib/apply/types";
 import type { FormFields } from "@/lib/apply/fields";
-import { generateFormAnswers, removeFormAnswer, saveFormAnswer } from "@/app/actions/apply";
+import { generateFormAnswers, importFormQuestions, removeFormAnswer, saveFormAnswer } from "@/app/actions/apply";
+import { useToast } from "@/components/kit/toast";
+
+/** Same cap as the server (apply.ts MAX_CUSTOM). */
+const MAX_CUSTOM = 15;
 import { BankPanel } from "./bank";
 import { FieldsSection } from "./fields";
 
 type Draft = Pick<SavedAnswer, "qid" | "question" | "answer" | "max_chars" | "engine">;
 
-export function AnswersStep({ id, questions, saved, fields, hasCv }: { id: number; questions: DetectedQuestion[]; saved: SavedAnswer[]; fields: FormFields | null; hasCv: boolean }) {
+export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }: { id: number; questions: DetectedQuestion[]; saved: SavedAnswer[]; fields: FormFields | null; hasCv: boolean; /** The employer's form can be read (Greenhouse, Ashby, Workable, Recruitee). */ formSource?: boolean }) {
   const { t, locale } = useT();
   const a = t.apply2.answers;
   const sf = t.apply2.safety;
+  const toast = useToast();
   const [selected, setSelected] = useState<Set<string>>(() => new Set([...questions.filter((q) => q.selected).map((q) => q.id), ...saved.filter((s) => isQuestionId(s.qid)).map((s) => s.qid)]));
   const [custom, setCustom] = useState<string[]>(() => saved.filter((s) => !isQuestionId(s.qid)).map((s) => s.question));
   const [customInput, setCustomInput] = useState("");
   const [max, setMax] = useState(saved[0]?.max_chars ?? DEFAULT_MAX);
   const [drafts, setDrafts] = useState<Draft[]>(saved);
   const [gen, runGen] = useRun();
+  const [loading, runLoad] = useRun();
+  const loadForm = () =>
+    runLoad(
+      () => importFormQuestions(id),
+      undefined,
+      (r) => {
+        setCustom((c) => [...new Set([...c, ...r.questions])].slice(0, MAX_CUSTOM));
+        toast.info(a.formLoaded, fmt(a.formLoadedBody, { n: r.questions.length, c: r.choices }));
+      },
+    );
 
   const toggle = (qid: string) => setSelected((s) => { const n = new Set(s); if (n.has(qid)) n.delete(qid); else n.add(qid); return n; });
   const count = selected.size + custom.length;
@@ -71,12 +86,17 @@ export function AnswersStep({ id, questions, saved, fields, hasCv }: { id: numbe
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div className="min-w-56 flex-1">
+            {formSource && (
+              <button type="button" className="btn btn-outline btn-sm mb-3" disabled={loading} aria-busy={loading} onClick={loadForm}>
+                {loading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />} {a.formLoad}
+              </button>
+            )}
             <label className="label" htmlFor="custom-q">{a.custom}</label>
             <div className="flex gap-2">
-              <input id="custom-q" className="input" value={customInput} placeholder={a.customPlaceholder} maxLength={200}
+              <input id="custom-q" className="input" value={customInput} placeholder={a.customPlaceholder} maxLength={320}
                 onChange={(e) => setCustomInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && customInput.trim().length >= 3) { e.preventDefault(); setCustom((c) => [...c, customInput.trim()].slice(0, 6)); setCustomInput(""); } }} />
-              <button type="button" className="btn btn-secondary" disabled={customInput.trim().length < 3 || custom.length >= 6} onClick={() => { setCustom((c) => [...c, customInput.trim()]); setCustomInput(""); }}>
+                onKeyDown={(e) => { if (e.key === "Enter" && customInput.trim().length >= 3) { e.preventDefault(); setCustom((c) => [...c, customInput.trim()].slice(0, MAX_CUSTOM)); setCustomInput(""); } }} />
+              <button type="button" className="btn btn-secondary" disabled={customInput.trim().length < 3 || custom.length >= MAX_CUSTOM} onClick={() => { setCustom((c) => [...c, customInput.trim()]); setCustomInput(""); }}>
                 <Plus size={16} aria-hidden="true" />{a.add}
               </button>
             </div>
@@ -93,7 +113,7 @@ export function AnswersStep({ id, questions, saved, fields, hasCv }: { id: numbe
           </div>
           <div>
             <label className="label" htmlFor="max-chars">{a.maxChars}</label>
-            <input id="max-chars" type="number" className="input w-28 tabular" min={MIN_LIMIT} max={MAX_LIMIT} step={50} value={max} onChange={(e) => setMax(Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Number(e.target.value) || DEFAULT_MAX)))} />
+            <input id="max-chars" type="number" className="input w-28 tabular" min={MIN_LIMIT} max={MAX_LIMIT} step={10} value={max} onChange={(e) => setMax(Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Number(e.target.value) || DEFAULT_MAX)))} />
           </div>
           <button type="button" className="btn btn-primary" onClick={() => generate()} disabled={gen || count === 0} aria-busy={gen}>
             {gen ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
