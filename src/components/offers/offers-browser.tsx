@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlarmClock, Archive, ArchiveRestore, Copy, ExternalLink, FileText, MapPin, MoreHorizontal, Sparkles, Star, Trash2, Wifi, X, Bookmark, Send } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { fmt } from "@/lib/i18n/dict";
+import { fmt, sourceName } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { Dialog } from "@/components/kit/dialog";
 import { Menu, MenuItem } from "@/components/kit/menu";
@@ -606,7 +606,7 @@ function TableRow(p: RowProps) {
           </Link>
           <p className="flex items-center gap-1.5 truncate text-[0.75rem] text-muted">
             <span className="truncate">
-              {r.company} · {o.list2.via} {r.source} · {fmtDate(r.created_at, p.locale)}
+              {r.company} · {o.list2.via} {sourceName(t, r.source)} · {fmtDate(r.created_at, p.locale)}
             </span>
             <DupChip r={r} />
             <EvergreenChip reasons={r.evergreen} t={t} />

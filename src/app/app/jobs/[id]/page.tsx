@@ -6,7 +6,7 @@ import { PostingLink } from "@/components/posting-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Copy, FileText, Pencil, Send, Sparkles } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
-import { fmt, type Dict } from "@/lib/i18n/dict";
+import { fmt, sourceName, type Dict } from "@/lib/i18n/dict";
 import { getJob, getProfile, listJobs, withMeta } from "@/lib/db";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { eligibilityGates, type Gate } from "@/lib/ai/gates";
@@ -93,7 +93,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               <span className={d !== null && d >= 0 && d <= 3 ? "font-semibold text-danger" : d !== null && d >= 0 && d <= 7 ? "font-semibold text-saffron" : ""}>
                 {job.deadline ? `${t.common.deadline} ${fmtDate(job.deadline, locale)}${d !== null && d >= 0 ? ` · ${d === 0 ? o.dToday : fmt(o.dMinus, { n: d })}` : d !== null ? ` · ${o.expired}` : ""}` : o.noDeadline}
               </span>
-              <span>{o.list2.via} {job.source}</span>
+              <span>{o.list2.via} {sourceName(t, job.source)}</span>
               {job.application && <StateChip state={job.application.status} t={t} />}
               {job.archived && <span className="chip">{o.archived}</span>}
               {dup && (

@@ -477,3 +477,6 @@ export const dicts: Record<Locale, Dict> = { en: { ...en, ...pick("en") }, fr: {
 export function fmt(s: string, vars: Record<string, string | number>): string {
   return s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 }
+
+/** A job source's display name ("englishjobs_de" -> "EnglishJobs.de"); unknown kinds show as they are. */
+export const sourceName = (t: Dict, kind: string): string => (t.insights2.ins.srcNames as Record<string, string>)[kind] ?? kind;

@@ -28,7 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { fmt, type Dict } from "@/lib/i18n/dict";
+import { fmt, sourceName, type Dict } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
@@ -964,7 +964,7 @@ function FeedRow({
         <p className="mt-px truncate text-[0.78rem] text-muted">
           {j.company}
           {j.location && ` · ${j.location}`}
-          {j.remote && ` · ${t.common.remote}`} · {t.jobTypes[j.type as JobType] ?? j.type} · {t.offers2.list2.via} {j.source}
+          {j.remote && ` · ${t.common.remote}`} · {t.jobTypes[j.type as JobType] ?? j.type} · {t.offers2.list2.via} {sourceName(t, j.source)}
           {d !== null && (
             <>
               {" · "}
