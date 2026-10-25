@@ -66,7 +66,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader title={st.title} lead={st.lead} />
       <ReminderNotifier />
-      <div className="grid items-start gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
         <SettingsNav label={st.nav} items={sections} />
         <div className="min-w-0 max-w-[760px] space-y-3.5">
           <SettingsSection id="ai" i={1} icon={<Bot size={18} />} title={st.sections.ai} lead={st.ai.lead}>

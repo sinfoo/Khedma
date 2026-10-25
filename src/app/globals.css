@@ -270,6 +270,9 @@ h1, h2, h3, .display {
 
 /* ---------- primitives (class API, used everywhere) ---------- */
 @layer components {
+/* A grid without grid-cols-* (single column on phones) sizes its implicit column to the widest child, so one long
+   chip row or toolbar pushed whole pages sideways at 390 px. Any grid-cols-* utility still wins (utilities layer). */
+.grid { grid-template-columns: minmax(0, 1fr); }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);

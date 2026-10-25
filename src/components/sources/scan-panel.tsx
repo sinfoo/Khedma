@@ -352,7 +352,7 @@ export function ScanPanel({
           <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{title}</h1>
           <p className="mt-1.5 text-muted">{lead}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(busy || finishedAll) && (
             // One element for Stop / Scanning / Scan again, so keyboard focus is not lost when the scan ends.
             <button type="button" className="btn btn-outline" disabled={!running && (busy || preview.runs.length === 0)} aria-busy={busy && !running} onClick={() => (running ? stop() : run())}>
