@@ -5,6 +5,7 @@ import type { Job, Locale, Profile, Triage } from "../types";
 import { extractSkills, heuristicEvaluate } from "./heuristic";
 import { detectField } from "../recommend/profile-model";
 import { extractSalaryMentions } from "../salaries";
+import { inTargetPlaces } from "../geo";
 import type { Gate } from "./gates";
 
 export const TRIAGE_PASS = 70;
@@ -46,7 +47,7 @@ export function triageScore(job: Job, profile: Profile, opts: { gates?: Gate[]; 
   let location = 3.5;
   if (job.remote) location = 5;
   else if (!profile.target_locations.length) location = 3.5;
-  else if (profile.target_locations.some((l) => loc.includes(fold(l)) || lc.includes(fold(l)))) location = 5;
+  else if (inTargetPlaces(job.location, profile.target_locations) || profile.target_locations.some((l) => lc.includes(fold(l)))) location = 5;
   else if (!loc) location = 3;
   else { location = 1.5; reasons.push(fr ? `lieu ${job.location} hors de vos zones` : `${job.location} outside your places`); }
 

@@ -43,6 +43,7 @@
     "research",
     "e2e",
     "playwright.config.ts",
-    ".next-e2e"
+    ".next-e2e",
+    ".claude"
   ]
 }

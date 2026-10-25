@@ -57,8 +57,21 @@ export function countryOf(location: string): string | null {
   if (!l.trim()) return null;
   for (const c of COUNTRIES) if (c.aliases.some((a) => word(l, a))) return c.code;
   for (const c of COUNTRIES) if (c.cities.some((a) => word(l, a))) return c.code;
-  if (/\b(remote|teletravail|télétravail|a distance|anywhere|worldwide)\b/.test(l)) return REMOTE_CODE;
-  return null;
+  const remote = /\b(remote|teletravail|télétravail|a distance|anywhere|worldwide)\b/.test(l);
+  // "Remote - US", "Remote (U.S. only)": a remote job restricted to the US, not worldwide.
+  if (remote && /(^|[^a-z])(us|u\.s\.a?\.?)([^a-z]|$)/.test(l)) return "US";
+  return remote ? REMOTE_CODE : null;
+}
+
+/**
+ * Does an offer's place match one of the profile's target places ("Tunisie", "Remote", "Sfax")? Free text first,
+ * then by country, since boards often drop the country ("Sfax" is in Tunisia).
+ */
+export function inTargetPlaces(location: string, targets: string[]): boolean {
+  const l = fold(location);
+  if (targets.some((t) => t.trim() && l.includes(fold(t.trim())))) return true;
+  const code = countryOf(location);
+  return !!code && code !== REMOTE_CODE && targets.some((t) => countryOf(t) === code);
 }
 
 /** Does an offer fit the user's chosen places? Unknown locations pass; remote passes when allowed. */

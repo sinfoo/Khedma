@@ -1,5 +1,6 @@
 // Offline, deterministic fallbacks. No network, no randomness.
 import type { Evaluation, InterviewPrep, Job, Locale, Profile, SkillGap, UpskillPlan } from "../types";
+import { inTargetPlaces } from "../geo";
 
 // ---------- skills ----------
 // "Canonical|alias|alias". Aliases chosen to avoid plain English/French words
@@ -64,7 +65,8 @@ const SKILL_RE: { name: string; re: RegExp }[] = SKILLS.map((entry) => {
   const alts = entry.split("|");
   return {
     name: alts[0],
-    re: new RegExp(`(?<![\\p{L}\\p{N}+#.])(?:${alts.map(esc).join("|")})(?![\\p{L}\\p{N}+#])`, "iu"),
+    // A one-letter skill never takes an apostrophe: the "C" of French "c'est" is not the language.
+    re: new RegExp(`(?<![\\p{L}\\p{N}+#.])(?:${alts.map((a) => esc(a) + (a.length === 1 ? "(?!['’])" : "")).join("|")})(?![\\p{L}\\p{N}+#])`, "iu"),
   };
 });
 
@@ -151,11 +153,7 @@ export function heuristicEvaluate(job: Job, profile: Profile): Omit<Evaluation, 
       }))
     : 0.5;
   const typeOk = profile.target_types.length === 0 || profile.target_types.includes(job.type) ? 1 : 0;
-  const loc = job.location.toLowerCase();
-  const locOk =
-    job.remote || profile.target_locations.length === 0 || profile.target_locations.some((l) => loc.includes(l.toLowerCase()))
-      ? 1
-      : 0;
+  const locOk = job.remote || profile.target_locations.length === 0 || inTargetPlaces(job.location, profile.target_locations) ? 1 : 0;
   const target = score(1 + 4 * (0.5 * roleScore + 0.3 * typeOk + 0.2 * locOk));
 
   // growth
@@ -163,7 +161,7 @@ export function heuristicEvaluate(job: Job, profile: Profile): Omit<Evaluation, 
     /mentor/, /formation/, /training/, /\blearn/, /apprendre|apprentissage/, /junior/, /encadr/, /\bpfe\b/,
     /\bstage\b|internship|\bintern\b/, /débutant|entry[- ]level|graduate|jeune diplômé/, /tutorat|tutor/,
   ];
-  const seniorHit = /senior|lead\b|\b([5-9]|1\d)\s*\+?\s*(ans|années|years)/i.test(lc);
+  const seniorHit = /senior|lead\b|\b([5-9]|1\d)\s*\+?\s*(ans|années|years)(?=[^.\n]{0,30}exp[ée]rience)/i.test(lc);
   const growth = score(3 + 0.5 * growthWords.filter((w) => w.test(lc)).length - (seniorHit ? 1.5 : 0));
 
   // culture

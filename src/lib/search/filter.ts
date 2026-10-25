@@ -97,7 +97,7 @@ export function titleMatch(title: string, positives: Positive[]): TitleMatch | n
     let m: TitleMatch | null = null;
     if (p.matcher) m = p.matcher(folded) ? { score: 1, hits: [bare(p.raw)] } : null;
     else if (!p.tokens.length) m = specific ? null : { score: 0, hits: [] };
-    else if (folded.includes(fold(p.raw))) m = { score: 1, hits: [p.raw] };
+    else if (anchored(esc(fold(p.raw).trim())).test(folded)) m = { score: 1, hits: [p.raw] }; // whole words: "ia" is not in "stagiaire"
     else {
       const hits = p.tokens.filter((t) => toks.has(t));
       if (hits.length && hits.length >= Math.ceil(p.tokens.length / 2)) m = { score: hits.length / p.tokens.length, hits };
@@ -122,9 +122,14 @@ export const SALES_NEGATIVES = [
 ];
 export const INTERN_TITLE = /\b(stage|stagiaire|intern|internship|pfe|alternan|apprenti|werkstudent|praktik)/;
 const BIZDEV = /(sales|business)\s+develop/;
-// "5+ ans", "7 years", "3 ans minimum" in a title; in a body only when framed as a requirement.
-export const YEARS_TITLE = /\b([3-9]|1\d)\s*\+?\s*(ans|years?|yrs)\b/;
-export const YEARS_BODY = /\b(minimum|min\.?|at least|au moins|plus de|more than|over)\s+(de\s+)?([3-9]|1\d)\s*\+?\s*(ans|years?)\b|\b([3-9]|1\d)\s*\+?\s*(ans|years?)\s*(minimum|d'?experience|of experience|experience|exp\b)/;
+// "5+ ans", "7 years", "3 ans minimum" in a title; in a body only when framed as a requirement of experience
+// ("plus de 10 ans" about the company does not count). A range starting at 0-2 ("0 à 3 ans", "1-3 years") is junior.
+const NOT_RANGE_END = String.raw`(?<!\b[0-2]\s*(?:-|–|à|a|to|ou|or)\s*)`;
+export const YEARS_TITLE = new RegExp(String.raw`${NOT_RANGE_END}\b([3-9]|1\d)\s*\+?\s*(ans|years?|yrs)\b`);
+export const YEARS_BODY = new RegExp(
+  String.raw`\b(minimum|min\.?|at least|au moins|plus de|more than|over)\s+(de\s+)?([3-9]|1\d)\s*\+?\s*(ans|years?)\b(?=[^.\n]{0,30}\b(experience|exp)\b)` +
+    String.raw`|${NOT_RANGE_END}\b([3-9]|1\d)\s*\+?\s*(ans|years?)\s*(minimum|d'?experience|of experience|experience|exp\b)`,
+);
 export const JUNIOR = /\b(junior|debutant|debutante|graduate|entry[- ]level|jeune diplome|fresh grad|new grad)\b/;
 
 // ---------- location tiers ----------
@@ -246,8 +251,10 @@ export function buildFilter(o: FilterOptions): JobFilter {
     const company = fold(job.company);
     for (const [kw, m] of companyBlock) if (m(company)) return { keep: false, reasons: [`blacklist:${bare(kw)}`] };
     if (maxAgeMs && job.posted_at) {
+      // A date without a time covers the whole day: yesterday's posting is under 24 h old until tonight.
       const t = new Date(job.posted_at).getTime();
-      if (!Number.isNaN(t) && (o.now ?? Date.now()) - t > maxAgeMs) return { keep: false, reasons: [`age:${Math.floor(((o.now ?? Date.now()) - t) / 86_400_000)}`] };
+      const end = t + (/^\d{4}-\d{2}-\d{2}$/.test(job.posted_at) ? 86_399_999 : 0);
+      if (!Number.isNaN(t) && (o.now ?? Date.now()) - end > maxAgeMs) return { keep: false, reasons: [`age:${Math.floor(((o.now ?? Date.now()) - t) / 86_400_000)}`] };
     }
 
     // 1. contract type
@@ -279,9 +286,13 @@ export function buildFilter(o: FilterOptions): JobFilter {
     }
 
     // 4. location tiers + remote preference
-    const loc = location(job.location);
+    // "Paris, France; Tunis, Tunisie": the offer passes when any of its places does.
+    const parts = job.location.split(/\s*[;·|]\s*|\s+\/\s+/).filter((p) => p.trim());
+    const tried = (parts.length > 1 ? parts : [job.location]).map((p) => ({ p, r: location(p) }));
+    const hit = tried.find((x) => x.r.keep);
+    const loc = hit?.r ?? tried[0].r;
     if (!loc.keep) return { keep: false, reasons: [`location:${loc.term ?? job.location}`] };
-    const code = countryOf(job.location);
+    const code = countryOf(hit?.p ?? job.location);
     const isRemote = job.remote || code === REMOTE_CODE;
     if (o.places.remote === "only" && !isRemote) return { keep: false, reasons: ["remote"] };
     if (o.places.remote === "no" && isRemote && (!code || code === REMOTE_CODE)) return { keep: false, reasons: ["remote"] };

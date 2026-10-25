@@ -68,8 +68,8 @@ export function matchBreakdown(job: Pick<Job, "title" | "type" | "description" |
   const skills = extractSkills(head + job.description);
   if (skills.length && cvText.trim()) {
     const have = new Set(extractSkills(cvText).map((s) => s.toLowerCase()));
-    const cv = fold(cvText);
-    const inCv = (s: string) => have.has(s.toLowerCase()) || cv.includes(fold(s));
+    // Extracted skills only: a substring test credited Java, SQL and Git to a CV listing JavaScript, NoSQL and GitHub.
+    const inCv = (s: string) => have.has(s.toLowerCase());
     // Skills seen only in optional sections do not count; when nothing is left, the masking is not trusted.
     const req = new Set(extractSkills(head + maskPreferred(job.description)));
     const required = req.size ? skills.filter((s) => req.has(s)) : skills;
