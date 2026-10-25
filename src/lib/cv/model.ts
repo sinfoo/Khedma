@@ -199,3 +199,13 @@ export function tnPhone(p: string): string {
   const m = p.replace(/[\s.\-()]/g, "").match(/^(?:\+216|00216|216)?([2-9]\d{7})$/);
   return m ? `+216 ${m[1].slice(0, 2)} ${m[1].slice(2, 5)} ${m[1].slice(5)}` : p;
 }
+
+/** Name, e-mail and phone read from a CV's text, to pre-fill a profile. Empty strings when not found. Client-safe. */
+export function cvContact(text: string): { name: string; email: string; phone: string } {
+  const email = /[\w.+-]+@[\w-]+(\.[\w-]+)+/.exec(text)?.[0] ?? "";
+  const phone = /(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,3}\)?[\s.-]?){3,4}\d{2,3}/.exec(text)?.[0]?.trim() ?? "";
+  // The name is usually the first short line: two to four words, letters only, no digits or @.
+  const first = text.split(/\r?\n/).map((l) => l.replace(/[*#_]/g, "").trim()).find(Boolean) ?? "";
+  const name = /^[\p{L}'’-]+(?:\s+[\p{L}'’-]+){1,3}$/u.test(first) && first.length <= 40 ? first : "";
+  return { name, email, phone: phone.replace(/\D/g, "").length >= 8 ? phone : "" };
+}

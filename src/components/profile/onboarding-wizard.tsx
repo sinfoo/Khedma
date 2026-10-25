@@ -9,7 +9,7 @@ import { useToast } from "@/components/kit/toast";
 import { setLocale, setTheme } from "@/app/actions/prefs";
 import { adaptToCv, aiStatus, finishOnboarding, saveProfileDraft, setOnboardingStep } from "@/app/actions/profile";
 import { useScan } from "@/components/sources/use-scan";
-import { ROLE_SUGGESTIONS, mergeSkills, suggestHeadline } from "@/lib/cv/model";
+import { ROLE_SUGGESTIONS, cvContact, mergeSkills, suggestHeadline } from "@/lib/cv/model";
 import { ChipInput } from "./chip-input";
 import { CountryPicker } from "@/components/country-picker";
 import { placesToLocations } from "@/lib/geo";
@@ -267,6 +267,9 @@ export function OnboardingWizard({
               setUploadText(text);
               // The server already saved the converted CV and skills; keep them in the draft so "Continue" does not overwrite them.
               if (markdown && markdown.trim().length > 40) update({ cv_md: markdown, ...(skills ? { skills } : {}) });
+              // Name, e-mail and phone from the CV fill the fields still empty; what was typed is kept.
+              const c = cvContact(markdown || text);
+              setD((x) => ({ ...x, name: x.name.trim() || c.name, email: x.email.trim() || c.email, extra: { ...x.extra, phone: x.extra.phone.trim() || c.phone } }));
               // Roles and skills follow the CV, and go back into the draft so "Continue" keeps them. No scan yet.
               start(async () => {
                 const a = await adaptToCv();

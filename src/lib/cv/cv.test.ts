@@ -228,3 +228,9 @@ test("Tunisian phone numbers get +216, others stay as typed", () => {
   assert.equal(tnPhone("+33 6 12 34 56 78"), "+33 6 12 34 56 78");
   assert.equal(tnPhone(""), "");
 });
+
+test("contact details are read from the top of a CV", async () => {
+  const { cvContact } = await import("./model");
+  assert.deepEqual(cvContact("Safwen Bibeni\nÉlève ingénieur\nsafwen.b@gmail.com · +216 21 179 509\n"), { name: "Safwen Bibeni", email: "safwen.b@gmail.com", phone: "+216 21 179 509" });
+  assert.deepEqual(cvContact("CURRICULUM VITAE 2026\nno contact"), { name: "", email: "", phone: "" });
+});
