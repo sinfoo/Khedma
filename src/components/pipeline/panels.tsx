@@ -136,18 +136,19 @@ export function InterviewsPanel({ appId, interviews, today }: { appId: number; i
 const FIELDS = ["name", "role", "company", "email", "phone", "linkedin", "notes"] as const;
 
 /** "You know X at this company": people from the network at the same employer, attachable in one click. */
-export function ContactSuggestions({ appId, company, people }: { appId: number; company: string; people: (Contact & { job_title: string | null })[] }) {
+export function ContactSuggestions({ appId, company, people, school = "ENIT" }: { appId: number; company: string; people: (Contact & { job_title: string | null })[]; school?: string }) {
   const { t } = useT();
   const c = t.apps2.contacts;
   const [pending, run] = useRun();
-  if (!people.length) return null;
+  // A people search on LinkedIn, opened in the student's own browser: Khedma never reads or messages anyone there.
+  const alumni = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${company} ${school}`)}`;
   return (
     <section className="card p-4" aria-labelledby="know-h">
       <h2 id="know-h" className="card-title flex items-center gap-1.5 text-[0.9rem]">
-        <UserRound size={14} aria-hidden="true" className="text-accent-text" /> {fmt(c.knowTitle, { company })}
+        <UserRound size={14} aria-hidden="true" className="text-accent-text" /> {fmt(people.length ? c.knowTitle : c.referTitle, { company })}
       </h2>
       <p className="mt-1 text-[0.78rem] leading-relaxed text-muted">{c.knowLead}</p>
-      <ul className="mt-3 flex flex-col gap-2.5">
+      {people.length > 0 && <ul className="mt-3 flex flex-col gap-2.5">
         {people.slice(0, 4).map((p) => (
           <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <span className="min-w-0 flex-1">
@@ -168,7 +169,14 @@ export function ContactSuggestions({ appId, company, people }: { appId: number; 
             )}
           </li>
         ))}
-      </ul>
+      </ul>}
+      <p className="mt-3 text-[0.78rem] leading-relaxed text-muted">
+        <a href={alumni} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-text hover:underline">
+          <GraduationCap size={13} className="mr-1 inline" aria-hidden="true" />
+          {fmt(c.alumni, { school, company })}
+        </a>{" "}
+        {c.alumniHint}
+      </p>
     </section>
   );
 }

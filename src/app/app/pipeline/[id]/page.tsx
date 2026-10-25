@@ -322,7 +322,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
-            <ContactSuggestions appId={app.id} company={job.company} people={known} />
+            <ContactSuggestions appId={app.id} company={job.company} people={known} school={getProfileExtra().school.trim() || "ENIT"} />
             <Checklist id={app.id} items={checklist.items} />
             <section className="card p-4">
               <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
@@ -459,7 +459,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
       {tab === "contacts" && (
         <div className="space-y-4 rise" style={{ ["--i" as string]: 1 }}>
-          <ContactSuggestions appId={app.id} company={job.company} people={known} />
+          <ContactSuggestions appId={app.id} company={job.company} people={known} school={getProfileExtra().school.trim() || "ENIT"} />
           <ContactsPanel appId={app.id} contacts={contacts} />
         </div>
       )}
