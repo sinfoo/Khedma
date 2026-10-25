@@ -234,7 +234,7 @@ export default defineMessages({
     apply: "Apply",
     expiredWarn: "This posting closed on {date}. Check it is still open before you spend time on it.",
     undoExpired: "Too late to undo: another delete replaced it.",
-    scoreIt: "Score it",
+    scoreIt: "Score",
     tabs: { overview: "Overview", fit: "Fit", keywords: "Keywords / ATS", ask: "Ask AI" },
     posted: "Posted",
     added: "Added",

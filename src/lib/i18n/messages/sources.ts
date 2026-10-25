@@ -92,7 +92,7 @@ export default defineMessages({
       matchTitle: "Relevance of this posting to your keywords and targets",
       tracked: "Tracked",
       skipped: "Skipped",
-      score: "Score it",
+      score: "Score",
       scoring: "Scoring…",
       trackTailor: "Track & tailor CV",
       seeWhy: "See why {s}",
