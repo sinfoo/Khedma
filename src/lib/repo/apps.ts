@@ -499,12 +499,12 @@ export function completeFollowups(appId: number): void {
 }
 
 // ---------- calendar feed ----------
-/** Tracked (non-archived, not closed) applications with a posting deadline on or after `fromDate`. */
+/** Tracked (not closed) applications with a posting deadline on or after `fromDate`. */
 export function trackedDeadlines(fromDate: string): { application_id: number; title: string; company: string; deadline: string; url: string }[] {
   return db()
     .prepare(
       `SELECT a.id AS application_id, j.title, j.company, j.deadline, j.url FROM applications a JOIN jobs j ON j.id = a.job_id
-       WHERE j.archived = 0 AND j.deadline IS NOT NULL AND substr(j.deadline, 1, 10) >= ? AND a.status NOT IN ('rejected','discarded','hired')
+       WHERE j.deadline IS NOT NULL AND substr(j.deadline, 1, 10) >= ? AND a.status NOT IN ('rejected','discarded','hired')
        ORDER BY j.deadline`,
     )
     .all(fromDate) as unknown as { application_id: number; title: string; company: string; deadline: string; url: string }[];

@@ -1,5 +1,5 @@
 // Housekeeping pass over open offers: urgent deadlines and mass postings. Server only.
-import { db } from "../db";
+import { db, KEPT_BY_USER } from "../db";
 import { dedupeKey } from "../sources/classify";
 import { ensureSearchSchema } from "./store";
 
@@ -16,19 +16,26 @@ export interface SweepResult {
 
 export const URGENT_DAYS = 7;
 
+/** Whole calendar days from today to the deadline's day, in local time: 0 = today, -1 = yesterday. */
+export function daysUntil(deadline: string | null, now = Date.now()): number | null {
+  if (!deadline) return null;
+  const ymd = /^(\d{4})-(\d{2})-(\d{2})/.exec(deadline);
+  const d = ymd ? new Date(Number(ymd[1]), Number(ymd[2]) - 1, Number(ymd[3])) : new Date(deadline);
+  if (Number.isNaN(d.getTime())) return null;
+  const t = new Date(now);
+  return Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86_400_000);
+}
+
+/** Deadline today or within URGENT_DAYS (today stays urgent until the day ends). */
 export function urgentDeadline(deadline: string | null, now = Date.now()): boolean {
-  if (!deadline) return false;
-  const d = new Date(deadline).getTime();
-  if (Number.isNaN(d)) return false;
-  const days = (d - now) / 86_400_000;
-  return days >= -0.5 && days <= URGENT_DAYS;
+  const n = daysUntil(deadline, now);
+  return n !== null && n >= 0 && n <= URGENT_DAYS;
 }
 
 /** Deadline more than a day in the past (a day of grace for time zones and same-day applications). */
 export function expiredDeadline(deadline: string | null, now = Date.now()): boolean {
-  if (!deadline) return false;
-  const d = new Date(deadline).getTime();
-  return !Number.isNaN(d) && now - d > 86_400_000;
+  const n = daysUntil(deadline, now);
+  return n !== null && n < -1;
 }
 
 /**
@@ -38,7 +45,7 @@ export function expiredDeadline(deadline: string | null, now = Date.now()): bool
 export function sweep(now = Date.now()): SweepResult {
   ensureSearchSchema();
   const d = db();
-  const rows = d.prepare("SELECT id, title, company, location, deadline, match_why FROM jobs WHERE archived = 0 ORDER BY id").all() as Row[];
+  const rows = d.prepare(`SELECT id, title, company, location, deadline, match_why, (${KEPT_BY_USER}) AS kept FROM jobs WHERE archived = 0 ORDER BY id`).all() as Row[];
   const urgent = rows
     .filter((r) => urgentDeadline((r.deadline as string) ?? null, now))
     .map((r) => ({ id: r.id as number, title: r.title as string, company: r.company as string, deadline: r.deadline as string }));
@@ -54,7 +61,9 @@ export function sweep(now = Date.now()): SweepResult {
   for (const g of groups.values()) {
     const locs = [...new Set(g.map((r) => String(r.location ?? "").trim()).filter(Boolean))];
     if (g.length < 3 || locs.length < 3) continue;
-    const [keep, ...rest] = g;
+    // The row the user starred or applied to is the one kept; other kept rows are never archived either.
+    const [keep, ...others] = [...g].sort((a, b) => Number(b.kept) - Number(a.kept));
+    const rest = others.filter((r) => !r.kept);
     // ponytail: the joined list lives in `location`; a locations[] column can replace it if other features need the parts.
     upd.run(locs.join(" · "), keep.id as number);
     const why = (id: number, prev: unknown) => {
@@ -70,9 +79,8 @@ export function sweep(now = Date.now()): SweepResult {
     merged.push({ keptId: keep.id as number, archived: rest.map((r) => r.id as number), locations: locs });
   }
   // Expired offers leave the list; starred ones and those with an application stay where the user put them.
-  const keep = new Set((d.prepare("SELECT job_id FROM applications").all() as Row[]).map((r) => r.job_id as number));
-  const expiredRows = (d.prepare("SELECT id, deadline, match_why FROM jobs WHERE archived = 0 AND starred = 0 AND deadline IS NOT NULL").all() as Row[]).filter(
-    (r) => !keep.has(r.id as number) && expiredDeadline(r.deadline as string, now),
+  const expiredRows = (d.prepare(`SELECT id, deadline, match_why FROM jobs WHERE archived = 0 AND deadline IS NOT NULL AND NOT (${KEPT_BY_USER})`).all() as Row[]).filter(
+    (r) => expiredDeadline(r.deadline as string, now),
   );
   const tag = (prev: unknown) => {
     let list: string[] = [];

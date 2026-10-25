@@ -346,6 +346,15 @@ export function upsertJob(job: NewJob): { id: number; inserted: boolean } {
   return { id: Number(res.lastInsertRowid), inserted: true };
 }
 
+/** SQL guard for archiving the app does on its own (closed, merged, expired): never an offer the user starred or applied to. */
+export const KEPT_BY_USER = "starred = 1 OR id IN (SELECT job_id FROM applications)";
+
+/** Archive offers found closed, unless the user starred one or applied to it. Returns the ids actually archived. */
+export function autoArchive(ids: number[]): number[] {
+  const st = db().prepare(`UPDATE jobs SET archived = 1 WHERE id = ? AND archived = 0 AND NOT (${KEPT_BY_USER})`);
+  return ids.filter((id) => Number(st.run(id).changes) > 0);
+}
+
 export function updateJob(id: number, patch: Partial<NewJob>): void {
   const cur = getJob(id);
   if (!cur) return;
@@ -519,7 +528,7 @@ export interface ApplicationWithJob extends Application {
 export function listApplications(): ApplicationWithJob[] {
   const rows = db()
     .prepare(
-      `SELECT a.*, j.id AS j_id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE j.archived = 0 ORDER BY a.updated_at DESC`,
+      `SELECT a.*, j.id AS j_id FROM applications a JOIN jobs j ON j.id = a.job_id ORDER BY a.updated_at DESC`,
     )
     .all() as Row[];
   const apps = rows.map(rowToApp);

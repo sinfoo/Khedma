@@ -1,7 +1,7 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
 import { getProfileExtra } from "../cv/profile-extra";
-import { db, getProfile, kvGet, kvSet, listJobs, migrate, updateJob, upsertJob } from "../db";
+import { db, getProfile, kvGet, kvSet, listJobs, migrate, autoArchive, upsertJob } from "../db";
 import type { JobType, Profile } from "../types";
 import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit } from "../sources/http";
@@ -461,7 +461,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       try {
         const checks = await checkJobs(top.map((j) => j.id));
         closed = [...gone, ...checks.filter((c) => c.status === "closed").map((c) => c.job_id)];
-        for (const id of closed) updateJob(id, { archived: true });
+        autoArchive(closed);
         emit({ type: "liveness", checked: checks.length, closed });
       } catch (e) {
         console.warn("[search] liveness pass failed:", (e as Error).message);

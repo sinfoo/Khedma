@@ -230,6 +230,9 @@ test("sweep: urgent deadline window", () => {
   assert.equal(urgentDeadline("2026-10-30", now), false);
   assert.equal(urgentDeadline(null, now), false);
   assert.equal(urgentDeadline("2026-10-01", now), false);
+  // A deadline of today stays urgent all day, whatever the hour.
+  assert.equal(urgentDeadline("2026-10-13", Date.parse("2026-10-13T21:00:00")), true);
+  assert.equal(urgentDeadline("2026-10-12", Date.parse("2026-10-13T08:00:00")), false);
 });
 
 test("sweep: expired deadline needs a full day of grace", () => {
