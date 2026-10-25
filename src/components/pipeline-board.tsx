@@ -225,7 +225,8 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
   };
 
   const column = (state: AppState, compact = false) => {
-    const col = filtered.filter((x) => x.status === state);
+    // Next action first, then newest: saving a note no longer jumps a card to the top.
+    const col = filtered.filter((x) => x.status === state).sort((a, c) => (a.next_action_at ?? "9999").localeCompare(c.next_action_at ?? "9999") || c.id - a.id);
     const hot = dragOver === state || (grab && grab.target === state);
     return (
       <section
