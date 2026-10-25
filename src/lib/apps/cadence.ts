@@ -21,6 +21,9 @@ export const URGENCY_ORDER: Record<Urgency, number> = { urgent: 0, overdue: 1, w
 
 /** Which draft the next touch should be. */
 export type FollowupAngle = "first" | "second" | "thankyou" | "reply" | "noshow" | "none";
+export type DraftVariant = Exclude<FollowupAngle, "none">;
+export const DRAFT_VARIANTS: DraftVariant[] = ["first", "second", "thankyou", "reply", "noshow"];
+export const isDraftVariant = (s: unknown): s is DraftVariant => typeof s === "string" && (DRAFT_VARIANTS as string[]).includes(s);
 
 export interface CadenceInput {
   status: AppState;

@@ -3,12 +3,11 @@
 import type { Job, Locale, Profile } from "../types";
 import { aiText } from "./index";
 import { extractSkills } from "./heuristic";
-import { BANNED_OPENERS, checkFollowup, MAX_FOLLOWUP_WORDS, type FollowupAngle } from "../apps/cadence";
+import { BANNED_OPENERS, checkFollowup, MAX_FOLLOWUP_WORDS, type DraftVariant, type FollowupAngle } from "../apps/cadence";
 import { lintWriting, type LintFinding } from "./writing";
 
-export type DraftVariant = Exclude<FollowupAngle, "none">;
-export const DRAFT_VARIANTS: DraftVariant[] = ["first", "second", "thankyou", "reply", "noshow"];
-export const isDraftVariant = (s: unknown): s is DraftVariant => typeof s === "string" && (DRAFT_VARIANTS as string[]).includes(s);
+// Kept in the pure apps/cadence module so client components can import them without the AI client.
+export { DRAFT_VARIANTS, isDraftVariant, type DraftVariant } from "../apps/cadence";
 
 export interface DraftCtx {
   job: Job;

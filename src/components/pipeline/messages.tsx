@@ -8,7 +8,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { EngineChip } from "@/components/ui";
 import type { MessageType } from "@/lib/ai/apps";
-import { DRAFT_VARIANTS, isDraftVariant, type DraftVariant } from "@/lib/ai/cadence";
+import { DRAFT_VARIANTS, isDraftVariant, type DraftVariant } from "@/lib/apps/cadence";
 import { draftCadenceMessage, draftMessage, markMessageSent } from "@/app/actions/applications";
 import { WritingLint } from "@/components/writing-lint";
 import { useRun } from "./use-run";

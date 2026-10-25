@@ -6,7 +6,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
-import { DEBRIEF_ROUNDS, RATINGS, type DebriefRound, type Rating } from "@/lib/ai/debrief";
+import { DEBRIEF_ROUNDS, RATINGS, type DebriefRound, type Rating } from "@/lib/ai/debrief-rounds";
 import { parseTranscript, ratingFor, scoreAnswer, type SessionQuestion } from "@/lib/coach/logic";
 import { deleteDebriefAction, saveDebrief } from "@/app/actions/coach";
 

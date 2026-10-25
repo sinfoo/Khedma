@@ -3,10 +3,8 @@
 import type { Locale, Settings } from "../types";
 import { aiText } from "./index";
 
-export const DEBRIEF_ROUNDS = ["phone", "hr", "technical", "case", "onsite", "final"] as const;
-export type DebriefRound = (typeof DEBRIEF_ROUNDS)[number];
-export const RATINGS = ["red", "yellow", "green"] as const;
-export type Rating = (typeof RATINGS)[number];
+export { DEBRIEF_ROUNDS, RATINGS, type DebriefRound, type Rating } from "./debrief-rounds";
+import type { DebriefRound, Rating } from "./debrief-rounds";
 
 export interface DebriefQuestion {
   question: string;
