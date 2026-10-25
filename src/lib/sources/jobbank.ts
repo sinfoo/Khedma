@@ -1,5 +1,6 @@
-// Job Bank (Government of Canada): server-rendered search, robots.txt allows everything with Crawl-delay 5.
-// Listing gives title/company/location/salary/date; the posting page carries the description (RDFa).
+// Job Bank (Government of Canada): robots.txt allows everything with Crawl-delay 5.
+// Listing: the official Atom search feed (title, location, employer, salary; newest postings, a few days deep),
+// with the server-rendered search (30 days) as fallback when the feed has nothing. The posting page carries the description (RDFa).
 import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
@@ -65,18 +66,55 @@ export function parseJobbankDetail(html: string): Partial<NewJob> | null {
   return { description: [head, description].filter(Boolean).join("\n\n"), remote: /remote|hybrid/i.test(mode) || undefined };
 }
 
+export const jobbankFeedUrl = (keywords: string, location = "") =>
+  `${BASE}/jobsearch/feed/jobSearchRSSfeed?${new URLSearchParams({ searchstring: keywords, locationstring: location, sort: "D" })}`;
+
+/** Atom entries: summary is "<strong>Location:</strong> Toronto (ON) <br /><strong>Employer:</strong> … <strong>Salary:</strong> …". */
+export function parseJobbankFeed(xml: string): NewJob[] {
+  const out: NewJob[] = [];
+  for (const [, e] of xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)) {
+    const id = /href="https:\/\/www\.jobbank\.gc\.ca\/jobsearch\/jobposting\/(\d+)/.exec(e)?.[1];
+    const title = clean(/<title[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/.exec(e)?.[1] ?? "");
+    if (!id || !title) continue;
+    const summary = /<summary[^>]*>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/summary>/.exec(e)?.[1] ?? "";
+    const field = (k: string) => clean(new RegExp(`<strong>${k}:</strong>([\\s\\S]*?)(?:<br|$)`).exec(summary)?.[1] ?? "");
+    const salary = field("Salary");
+    out.push({
+      title,
+      company: field("Employer") || "Job Bank",
+      location: `${field("Location").replace(/\s*\(([A-Z]{2})\)$/, ", $1")}, Canada`.replace(/^, /, ""),
+      remote: guessRemote(title),
+      url: `${BASE}/jobsearch/jobposting/${id}`,
+      source: "jobbank" as SourceKind,
+      type: guessType(title),
+      description: salary ? `Salary: ${salary}` : "",
+      tags: extractTags(title),
+      posted_at: normalizeDate(/<updated>([^<]+)<\/updated>/.exec(e)?.[1]),
+      deadline: null,
+    });
+  }
+  return out;
+}
+
+const pause = () => new Promise((r) => setTimeout(r, 5000)); // robots.txt Crawl-delay: 5
+
 export async function scan(handle: string, keywords: string[] = []): Promise<{ jobs: NewJob[]; error?: string }> {
   const terms = keywords.length ? keywords.slice(0, 2) : ["intern"];
   const jobs: NewJob[] = [];
   let error: string | undefined;
   for (const kw of terms) {
-    const { text, error: e } = await getText(jobbankUrl(kw, handle.trim()), "text/html", { timeoutMs: 20_000 });
-    if (e) {
-      error = e;
+    const feed = await getText(jobbankFeedUrl(kw, handle.trim()), "application/atom+xml, application/xml;q=0.9", { timeoutMs: 20_000 });
+    await pause();
+    const fresh = feed.error ? [] : parseJobbankFeed(feed.text);
+    if (fresh.length) {
+      jobs.push(...fresh);
       continue;
     }
-    jobs.push(...parseJobbankList(text));
-    await new Promise((r) => setTimeout(r, 5000)); // robots.txt Crawl-delay: 5
+    // The feed only holds the last few days; the HTML search reaches back 30.
+    const { text, error: e } = await getText(jobbankUrl(kw, handle.trim()), "text/html", { timeoutMs: 20_000 });
+    await pause();
+    if (e) error = feed.error ?? e;
+    else jobs.push(...parseJobbankList(text));
   }
   return { jobs, error: jobs.length ? undefined : error };
 }
