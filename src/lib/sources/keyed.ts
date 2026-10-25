@@ -5,7 +5,7 @@ import type { SourceKind } from "../types";
 import { CATALOG } from "./catalog";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
-import { getJson } from "./http";
+import { getJson, getText } from "./http";
 
 type Listed = { jobs: NewJob[]; error?: string };
 const text = (html?: string) => htmlToText(decodeEntities(html ?? ""));
@@ -167,4 +167,158 @@ async function scanFindwork(_handle: string, keywords: string[] = []): Promise<L
   return { jobs, error: jobs.length ? undefined : err };
 }
 
-export const scan = { adzuna: scanAdzuna, jooble: scanJooble, reed: scanReed, findwork: scanFindwork };
+// ---------- France Travail Offres d'emploi v2 — https://francetravail.io (free OAuth client credentials) ----------
+interface FtOffer {
+  id?: string; intitule?: string; description?: string; dateCreation?: string; typeContrat?: string; typeContratLibelle?: string; natureContrat?: string;
+  alternance?: boolean; experienceLibelle?: string; lieuTravail?: { libelle?: string }; entreprise?: { nom?: string }; salaire?: { libelle?: string };
+  origineOffre?: { urlOrigine?: string };
+}
+export interface FtPayload { resultats?: FtOffer[] }
+const FT_TOKEN = "https://entreprise.francetravail.fr/connexion/oauth2/access_token?realm=%2Fpartenaire";
+export const ftSearchUrl = (motsCles: string) => `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?${new URLSearchParams({ motsCles, range: "0-149" })}`;
+export const ftPostingUrl = (id: string) => `https://candidat.francetravail.fr/offres/recherche/detail/${encodeURIComponent(id)}`;
+
+/** "75 - Paris 15e Arrondissement" -> "Paris 15e Arrondissement, France". */
+const ftPlace = (s?: string) => {
+  const p = (s ?? "").replace(/^\d+[AB]?\s*-\s*/, "").trim();
+  return !p ? "France" : /\bfrance\b/i.test(p) ? p : `${p}, France`;
+};
+
+export function mapFranceTravail(json: FtPayload): NewJob[] {
+  const out: NewJob[] = [];
+  for (const j of json.resultats ?? []) {
+    if (!j.intitule || !j.id) continue;
+    const title = j.intitule.trim();
+    const body = j.description?.trim() ?? "";
+    const head = [
+      [j.typeContratLibelle, j.natureContrat].filter(Boolean).join(" · ") && `Contract: ${[j.typeContratLibelle, j.natureContrat].filter(Boolean).join(" · ")}`,
+      j.experienceLibelle && `Experience: ${j.experienceLibelle}`,
+      j.salaire?.libelle && `Salary: ${j.salaire.libelle}`,
+    ].filter(Boolean).join("\n");
+    const description = [head, body].filter(Boolean).join("\n\n");
+    const location = ftPlace(j.lieuTravail?.libelle);
+    // Apprenticeship and professionalisation contracts are alternance; the contract code alone does not say so.
+    const kind = j.alternance || /apprentissage|professionnalisation/i.test(j.natureContrat ?? "") ? "alternance" : "";
+    out.push({
+      title, company: j.entreprise?.nom?.trim() || "France Travail", location, remote: guessRemote(`${title} ${body.slice(0, 400)}`),
+      url: j.origineOffre?.urlOrigine || ftPostingUrl(j.id), source: "francetravail" as SourceKind,
+      type: guessType(`${title} ${kind}`, body), description, tags: extractTags(title, body),
+      posted_at: normalizeDate(j.dateCreation), deadline: null,
+    });
+  }
+  return out;
+}
+
+let ftToken: { value: string; until: number; id: string } | null = null;
+async function franceTravailToken(id: string, secret: string): Promise<{ token?: string; error?: string }> {
+  if (ftToken && ftToken.id === id && Date.now() < ftToken.until) return { token: ftToken.value };
+  const body = new URLSearchParams({ grant_type: "client_credentials", client_id: id, client_secret: secret, scope: "api_offresdemploiv2 o2dsoffre" }).toString();
+  const { data, error } = await getJson<{ access_token?: string; expires_in?: number }>(FT_TOKEN, { body, headers: { "Content-Type": "application/x-www-form-urlencoded" } });
+  if (!data?.access_token) return { error: error ?? "France Travail: no access token" };
+  // Renew a minute early so a scan never sends an expiring token.
+  ftToken = { value: data.access_token, until: Date.now() + Math.max(0, (data.expires_in ?? 1500) - 60) * 1000, id };
+  return { token: data.access_token };
+}
+
+async function scanFranceTravail(_handle: string, keywords: string[] = []): Promise<Listed> {
+  const { keys: [id, secret], error } = envFor("francetravail");
+  if (error) return { jobs: [], error };
+  const tok = await franceTravailToken(id, secret);
+  if (!tok.token) return { jobs: [], error: tok.error };
+  const jobs: NewJob[] = [];
+  let err: string | undefined;
+  for (const kw of keywords.length ? keywords.slice(0, 2) : ["stage informatique"]) {
+    const { text: body, error: e } = await getText(ftSearchUrl(kw), "application/json", { headers: { Authorization: `Bearer ${tok.token}` } });
+    if (e) {
+      err = e;
+      continue;
+    }
+    if (!body.trim()) continue; // 204: no offer for this keyword
+    try {
+      jobs.push(...mapFranceTravail(JSON.parse(body) as FtPayload));
+    } catch {
+      err = "Invalid JSON from France Travail";
+    }
+  }
+  return { jobs, error: jobs.length ? undefined : err };
+}
+
+// ---------- ITJobs.pt — https://www.itjobs.pt/api (free key by e-mail, Portugal) ----------
+interface ItjobsJob { id?: number; title?: string; body?: string; slug?: string; publishedAt?: string; allowRemote?: boolean; company?: { name?: string }; locations?: { name?: string }[]; types?: { name?: string }[]; contracts?: { name?: string }[]; wage?: string | null }
+export interface ItjobsPayload { total?: number; results?: ItjobsJob[] }
+export const itjobsUrl = (key: string, q: string) => `https://api.itjobs.pt/job/search.json?${new URLSearchParams({ api_key: key, q, limit: "100" })}`;
+
+export function mapItjobs(json: ItjobsPayload): NewJob[] {
+  const out: NewJob[] = [];
+  for (const j of json.results ?? []) {
+    if (!j.title || !j.id) continue;
+    const title = text(j.title);
+    const body = text(j.body);
+    const names = (xs?: { name?: string }[]) => (xs ?? []).map((x) => x.name?.trim()).filter(Boolean).join(", ");
+    const head = [names(j.types) && `Type: ${names(j.types)}`, names(j.contracts) && `Contract: ${names(j.contracts)}`, j.wage && `Salary: ${text(j.wage)}`].filter(Boolean).join("\n");
+    const location = [names(j.locations), "Portugal"].filter(Boolean).join(", ");
+    out.push({
+      title, company: j.company?.name?.trim() || "ITJobs", location, remote: !!j.allowRemote || guessRemote(`${title} ${location}`),
+      url: `https://www.itjobs.pt/oferta/${j.id}/${j.slug ?? ""}`.replace(/\/$/, ""), source: "itjobs" as SourceKind,
+      type: guessType(`${title} ${names(j.types)} ${names(j.contracts)}`, body), description: [head, body].filter(Boolean).join("\n\n"), tags: extractTags(title, body),
+      posted_at: normalizeDate(j.publishedAt), deadline: null,
+    });
+  }
+  return out;
+}
+
+async function scanItjobs(_handle: string, keywords: string[] = []): Promise<Listed> {
+  const { keys: [key], error } = envFor("itjobs");
+  if (error) return { jobs: [], error };
+  const jobs: NewJob[] = [];
+  let err: string | undefined;
+  for (const kw of keywords.length ? keywords.slice(0, 2) : ["estágio"]) {
+    const { data, error: e } = await getJson<ItjobsPayload>(itjobsUrl(key, kw));
+    if (data) jobs.push(...mapItjobs(data));
+    else err = e;
+  }
+  return { jobs, error: jobs.length ? undefined : err };
+}
+
+// ---------- InfoJobs — https://developer.infojobs.net (free app id + secret as Basic auth, Spain) ----------
+interface InfojobsOffer { id?: string; title?: string; city?: string; province?: { value?: string }; link?: string; published?: string; requirementMin?: string; author?: { name?: string }; contractType?: { value?: string }; workDay?: { value?: string }; experienceMin?: { value?: string }; teleworking?: { value?: string } }
+export interface InfojobsPayload { totalResults?: number; offers?: InfojobsOffer[] }
+export const infojobsUrl = (q: string) => `https://api.infojobs.net/api/9/offer?${new URLSearchParams({ q, maxResults: "50" })}`;
+
+export function mapInfojobs(json: InfojobsPayload): NewJob[] {
+  const out: NewJob[] = [];
+  for (const j of json.offers ?? []) {
+    if (!j.title || !j.link) continue;
+    const title = text(j.title);
+    const body = text(j.requirementMin);
+    const head = [j.contractType?.value && `Contract: ${j.contractType.value}`, j.workDay?.value && `Hours: ${j.workDay.value}`, j.experienceMin?.value && `Experience: ${j.experienceMin.value}`, j.teleworking?.value && `Remote work: ${j.teleworking.value}`].filter(Boolean).join("\n");
+    const city = j.city?.trim();
+    const province = j.province?.value?.trim();
+    const location = [city, province && province.toLowerCase() !== city?.toLowerCase() ? province : "", "Spain"].filter(Boolean).join(", ");
+    out.push({
+      title, company: j.author?.name?.trim() || "InfoJobs", location, remote: /solo teletrabajo|remoto/i.test(j.teleworking?.value ?? "") || guessRemote(title),
+      url: j.link, source: "infojobs" as SourceKind,
+      // "Prácticas" is Spanish for internship; the contract type names it.
+      type: guessType(`${title} ${/pr[aá]cticas|formaci[oó]n/i.test(`${title} ${j.contractType?.value ?? ""}`) ? "internship" : ""}`, body),
+      description: [head, body].filter(Boolean).join("\n\n"), tags: extractTags(title, body),
+      posted_at: normalizeDate(j.published), deadline: null,
+    });
+  }
+  return out;
+}
+
+async function scanInfojobs(_handle: string, keywords: string[] = []): Promise<Listed> {
+  const { keys: [id, secret], error } = envFor("infojobs");
+  if (error) return { jobs: [], error };
+  const auth = { Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}` };
+  const jobs: NewJob[] = [];
+  let err: string | undefined;
+  for (const kw of keywords.length ? keywords.slice(0, 2) : ["prácticas informática"]) {
+    const { data, error: e } = await getJson<InfojobsPayload>(infojobsUrl(kw), { headers: auth });
+    if (data) jobs.push(...mapInfojobs(data));
+    else err = e;
+  }
+  return { jobs, error: jobs.length ? undefined : err };
+}
+
+export const scan = { adzuna: scanAdzuna, jooble: scanJooble, reed: scanReed, findwork: scanFindwork, francetravail: scanFranceTravail, itjobs: scanItjobs, infojobs: scanInfojobs };

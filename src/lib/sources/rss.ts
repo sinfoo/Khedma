@@ -26,6 +26,9 @@ function splitTitle(raw: string, wantLocation: boolean): { title: string; compan
   let title = raw.trim();
   let company: string | undefined;
   let location: string | undefined;
+  // "Role // Company" (Berlin Startup Jobs): the suffix is the employer, never a place.
+  const slashes = /^(.+?)\s+\/\/\s+([^/]{2,80})$/.exec(title);
+  if (slashes) return { title: slashes[1].trim(), company: slashes[2].trim() };
   const colon = /^([^:]{2,60}):\s+(.+)$/.exec(title);
   if (colon) [company, title] = [colon[1].trim(), colon[2].trim()];
   // Only guess a location from the title when the feed gives none; suffixes are often team names.

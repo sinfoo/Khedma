@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+	<title><![CDATA[developer - Job Bank]]></title>
+	<id>https://www.jobbank.gc.ca/jobsearch/jobSearchRSSfeed</id>
+	<link rel="self" type="application/atom+xml" href="https://www.jobbank.gc.ca/jobsearch/jobSearchRSSfeed?searchstring=developer&amp;locationstring=&amp;sort=D"/>
+	<updated>2026-10-25T07:11:37Z</updated>
+	<author><name>Job Bank</name></author>
+	<logo>/images/sig_eng.gif</logo>
+	<entry>
+		<title type="html"><![CDATA[software developer]]></title>
+		<link rel="alternate" type="text/html" href="https://www.jobbank.gc.ca/jobsearch/jobposting/50576301"/>
+		<id>https://www.jobbank.gc.ca/jobsearch/jobSearchRSSfeed?id=643001457686216861</id>
+		<updated>2026-10-25T02:00:00Z</updated>
+		<summary type="html"><![CDATA[<strong>Job number:</strong> 643001457686216861<br /><strong>Location:</strong> Toronto (ON)  <br /><strong>Employer:</strong> The French Sourcer<br /><strong>Salary:</strong> $220,000.00 to $320,000.00 annually]]></summary>
+	</entry>
+	<entry>
+		<title type="html"><![CDATA[search engine optimization specialist]]></title>
+		<link rel="alternate" type="text/html" href="https://www.jobbank.gc.ca/jobsearch/jobposting/50573192"/>
+		<id>https://www.jobbank.gc.ca/jobsearch/jobSearchRSSfeed?id=3704007</id>
+		<updated>2026-10-24T11:05:00Z</updated>
+		<summary type="html"><![CDATA[<strong>Job number:</strong> 3704007<br /><strong>Location:</strong> Winnipeg (MB)  <br /><strong>Employer:</strong> Assured Property Management<br /><strong>Salary:</strong> $25.00 to $30.00 hourly (to be negotiated)]]></summary>
+	</entry>
+	<entry>
+		<title type="html"><![CDATA[software developer]]></title>
+		<link rel="alternate" type="text/html" href="https://www.jobbank.gc.ca/jobsearch/jobposting/50571596"/>
+		<id>https://www.jobbank.gc.ca/jobsearch/jobSearchRSSfeed?id=642908034997158045</id>
+		<updated>2026-10-24T02:00:00Z</updated>
+		<summary type="html"><![CDATA[<strong>Job number:</strong> 642908034997158045<br /><strong>Location:</strong> Nanaimo (BC)  <br /><strong>Employer:</strong> Best Buy Canada<br /><strong>Salary:</strong> $18.25 to $21.45 hourly]]></summary>
+	</entry>
+</feed>

@@ -1,0 +1,127 @@
+{
+ "total": {
+  "value": 386
+ },
+ "hits": [
+  {
+   "id": "31625936",
+   "headline": "Junior Frontendutvecklare",
+   "webpage_url": "https://arbetsformedlingen.se/platsbanken/annonser/31625936",
+   "publication_date": "2026-10-21T11:30:37",
+   "application_deadline": "2026-11-05T23:59:59",
+   "description": {
+    "text": "Vill du utveckla samhällsnyttiga system i teknikens framkant och bidra till en modern offentlig sektor? Vi söker dig som gillar att jobba i en mix av tekniker inom frontend i ett agilt team med ansvar för både nyutveckling och förvaltning. Tillsammans får vi Sverige i arbete. Vill du bli en av oss?\nEnhetens/sektionens uppdrag\nPå enheten Besluta om stöd ansvarar vi för tekniska lösningar för myndighetsbeslut om anställningsstöd, program och insatser, både inom egen regi och som upphandlade tjänster. Vi säkrar att våra digitala system möjliggör såväl en välfungerande intern handläggning som ett "
+   },
+   "employer": {
+    "name": "Arbetsförmedlingen",
+    "workplace": "Arbetsförmedlingen, VO IT, avd Digital förmedling"
+   },
+   "workplace_address": {
+    "municipality": "Solna",
+    "region": "Stockholms län",
+    "city": "Stockholm",
+    "country": "Sverige"
+   },
+   "employment_type": {
+    "concept_id": "PFZr_Syz_cUq",
+    "label": "Vanlig anställning",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "duration": {
+    "concept_id": "a7uU_j21_mkL",
+    "label": "Tills vidare",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "working_hours_type": {
+    "concept_id": "6YE1_gAC_R2G",
+    "label": "Heltid",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "workplace_model": {
+    "concept_id": null,
+    "label": null
+   },
+   "experience_required": true
+  },
+  {
+   "id": "31615927",
+   "headline": "Junior byggarbetare",
+   "webpage_url": "https://arbetsformedlingen.se/platsbanken/annonser/31615927",
+   "publication_date": "2026-10-19T16:51:56",
+   "application_deadline": "2026-11-01T23:59:59",
+   "description": {
+    "text": "Vi söker nu dig som vill bli en del av ett expansivt byggföretag i Stockholm!\nÄr du flexibel, prestigelös och trivs i en roll där du får arbeta praktiskt och nära kund? Då kan du vara rätt person för oss.\nSom medarbetare inom byggservice kommer du att arbeta med varierande uppdrag hos privatpersoner och bostadsrättsföreningar runt om i Stockholm. Du blir en viktig del av ett team som varje dag hjälper kunder med allt från rivning till mindre snickeri- och målningsarbeten.\nI rollen förekommer det bland annat att:\nRivningsarbeten\nEnklare snickeriarbeten\nEnklare fasadmålning\nAllmänt förekommande "
+   },
+   "employer": {
+    "name": "Recruitive AB",
+    "workplace": "Recruitive AB"
+   },
+   "workplace_address": {
+    "municipality": "Stockholm",
+    "region": "Stockholms län",
+    "city": "Stockholm",
+    "country": "Sverige"
+   },
+   "employment_type": {
+    "concept_id": "PFZr_Syz_cUq",
+    "label": "Vanlig anställning",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "duration": {
+    "concept_id": "a7uU_j21_mkL",
+    "label": "Tills vidare",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "working_hours_type": {
+    "concept_id": "6YE1_gAC_R2G",
+    "label": "Heltid",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "workplace_model": {
+    "concept_id": null,
+    "label": null
+   },
+   "experience_required": true
+  },
+  {
+   "id": "31605204",
+   "headline": "Junior byggledare",
+   "webpage_url": "https://arbetsformedlingen.se/platsbanken/annonser/31605204",
+   "publication_date": "2026-10-16T10:10:15",
+   "application_deadline": "2026-11-03T23:59:59",
+   "description": {
+    "text": "Vi på Varberg Energi arbetar med fokus på förnybar energi och energibalansering. Med kreativitet och engagemang tillsammans med våra anställda skapar vi energi och innovativa lösningar för våra kunder. Långsiktighet och kvalitet präglar vår vilja att investera i egna vind-, sol- och batteriparker samt nya smarta energitjänster. Tack vare alla dessa insatser optimerar vi vårt bidrag för en hållbar samhällsutveckling.\n\nVåra värdeord är framåtanda, nytänkande, mod och kunskap vilket genomsyrar hela vår verksamhet. Vi strävar efter att skapa en trygg och inkluderande arbetsmiljö där alla medarbeta"
+   },
+   "employer": {
+    "name": "Varberg Energi AB",
+    "workplace": "Varberg Energi"
+   },
+   "workplace_address": {
+    "municipality": "Varberg",
+    "region": "Hallands län",
+    "city": "Varberg",
+    "country": "Sverige"
+   },
+   "employment_type": {
+    "concept_id": "PFZr_Syz_cUq",
+    "label": "Vanlig anställning",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "duration": {
+    "concept_id": "qQUd_4qe_NDT",
+    "label": "6 månader eller längre",
+    "legacy_ams_taxonomy_id": "2"
+   },
+   "working_hours_type": {
+    "concept_id": "6YE1_gAC_R2G",
+    "label": "Heltid",
+    "legacy_ams_taxonomy_id": "1"
+   },
+   "workplace_model": {
+    "concept_id": null,
+    "label": null
+   },
+   "experience_required": true
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "total": 2,
+ "results": [
+  {
+   "id": 512345,
+   "company": { "id": 901, "name": "Lusa Tech", "logo": "https://static.itjobs.pt/logos/901.png" },
+   "title": "Estágio Profissional &ndash; Frontend Developer",
+   "body": "<p>Procuramos um <strong>estagiário</strong> para a equipa de frontend (React, TypeScript).</p>",
+   "ref": "LT-12",
+   "wage": "900 &euro;",
+   "types": [{ "id": 4, "name": "Estágio" }],
+   "contracts": [{ "id": 2, "name": "Estágio Profissional" }],
+   "locations": [{ "id": 14, "name": "Lisboa" }, { "id": 18, "name": "Porto" }],
+   "allowRemote": false,
+   "publishedAt": "2026-10-22 10:15:00",
+   "updatedAt": "2026-10-22 10:15:00",
+   "slug": "estagio-profissional-frontend-developer"
+  },
+  {
+   "id": 512399,
+   "company": { "id": 77, "name": "Atlântico Data" },
+   "title": "Junior Data Engineer",
+   "body": "<p>Python, Spark and Airflow.</p>",
+   "types": [{ "id": 1, "name": "Full-time" }],
+   "contracts": [{ "id": 1, "name": "Contrato sem termo" }],
+   "locations": [],
+   "allowRemote": true,
+   "publishedAt": "2026-10-21 08:00:00",
+   "slug": "junior-data-engineer"
+  }
+ ]
+}

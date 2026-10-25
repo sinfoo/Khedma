@@ -3,6 +3,7 @@
 import type { Application, Evaluation, Job, JobType } from "../types";
 import { extractSkills } from "../ai/heuristic";
 import { SUGGESTED_SOURCES, SUGGESTED_TN_SOURCES } from "../sources";
+import { feedCountry } from "../sources/catalog";
 import { TN_COMPANIES, type TnCompany } from "./companies";
 import { detectField, FIELDS, type CandidateModel, type Field } from "./profile-model";
 import { cosine, fold, idf, similarity, tfidf, tokenize } from "./similarity";
@@ -333,7 +334,8 @@ export function recommendSources(model: CandidateModel, existing: { kind: string
   if (IT_FIELDS.includes(model.field) || (model.altField && IT_FIELDS.includes(model.altField))) {
     for (const s of SUGGESTED_SOURCES) {
       if (exists(s.kind, s.handle)) continue;
-      if (s.kind === "rss" && !model.remoteOk) continue;
+      // Country feeds (Jobindex, Net-Empregos…) are not remote boards: they run only for their country.
+      if (s.kind === "rss" && (!model.remoteOk || feedCountry(s.handle))) continue;
       out.push({ kind: "provider", label: s.label, providerKind: s.kind, handle: s.handle, why: { key: model.remoteOk ? "remoteBoard" : "intlBoard" }, keywords: [] });
     }
   }

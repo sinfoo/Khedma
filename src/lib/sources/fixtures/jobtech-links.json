@@ -1,0 +1,88 @@
+{
+ "total": {
+  "value": 6
+ },
+ "hits": [
+  {
+   "id": "ae889f835a11d11bc1d43a604c03266e",
+   "headline": "Junior Software Developer - Sweden",
+   "brief": "Please note this posting is to advertise potential job opportunities. This exact role may not be open today but could open in the near future.",
+   "occupation_group": {
+    "label": "Mjukvaru- och systemutvecklare m.fl.",
+    "concept_id": "DJh5_yyF_hEM"
+   },
+   "occupation_field": {
+    "label": "Data/IT",
+    "concept_id": "apaJ_2ja_LuF"
+   },
+   "employer": {
+    "name": "Cisco"
+   },
+   "workplace_addresses": [
+    {
+     "municipality_concept_id": "AvNB_uwa_6n6",
+     "municipality": "Stockholm",
+     "region_concept_id": "CifL_Rzy_Mku",
+     "region": "Stockholms län",
+     "country_concept_id": "i46j_HmG_v64",
+     "country": "Sverige"
+    }
+   ],
+   "publication_date": "2026-10-09T00:00:00",
+   "source_links": [
+    {
+     "label": "studentjob.se",
+     "url": "https://www.studentjob.se/lediga-jobb/8892758-junior-software-developer-sweden"
+    }
+   ]
+  },
+  {
+   "id": "6c5d24ca6bf149a6d42f1dd136d22672",
+   "headline": "Junior Creative AI Operator / Developer",
+   "brief": "About Justera GroupJustera Group AB is a leading Swedish IT consulting firm with great experience specializing in building high-performing technology teams and delivering end-to-end IT solutions. Led by dynamic female executives, Justera Group focuses on helping businesses harness the power of digital technologies to continuously evolve in today's rapidly changing economy.",
+   "occupation_group": {
+    "label": "Mjukvaru- och systemutvecklare m.fl.",
+    "concept_id": "DJh5_yyF_hEM"
+   },
+   "occupation_field": {
+    "label": "Data/IT",
+    "concept_id": "apaJ_2ja_LuF"
+   },
+   "employer": {
+    "name": "Justera Group"
+   },
+   "workplace_addresses": [],
+   "publication_date": "2026-09-25T00:00:00",
+   "source_links": [
+    {
+     "label": "studentjob.se",
+     "url": "https://www.studentjob.se/lediga-jobb/8287204-junior-creative-ai-operator-developer"
+    }
+   ]
+  },
+  {
+   "id": "7d3c4946ec900e2126c718825ffcd2d6",
+   "headline": "Junior Business Developer",
+   "brief": "Fadavi International AB söker en Junior Business DeveloperFadavi International AB bedriver verksamhet inom affärsutveckling, företagsrådgivning, försäljning, marknadsföring och projektledning. Vi arbetar även med internationella affärsrelationer samt handel, import och export.",
+   "occupation_group": {
+    "label": "Lednings- och organisationsutvecklare",
+    "concept_id": "Qo7p_wjf_gtv"
+   },
+   "occupation_field": {
+    "label": "Administration, ekonomi, juridik",
+    "concept_id": "X82t_awd_Qyc"
+   },
+   "employer": {
+    "name": "Fadavi International AB"
+   },
+   "workplace_addresses": [],
+   "publication_date": "2026-10-21T00:00:00",
+   "source_links": [
+    {
+     "label": "arbetsformedlingen.se",
+     "url": "https://arbetsformedlingen.se/platsbanken/annonser/31629005"
+    }
+   ]
+  }
+ ]
+}
