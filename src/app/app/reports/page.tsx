@@ -8,7 +8,6 @@ import { addDays, localDate, weekStart } from "@/lib/reports/digest";
 import { CompanyAvatar, EmptyState, PageHeader } from "@/components/kit";
 import { ScoreRing, StateChip, fmtDate, scoreLabel } from "@/components/ui";
 import { PolishFocus } from "@/components/reports/polish";
-import { CalibrationCard, SilentCard } from "@/components/insights/calibration";
 import type { JobType } from "@/lib/types";
 
 export const generateMetadata = pageTitle("reports");
@@ -129,8 +128,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </article>
 
         <aside className="flex flex-col gap-3">
-          <SilentCard t={t} silent={d.silent} i={2} />
-          <CalibrationCard t={t} bands={d.calibration.bands} verdict={d.calibration.verdict} n={d.calibration.n} i={3} />
+          {/* Calibration and silent companies live on Insights; the week's report links there instead of repeating them. */}
+          <section className="card p-4" style={{ ["--i" as string]: 2 }}>
+            <h2 className="card-title mb-1.5 text-[0.9rem]">{t.shell2.titles.insights}</h2>
+            <p className="text-[0.78rem] text-muted">{r.insightsLink}</p>
+            <Link href="/app/insights" className="btn btn-outline btn-sm mt-2.5">{t.shell2.titles.insights} →</Link>
+          </section>
           <section className="card p-4" style={{ ["--i" as string]: 4 }}>
             <h2 className="card-title mb-1.5 text-[0.9rem]">{r.exportHtml}</h2>
             <p className="text-[0.78rem] text-muted">{r.lead}</p>
