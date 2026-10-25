@@ -38,6 +38,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
       <div className="min-w-0">
         <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{m.title}</h1>
         <p className="mt-1.5 text-muted">{m.lead}</p>
+        {rk !== "all" && <p className="mt-1 text-[0.78rem] text-muted">{m.rangeScope}</p>}
       </div>
       <nav aria-label={m.range} className="seg">
         {tabs.map((x) => (
