@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { Bell, Menu as MenuIcon, Search, CalendarClock, AlarmClock, Flag, Radar, ChevronRight, Moon, Sun, Monitor } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { Dialog } from "@/components/kit/dialog";
@@ -46,6 +46,19 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
   const { crumb, crumb2 } = useCrumbs();
   const urgent = notices.filter((n) => n.overdue || n.kind === "interview").length;
   const onSources = path.startsWith("/app/sources");
+  // A scan started elsewhere (auto-scan, another tab) spins the radar, polled every 20 s while the tab is visible.
+  const [scanning, setScanning] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      document.visibilityState === "visible" &&
+      fetch("/api/sources/scan?status=1")
+        .then((r) => r.json() as Promise<{ running?: boolean }>)
+        .then((j) => setScanning(!!j.running))
+        .catch(() => {});
+    check();
+    const id = setInterval(check, 20_000);
+    return () => clearInterval(id);
+  }, []);
   const fmt = (x: string) =>
     new Date(x.length <= 10 ? x + "T00:00" : x).toLocaleString(locale === "fr" ? "fr-TN" : "en-GB", {
       weekday: "short",
@@ -164,8 +177,8 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
             {nextLocale.toUpperCase()}
           </button>
           {/* Opens the scan form with the keywords focused (also when already on Sources); the scan starts from there. */}
-          <Link href="/app/sources?scan=1" aria-label={s.scanCta} title={s.scanCta} aria-current={onSources ? "page" : undefined} className="btn btn-outline ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
-            <Radar size={15} aria-hidden="true" />
+          <Link href="/app/sources?scan=1" aria-label={scanning ? s.scanRunning : s.scanCta} title={scanning ? s.scanRunning : s.scanCta} aria-current={onSources ? "page" : undefined} className="btn btn-outline ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
+            <Radar size={15} aria-hidden="true" className={scanning ? "animate-spin motion-reduce:animate-none" : undefined} />
             <span className="hidden md:inline">{s.scanCta}</span>
           </Link>
         </div>

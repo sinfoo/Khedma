@@ -77,9 +77,13 @@ export async function POST(req: Request) {
   return new Response(follow(live), { headers: NDJSON });
 }
 
-/** Reattach to the running scan: every event so far, then the rest live. 204 when no scan is running. */
-export function GET() {
+/**
+ * Reattach to the running scan: every event so far, then the rest live. 204 when no scan is running.
+ * `?status=1` only says whether one is running (the topbar's radar spins during a background scan).
+ */
+export function GET(req: Request) {
   const live = g.__khedmaScanLive;
+  if (new URL(req.url).searchParams.has("status")) return Response.json({ running: !!live }, { headers: { "cache-control": "no-store" } });
   return live ? new Response(follow(live), { headers: NDJSON }) : new Response(null, { status: 204 });
 }
 
