@@ -9,3 +9,9 @@ test("default scan keywords skip soft skills, spoken languages and everyday tool
   // Internship words only fill in when the CV gives almost nothing else.
   assert.deepEqual(defaultKeywords({ ...profile, target_roles: [], skills: ["Excel"] }, ""), ["stage"]);
 });
+
+test("saved searches are cleaned from client input", async () => {
+  const { cleanSavedSearch } = await import("./sources");
+  assert.deepEqual(cleanSavedSearch({ keywords: [" java ", ""], countries: ["de", "x1", "REMOTE"], remote: "evil", types: ["stage", "nope"], negatives: ["senior"] }), { keywords: ["java"], countries: ["DE", "REMOTE"], remote: "yes", types: ["stage"], negatives: ["senior"] });
+  assert.equal(cleanSavedSearch({ keywords: [], countries: [] }), null);
+});

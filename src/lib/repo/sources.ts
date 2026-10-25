@@ -217,6 +217,46 @@ export function setScanOptions(v: ScanOptionsSaved): ScanOptionsSaved {
   return getScanOptions();
 }
 
+// ---------- saved searches (Scan > a named search to run again in one click) ----------
+export interface SavedSearch {
+  id: string;
+  keywords: string[];
+  countries: string[];
+  remote: Remote;
+  types: JobType[];
+  negatives: string[];
+}
+const SAVED_KEY = "settings:saved-searches";
+export const MAX_SAVED_SEARCHES = 8;
+
+/** Clean a saved search from untrusted input (the client sends it); null when it has nothing to search for. */
+export function cleanSavedSearch(v: Partial<Record<keyof SavedSearch, unknown>>): Omit<SavedSearch, "id"> | null {
+  const strs = (x: unknown, n: number, max: number) => (Array.isArray(x) ? x : []).map((s) => String(s ?? "").trim().slice(0, max)).filter(Boolean).slice(0, n);
+  const keywords = strs(v.keywords, 6, 60);
+  const countries = strs(v.countries, 12, 8).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$|^REMOTE$/.test(c));
+  if (!keywords.length && !countries.length) return null;
+  const remote: Remote = v.remote === "only" || v.remote === "no" ? v.remote : "yes";
+  const types = strs(v.types, 5, 12).filter((t): t is JobType => JOB_TYPES.includes(t as JobType));
+  return { keywords, countries, remote, types, negatives: strs(v.negatives, 12, 40) };
+}
+
+export function listSavedSearches(): SavedSearch[] {
+  const v = kvGet<unknown>(SAVED_KEY, []);
+  return (Array.isArray(v) ? v : []).flatMap((s) => {
+    const c = cleanSavedSearch(s as Partial<Record<keyof SavedSearch, unknown>>);
+    return c && typeof (s as SavedSearch).id === "string" ? [{ id: (s as SavedSearch).id, ...c }] : [];
+  });
+}
+
+/** Save (newest first; the same keywords and countries replace the older copy) or delete (`remove`). */
+export function writeSavedSearch(s: Omit<SavedSearch, "id"> | null, remove?: string): SavedSearch[] {
+  const same = (a: Omit<SavedSearch, "id">) => (b: SavedSearch) => a.keywords.join(",").toLowerCase() === b.keywords.join(",").toLowerCase() && a.countries.join(",") === b.countries.join(",");
+  let list = listSavedSearches().filter((x) => x.id !== remove);
+  if (s) list = [{ id: Date.now().toString(36), ...s }, ...list.filter((x) => !same(s)(x))].slice(0, MAX_SAVED_SEARCHES);
+  kvSet(SAVED_KEY, list);
+  return list;
+}
+
 // ---------- runs ----------
 export interface RunSourceDetail {
   /** Saved source id, 0 for a catalog run. */

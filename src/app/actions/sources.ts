@@ -6,7 +6,10 @@ import { CATALOG, SUGGESTED_SOURCES, SUGGESTED_TN_SOURCES, isProviderKind } from
 import { validatePublicUrl } from "@/lib/sources/url";
 import {
   AUTO_HOURS,
+  cleanSavedSearch,
   createSourceRow,
+  writeSavedSearch,
+  type SavedSearch,
   feedState,
   getAutoScan,
   getSearchPrefs,
@@ -148,6 +151,14 @@ export async function saveScanOptions(v: { types?: unknown; negatives?: unknown 
   const types = (Array.isArray(v.types) ? v.types : []).filter((t): t is JobType => JOB_TYPES.includes(t as JobType));
   const negatives = (Array.isArray(v.negatives) ? v.negatives : []).map((x) => String(x ?? "").trim().slice(0, 40)).filter(Boolean).slice(0, 12);
   return setScanOptions({ types: [...new Set(types)], negatives });
+}
+
+/** Save the current search under the scan form (input from the client: cleaned), or delete one by id. */
+export async function saveSearch(v: Record<string, unknown>): Promise<SavedSearch[]> {
+  return writeSavedSearch(cleanSavedSearch(v));
+}
+export async function deleteSavedSearch(id: string): Promise<SavedSearch[]> {
+  return writeSavedSearch(null, String(id).slice(0, 20));
 }
 
 /** Row state of the scan feed (evaluation, tracked, skipped), from the database. */

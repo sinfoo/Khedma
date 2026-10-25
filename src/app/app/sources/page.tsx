@@ -3,7 +3,7 @@ import { ScanPanel } from "@/components/sources/scan-panel";
 import { SourcesTabs } from "@/components/sources/tabs";
 import { getProfile } from "@/lib/db";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { defaultKeywords, getScanOptions, searchCountries, listSourceRows } from "@/lib/repo/sources";
+import { defaultKeywords, getScanOptions, listSavedSearches, searchCountries, listSourceRows } from "@/lib/repo/sources";
 import { cvForMatching } from "@/lib/repo/offers";
 
 export const metadata: Metadata = { title: "Sources" };
@@ -28,6 +28,7 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         autoStart={typed.length > 0}
         typed={typed.length > 0}
         saved={getScanOptions()}
+        searches={listSavedSearches()}
       />
     </>
   );

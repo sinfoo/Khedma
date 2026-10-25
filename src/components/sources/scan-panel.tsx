@@ -25,6 +25,7 @@ import {
   Square,
   Undo2,
   UserSearch,
+  X,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt, type Dict } from "@/lib/i18n/dict";
@@ -37,7 +38,8 @@ import { contactSearchUrl } from "@/lib/links";
 import { JOB_TYPES, type JobType } from "@/lib/types";
 import { planSearch, runLabel, type Remote } from "@/lib/search/plan";
 import type { FeedRowState } from "@/lib/repo/sources";
-import { loadFeedState, saveScanOptions, widenScan } from "@/app/actions/sources";
+import { deleteSavedSearch, loadFeedState, saveScanOptions, saveSearch, widenScan } from "@/app/actions/sources";
+import type { SavedSearch } from "@/lib/repo/sources";
 import { applyTo, archiveOffers, evaluateOffer, tailorCvFor, trackOffers } from "@/app/actions/jobs";
 import { Picks } from "./picks";
 import { errorReason } from "./error-reason";
@@ -70,6 +72,7 @@ export function ScanPanel({
   typed = false,
   cvKeywords = [],
   saved = { types: [], negatives: [] },
+  searches: initialSearches = [],
 }: {
   keywords: string[];
   /** Keywords came from the user (a ?q= link), not from the CV. */
@@ -82,6 +85,8 @@ export function ScanPanel({
   cvKeywords?: string[];
   /** Search options kept from the last scan. */
   saved?: { types: JobType[]; negatives: string[] };
+  /** Named searches to run again in one click. */
+  searches?: SavedSearch[];
 }) {
   const { t, locale } = useT();
   const m = t.sources2.scan2;
@@ -95,6 +100,7 @@ export function ScanPanel({
   const [types, setTypes] = useState<JobType[]>(saved.types);
   const [negatives, setNegatives] = useState(saved.negatives.join(", "));
   const [options, setOptions] = useState(false);
+  const [searches, setSearches] = useState(initialSearches);
   const [preparing, startPrepare] = useTransition();
   const [done, setDone] = useState<ScanDone | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -300,6 +306,42 @@ export function ScanPanel({
           {(types.length > 0 || negList.length > 0) && <span className="chip chip-accent !h-4 !px-1.5 !py-0 text-[0.62rem]">{types.length + negList.length}</span>}
         </button>
       </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[0.72rem]" role="group" aria-label={m.savedSearches}>
+        {searches.length > 0 && <span className="eyebrow text-[0.68rem]">{m.savedSearches}</span>}
+        {searches.map((s) => (
+          <span key={s.id} className="chip !h-6 !py-0 !pr-0.5 text-[0.7rem]">
+            <button
+              type="button"
+              disabled={busy}
+              className="cursor-pointer"
+              title={m.runSaved}
+              onClick={() => {
+                setKw(s.keywords.join(", "));
+                setCountries(s.countries.length ? s.countries : places.countries);
+                setRemote(s.remote);
+                setTypes(s.types);
+                setNegatives(s.negatives.join(", "));
+              }}
+            >
+              {[s.keywords.slice(0, 3).join(", "), s.countries.map(countryName).join(", ")].filter(Boolean).join(" · ")}
+            </button>
+            <button type="button" className="btn btn-ghost btn-icon !size-5" aria-label={fmt(m.deleteSaved, { name: s.keywords.join(", ") })} onClick={async () => setSearches(await deleteSavedSearch(s.id))}>
+              <X size={11} aria-hidden="true" />
+            </button>
+          </span>
+        ))}
+        <button
+          type="button"
+          disabled={busy || !terms.length}
+          className="font-semibold text-accent-text disabled:opacity-50"
+          onClick={async () => {
+            setSearches(await saveSearch({ keywords: terms, countries, remote, types, negatives: negList }));
+            toast.success(m.searchSaved);
+          }}
+        >
+          {m.saveSearch}
+        </button>
+      </div>
       {options && (
         <div id="scan-options" className="mt-2 space-y-2 rounded-xl border border-line bg-surface p-3 text-sm" style={{ animation: "pop .18s ease both" }}>
           <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t.offers2.searchBar.typesLabel}>
