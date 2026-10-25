@@ -297,6 +297,21 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           <button type="button" className="btn btn-outline btn-sm mt-4" onClick={() => setQ("")}>{b.clearFilters}</button>
         </div>
       ) : view === "board" ? (
+        <>
+        {/* Phones show one column at a time: jump straight to a stage instead of swiping past the others. */}
+        <label className="mb-2.5 flex items-center gap-2 text-sm sm:hidden">
+          <span className="text-muted">{b.jumpTo}</span>
+          <select
+            className="input !h-9 !w-auto !py-0 text-sm"
+            defaultValue=""
+            onChange={(e) => document.getElementById(`col-${e.target.value}`)?.closest("section")?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" })}
+          >
+            <option value="" disabled>—</option>
+            {ACTIVE.map((s) => (
+              <option key={s} value={s}>{t.states[s]} ({filtered.filter((x) => x.status === s).length})</option>
+            ))}
+          </select>
+        </label>
         <div className="relative -mx-4 flex snap-x items-start gap-3 overflow-x-auto px-4 pb-3 sm:-mx-8 sm:px-8" aria-label={t.pipeline.board} role="region" tabIndex={0}>
           {/* relative: absolute bits (screen-reader text, rings) stay inside the scroller instead of widening the page. */}
           {ACTIVE.map((s) => column(s))}
@@ -321,6 +336,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
             )}
           </section>
         </div>
+        </>
       ) : (
         <div className="card relative overflow-x-auto">
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm" aria-live="polite">
