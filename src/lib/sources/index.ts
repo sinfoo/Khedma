@@ -25,6 +25,19 @@ import * as keyed from "./keyed";
 import * as ats from "./ats";
 import * as arbeitsagentur from "./arbeitsagentur";
 import * as eures from "./eures";
+import * as simplify from "./simplify";
+import * as jobtech from "./jobtech";
+import * as nav from "./nav";
+import * as getinit from "./getinit";
+import * as studysmarter from "./studysmarter";
+import * as iamexpat from "./iamexpat";
+import * as karriere from "./karriere";
+import * as justjoin from "./justjoin";
+import * as nofluff from "./nofluff";
+import * as startupjobs from "./startupjobs";
+import * as landingjobs from "./landingjobs";
+import * as jobsacuk from "./jobsacuk";
+import * as builtin from "./builtin";
 import { fitsPlaces } from "../geo";
 import { dropBucket, type Decision } from "../search/filter";
 
@@ -33,7 +46,7 @@ export { DEMO_JOBS } from "./demo";
 export { guessType, extractTags, matchesProfile, matchesKeywords, dedupeKey } from "./classify";
 export { CATALOG, PROVIDER_KINDS, LINK_KINDS, isProviderKind, platformLinks, placeCodes, type ProviderKind, type LinkKind, type CatalogEntry, type CatalogCountry } from "./catalog";
 export { detectAts, detectAtsUrl, detectAtsInHtml, scanCareersPage, type Detected } from "./ats";
-import type { ProviderKind } from "./catalog";
+import { COUNTRY_FEEDS, type ProviderKind } from "./catalog";
 
 /** Public boards verified live on 2026-10-07 (all returned 200 with postings). */
 export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
@@ -45,6 +58,7 @@ export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
   { kind: "ashby", label: "Replit", handle: "replit" },
   { kind: "rss", label: "We Work Remotely – Programming", handle: "https://weworkremotely.com/categories/remote-programming-jobs.rss" },
   { kind: "rss", label: "Python.org Jobs", handle: "https://www.python.org/jobs/feed/rss/" },
+  ...COUNTRY_FEEDS.map((f) => ({ kind: "rss" as const, label: f.label, handle: f.handle })),
 ];
 
 /** Tunisian boards verified live on 2026-10-13 (robots.txt checked, real postings returned). */
@@ -115,6 +129,22 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   jooble: { list: keyed.scan.jooble },
   reed: { list: keyed.scan.reed },
   findwork: { list: keyed.scan.findwork },
+  francetravail: { list: keyed.scan.francetravail },
+  itjobs: { list: keyed.scan.itjobs },
+  infojobs: { list: keyed.scan.infojobs },
+  simplify: { list: simplify.scan },
+  jobtech: { list: jobtech.scan },
+  nav: { list: nav.scan, detail: nav.detail, detailGapMs: 500 },
+  getinit: { list: getinit.scan, detail: (j) => more.ldDetail(j), detailGapMs: 1000 },
+  studysmarter: { list: studysmarter.scan, detail: (j) => more.ldDetail(j), detailGapMs: 1000 },
+  iamexpat: { list: iamexpat.scan },
+  karriere: { list: karriere.scan, detail: (j) => more.ldDetail(j), detailGapMs: 500 },
+  justjoin: { list: justjoin.scan, detail: justjoin.detail, detailGapMs: 500 },
+  nofluff: { list: nofluff.scan, detail: nofluff.detail, detailGapMs: 500 },
+  startupjobs: { list: startupjobs.scan, detail: startupjobs.detail, detailGapMs: 500 },
+  landingjobs: { list: landingjobs.scan, detail: landingjobs.detail, detailGapMs: 500 },
+  jobsacuk: { list: jobsacuk.scan, detail: jobsacuk.detail, detailGapMs: 1000 },
+  builtin: { list: builtin.scan, detail: builtin.detail, detailGapMs: 1000 },
   careers: { list: ats.scanCareersPage },
 };
 

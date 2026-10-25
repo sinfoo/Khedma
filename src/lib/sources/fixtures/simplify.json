@@ -1,0 +1,126 @@
+[
+ {
+  "date_updated": 1773236130,
+  "sponsorship": "Offers Sponsorship",
+  "active": true,
+  "degrees": [
+   "Bachelor's"
+  ],
+  "url": "https://jobs.ashbyhq.com/interplay/da19ed8a-f03c-49d8-a2fd-d2988b8c3369",
+  "company_name": "Internship",
+  "title": "AI Deployment Engineering Internship",
+  "locations": [
+   "New York, NY"
+  ],
+  "terms": [
+   "Summer 2026"
+  ],
+  "category": "Data Science, AI & Machine Learning",
+  "source": "AlmondCroffle",
+  "id": "d3558132-2367-473c-930c-63416534e389",
+  "date_posted": 1773236130,
+  "company_url": "",
+  "is_visible": true
+ },
+ {
+  "source": "Simplify",
+  "category": "AI/ML/Data",
+  "company_name": "Anthropic",
+  "id": "0d633297-0371-40a5-bcfe-d66992c2ba79",
+  "title": "Anthropic Fellows Program - ML Systems & Performance",
+  "active": true,
+  "terms": [
+   "N/A"
+  ],
+  "date_updated": 1775785156,
+  "date_posted": 1775783144,
+  "url": "https://job-boards.greenhouse.io/anthropic/jobs/5183051008",
+  "locations": [
+   "London, UK",
+   "SF",
+   "Remote in USA",
+   "Remote in Canada"
+  ],
+  "company_url": "https://simplify.jobs/c/Anthropic",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": []
+ },
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "Uncountable",
+  "id": "c5d99aec-a24e-48a7-a680-3954ba770c54",
+  "title": "Full-Stack Intern",
+  "active": true,
+  "terms": [
+   "Winter 2026",
+   "Spring 2026",
+   "Summer 2026",
+   "Fall 2026"
+  ],
+  "date_updated": 1774430178,
+  "date_posted": 1774430178,
+  "url": "https://jobs.ashbyhq.com/uncountable/b9495eab-c04c-4333-b338-7dabdbddcaae/application",
+  "locations": [
+   "London, UK",
+   "SF",
+   "NYC",
+   "Munich, Germany"
+  ],
+  "company_url": "https://simplify.jobs/c/Uncountable",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Bachelor's"
+  ]
+ },
+ {
+  "date_updated": 1772815328,
+  "sponsorship": "U.S. Citizenship is Required",
+  "active": true,
+  "degrees": [
+   "Bachelor's"
+  ],
+  "url": "https://jobs.lever.co/hermeus/51378fa0-0327-45fd-9420-b6e7d8b56440",
+  "company_name": "Hermeus",
+  "title": "Flight Software Engineering Intern",
+  "locations": [
+   "Atlanta, GA"
+  ],
+  "terms": [
+   "Summer 2026",
+   "Fall 2026"
+  ],
+  "category": "Hardware Engineering",
+  "source": "AlmondCroffle",
+  "id": "44bbff4b-6183-44c5-93b8-e082f78ee431",
+  "date_posted": 1772815328,
+  "company_url": "",
+  "is_visible": true
+ },
+ {
+  "source": "Simplify",
+  "category": "Software",
+  "company_name": "Graphcore",
+  "id": "b97ccb00-fc34-435b-8a10-92fc41be7b22",
+  "title": "2026 Software Engineering Intern - ML Kernels & Runtime Team",
+  "active": false,
+  "terms": [
+   "Summer 2026"
+  ],
+  "date_updated": 1772190340,
+  "date_posted": 1772190340,
+  "url": "https://job-boards.greenhouse.io/graphcore/jobs/8441326002",
+  "locations": [
+   "Bristol, UK"
+  ],
+  "company_url": "https://simplify.jobs/c/Graphcore",
+  "is_visible": true,
+  "sponsorship": "Other",
+  "degrees": [
+   "Bachelor's",
+   "Master's"
+  ]
+ }
+]

@@ -2,7 +2,7 @@
 // every catalog board of a chosen country runs, worldwide boards run once, LinkedIn once per country,
 // and the user's saved sources (tracked companies included) join when they fit. Pure: client-safe.
 import { countryByCode, REMOTE_CODE } from "../geo";
-import { CATALOG, EURES_COUNTRIES, isProviderKind, type CatalogEntry, type ProviderKind } from "../sources/catalog";
+import { CATALOG, EURES_COUNTRIES, feedCountry, isProviderKind, type CatalogEntry, type ProviderKind } from "../sources/catalog";
 
 export type Remote = "yes" | "only" | "no";
 
@@ -50,9 +50,10 @@ const MAX_LINKEDIN = 4;
 
 const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
 
-/** A catalog board that can run with no handle: open listing, "all offers" category, or city-less country search. */
-function autoRunnable(e: CatalogEntry): boolean {
-  if (e.linkOnly || e.needsEnv?.length || e.kind === "linkedin" || COMPANY_KINDS.has(e.kind)) return false;
+/** A catalog board that can run with no handle: open listing, "all offers" category, or city-less country search. Keyed boards run once their key is set. */
+function autoRunnable(e: CatalogEntry, missingEnv?: string[]): boolean {
+  if (e.linkOnly || e.kind === "linkedin" || COMPANY_KINDS.has(e.kind)) return false;
+  if (e.needsEnv?.length && (!missingEnv || missingEnv.includes(e.kind))) return false;
   if (e.handle.type === "none") return true;
   if (e.handle.type === "select") return e.handle.options.some((o) => o.value === "");
   return e.handle.type === "slug" && e.country !== "INT";
@@ -91,8 +92,13 @@ export function planSearch(input: {
   const savedKinds = new Set((input.enabledSources ?? []).filter((s) => isProviderKind(s.kind) && !s.company).map((s) => s.kind));
 
   for (const e of catalog) {
-    if (!autoRunnable(e) || savedKinds.has(e.kind)) continue;
-    if (e.country === "INT") {
+    if (!autoRunnable(e, input.missingEnv) || savedKinds.has(e.kind)) continue;
+    if (e.countries) {
+      // One run for the chosen countries the board covers (IamExpat: "nl,de").
+      const hit = targets.filter((c) => e.countries!.includes(c as CatalogEntry["country"]));
+      const handle = e.handle.type === "slug" ? hit.join(",").toLowerCase() : "";
+      if (hit.length) add({ key: `${e.kind}:${handle}`, kind: e.kind as ProviderKind, handle, label: e.name, country: hit[0], keywords: kw() });
+    } else if (e.country === "INT") {
       if (REMOTE_BOARDS.has(e.kind) && !wantRemote) continue;
       add({ key: `${e.kind}:`, kind: e.kind as ProviderKind, handle: "", label: e.name, country: "INT", keywords: kw() });
     } else if (targets.includes(e.country)) {
@@ -114,12 +120,14 @@ export function planSearch(input: {
       if (handle) add({ ...base, key: `linkedin:${handle}`, country: "INT" });
       continue;
     }
-    if (s.company || COMPANY_KINDS.has(s.kind)) {
+    const feed = s.kind === "rss" ? feedCountry(handle) : undefined;
+    if (feed && !targets.includes(feed)) skipped.push({ label: s.label, reason: "country" });
+    else if (s.company || COMPANY_KINDS.has(s.kind)) {
       add({ ...base, key: `${s.kind}:${handle}`, country: "INT", company: true });
     } else if (e.country === "INT") {
       if (REMOTE_BOARDS.has(s.kind) && !wantRemote) skipped.push({ label: s.label, reason: "remote" });
       else add({ ...base, key: `${s.kind}:${handle}`, country: "INT" });
-    } else if (targets.includes(e.country)) {
+    } else if (targets.includes(e.country) || e.countries?.some((c) => targets.includes(c))) {
       add({ ...base, key: `${s.kind}:${handle}`, country: e.country });
     } else skipped.push({ label: s.label, reason: "country" });
   }
