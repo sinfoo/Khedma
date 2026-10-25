@@ -6,6 +6,7 @@ import {
   MessagesSquare,
   Sparkles,
   Coins,
+  Globe2,
   UserRound,
   BarChart3,
   Radar,
@@ -29,6 +30,7 @@ export type NavKey =
   | "coach"
   | "upskill"
   | "salaries"
+  | "abroad"
   | "profile"
   | "insights"
   | "sources"
@@ -68,6 +70,7 @@ export const NAV_GROUPS: { key: NavGroupKey; items: NavItem[] }[] = [
       { key: "discover", href: "/app/discover", Icon: Compass, g: "d" },
       { key: "companies", href: "/app/companies", Icon: Building2 },
       { key: "salaries", href: "/app/salaries", Icon: Coins },
+      { key: "abroad", href: "/app/abroad", Icon: Globe2 },
       { key: "upskill", href: "/app/upskill", Icon: Sparkles, g: "k" },
     ],
   },

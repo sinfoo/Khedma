@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
+import { AbroadCard } from "@/components/offers/abroad-card";
 import { PostingLink } from "@/components/posting-link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Bookmark, Copy, FileText, Pencil, Send, Sparkles } from "lucide-react";
@@ -194,6 +196,9 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
                 </ul>
               </section>
             )}
+            <Suspense fallback={null}>
+              <AbroadCard job={job} cvText={cv.text} t={t} locale={locale} />
+            </Suspense>
           </aside>
         </div>
       )}
