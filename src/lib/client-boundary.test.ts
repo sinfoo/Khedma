@@ -28,7 +28,10 @@ function nodeImport(start: string): string | null {
         return chain.join(" -> ");
       }
       const r = resolve(f, m[2]);
-      if (r && !parent.has(r) && !directive(r, "use server")) parent.set(r, f), queue.push(r);
+      if (r && !parent.has(r) && !directive(r, "use server")) {
+        parent.set(r, f);
+        queue.push(r);
+      }
     }
   }
   return null;

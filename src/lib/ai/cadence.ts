@@ -3,7 +3,7 @@
 import type { Job, Locale, Profile } from "../types";
 import { aiText } from "./index";
 import { extractSkills } from "./heuristic";
-import { BANNED_OPENERS, checkFollowup, MAX_FOLLOWUP_WORDS, type DraftVariant, type FollowupAngle } from "../apps/cadence";
+import { BANNED_OPENERS, checkFollowup, MAX_FOLLOWUP_WORDS, type DraftVariant } from "../apps/cadence";
 import { lintWriting, type LintFinding } from "./writing";
 
 // Kept in the pure apps/cadence module so client components can import them without the AI client.
