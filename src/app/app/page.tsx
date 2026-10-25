@@ -14,6 +14,7 @@ import { logFollowup, setReminderDoneAction } from "@/app/actions/insights";
 import { getEngine } from "@/lib/ai";
 import { BEST_BATCH, scoreTime } from "@/lib/offers-filter";
 import { applyTo } from "@/app/actions/jobs";
+import { followedCompanyNews } from "@/lib/repo/sources";
 import type { AppState } from "@/lib/types";
 
 const fmtDay = (key: string, locale: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", day: "numeric", month: "short" }) => {
@@ -57,6 +58,7 @@ export default async function TodayPage() {
   const pipeTotal = d.pipeline.reduce((s, p) => s + p.n, 0);
   const untracked = d.topMatches.slice(0, 4);
   const week = d.upcoming.slice(0, 6);
+  const followed = followedCompanyNews();
 
   return (
     <>
@@ -161,6 +163,24 @@ export default async function TodayPage() {
               <Link href="/app/calendar" className="mt-3 inline-block text-[0.78rem] font-semibold">{fmt(m.more, { n: d.upcoming.length - week.length })}</Link>
             )}
           </section>
+
+          {followed.length > 0 && (
+            <section className="card p-[18px] rise" style={{ ["--i" as string]: 3 }} aria-labelledby="followed-h">
+              <div className="mb-2.5 flex items-center justify-between gap-2">
+                <h2 id="followed-h" className="card-title">{m.followedNew}</h2>
+                <Link href="/app/sources/manage" className="text-[0.78rem] font-semibold">{m.followedManage}</Link>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {followed.map((j) => (
+                  <li key={j.id} className="flex items-center gap-2.5 text-[0.82rem]">
+                    <CompanyAvatar name={j.company} size={24} />
+                    <Link href={`/app/jobs/${j.id}`} className="min-w-0 flex-1 truncate font-semibold text-ink hover:text-accent-text">{j.title}</Link>
+                    <span className="shrink-0 text-muted">{j.company}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="card p-[18px] rise" style={{ ["--i" as string]: 3 }} aria-labelledby="pipe-h">
             <div className="mb-3 flex items-center justify-between">

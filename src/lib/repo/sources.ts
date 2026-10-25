@@ -217,6 +217,17 @@ export function setScanOptions(v: ScanOptionsSaved): ScanOptionsSaved {
   return getScanOptions();
 }
 
+/** Offers stored in the last `days` at companies the user follows (Sources > Companies), newest first, not yet tracked. */
+export function followedCompanyNews(days = 7, limit = 5): { id: number; title: string; company: string }[] {
+  const followed = new Set(listSourceRows().filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
+  if (!followed.size) return [];
+  const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 19).replace("T", " ");
+  const rows = db()
+    .prepare("SELECT j.id, j.title, j.company FROM jobs j WHERE j.archived = 0 AND j.created_at >= ? AND j.id NOT IN (SELECT job_id FROM applications) ORDER BY j.created_at DESC LIMIT 400")
+    .all(since) as { id: number; title: string; company: string }[];
+  return rows.filter((r) => followed.has(companyKey(r.company))).slice(0, limit).map((r) => ({ id: r.id, title: r.title, company: r.company }));
+}
+
 // ---------- saved searches (Scan > a named search to run again in one click) ----------
 export interface SavedSearch {
   id: string;

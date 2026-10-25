@@ -30,3 +30,15 @@ test("automatic archiving never hides an offer the user starred or applied to", 
   updateJob(sfax, { archived: true }); // even an explicit archive keeps the application visible
   assert.deepEqual(listApplications().map((a) => a.job_id), [sfax]);
 });
+
+test("new offers at followed companies are listed until the user tracks them", async () => {
+  const { ensureApplication, upsertJob } = await import("@/lib/db");
+  const { createSourceRow, followedCompanyNews } = await import("@/lib/repo/sources");
+  const job = (url: string, company: string) => ({ title: "Stage Data", company, location: "Tunis", remote: false, url, source: "manual" as const, type: "stage" as const, description: "", tags: [], posted_at: null, deadline: null });
+  createSourceRow({ kind: "greenhouse", handle: "vermeg", label: "Vermeg", keywords: [], keep_all: true, company: true });
+  const a = upsertJob(job("https://x/v1", "VERMEG")).id;
+  upsertJob(job("https://x/o1", "Other Co"));
+  assert.deepEqual(followedCompanyNews().map((j) => j.id), [a]);
+  ensureApplication(a);
+  assert.deepEqual(followedCompanyNews(), []);
+});
