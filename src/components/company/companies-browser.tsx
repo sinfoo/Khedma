@@ -11,6 +11,7 @@ import type { CompanyRow } from "@/lib/company";
 
 type Sort = "open" | "fit" | "seen" | "name" | "rating";
 type Flag = "" | "blacklisted" | "researched" | "notResearched";
+const PAGE = 60;
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 /** Company rows: identity, open · applied, research state, average fit. Click opens the company page. */
@@ -20,6 +21,8 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<Sort>("open");
   const [flag, setFlag] = useState<Flag>("");
+  // Hundreds of employers: 60 rows at a time, more on demand.
+  const [limit, setLimit] = useState(PAGE);
 
   const shown = useMemo(() => {
     const needle = fold(q.trim());
@@ -66,7 +69,7 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
         <p className="card p-8 text-center text-muted">{c.noMatch}</p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {shown.map((r, i) => {
+          {shown.slice(0, limit).map((r, i) => {
             const sector = r.sector || r.research?.facts.sector;
             const place = r.hq || r.locations[0];
             return (
@@ -75,7 +78,6 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
                   href={`/app/companies/${r.slug}`}
                   className="card grid grid-cols-[auto_1fr_auto] items-center gap-3.5 px-3.5 py-3 transition-colors hover:border-line-strong sm:grid-cols-[auto_1fr_auto_auto]"
                   style={{ opacity: r.blacklisted ? 0.7 : 1 }}
-                  aria-label={r.name}
                 >
                   <CompanyAvatar name={r.name} size={40} />
                   <div className="min-w-0">
@@ -115,6 +117,13 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
             );
           })}
         </ul>
+      )}
+      {shown.length > limit && (
+        <div className="mt-3 flex justify-center">
+          <button type="button" className="btn btn-outline" onClick={() => setLimit(limit + PAGE)}>
+            {fmt(t.offers2.showMore, { n: Math.min(PAGE, shown.length - limit), left: shown.length - limit })}
+          </button>
+        </div>
       )}
     </>
   );

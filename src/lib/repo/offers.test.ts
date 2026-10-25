@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { csvCell, findDates, findDuplicates, jaccard, normalizeCompany, parseFilters, filtersToQuery, parsePastedOffer, titleTokens, toCsv } from "./offers";
+import { csvCell, findDates, findDuplicates, jaccard, normalizeCompany, parseFilters, filtersToQuery, parsePastedOffer, titleTokens, toCsv, type OfferRow } from "./offers";
 
 test("duplicates: same company (noise stripped) + similar title, newer one is flagged for merge", () => {
   const jobs = [
@@ -73,4 +73,19 @@ test("filters: parse clamps input and round-trips to a canonical query", () => {
   assert.equal(f.sort, "score");
   assert.equal(f.tracked, "");
   assert.equal(filtersToQuery(f), "type=pfe&verdict=apply%2Cnone&min=5&remote=1");
+});
+
+test("filters: expired and skip offers hidden unless tracked, starred or 'all'; estimates rank below real scores", async () => {
+  const { applyFilters } = await import("../offers-filter");
+  const row = (id: number, x: Partial<OfferRow>): OfferRow => ({ id, title: `T${id}`, company: "C", location: "", remote: false, type: "stage", source: "manual", url: "", tags: [], deadline: null, created_at: "2026-10-01", archived: false, starred: false, score: null, verdict: null, engine: null, appId: null, status: null, dup: null, evergreen: [], ...x });
+  const rows = [
+    row(1, { score: 4.2, engine: "heuristic", verdict: "apply_now" }),
+    row(2, { score: 4.0, engine: "claude", verdict: "apply" }),
+    row(3, { deadline: "2020-01-01", score: 4.9, engine: "claude" }),
+    row(4, { verdict: "skip", score: 1.5, engine: "claude" }),
+    row(5, { verdict: "skip", score: 1.5, engine: "claude", appId: 9 }),
+  ];
+  const f = parseFilters(new URLSearchParams(""));
+  assert.deepEqual(applyFilters(rows, f).map((r) => r.id), [2, 1, 5]);
+  assert.deepEqual(applyFilters(rows, { ...f, all: true }).map((r) => r.id), [2, 1, 5, 4, 3], "expired last even with a high score");
 });

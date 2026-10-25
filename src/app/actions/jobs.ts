@@ -159,7 +159,8 @@ export async function applyTo(jobId: number) {
   if (!getJob(Number(jobId))) return;
   const app = ensureApplication(Number(jobId));
   refresh();
-  redirect(`/app/pipeline/${app.id}`);
+  // The review step: its "Prepare my CV and letter" writes both at once, instead of a trip through steps 1 and 2.
+  redirect(app.applied_at ? `/app/pipeline/${app.id}` : `/app/pipeline/${app.id}?tab=overview`);
 }
 
 /** Track if needed, then open the application's documents tab for CV tailoring. */

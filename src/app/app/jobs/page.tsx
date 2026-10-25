@@ -10,7 +10,8 @@ import { defaultKeywords, listSourceRows } from "@/lib/repo/sources";
 import { cvForMatching } from "@/lib/repo/offers";
 import { loadDemoJobs } from "@/app/actions/jobs";
 import { listOfferRows, listSources, listViews, parseFilters, unevaluated } from "@/lib/repo/offers";
-import { getProfile, stats } from "@/lib/db";
+import { db, getProfile, stats } from "@/lib/db";
+import { getEngine } from "@/lib/ai";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { REMOTE_CODE, countryOf } from "@/lib/geo";
 
@@ -36,6 +37,8 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
   const pending = unevaluated();
 
   if (!f.archived && all.length === 0) {
+    // Everything archived: the archive must stay one click away.
+    const archivedN = (db().prepare("SELECT COUNT(*) AS n FROM jobs WHERE archived = 1").get() as { n: number }).n;
     const kw = defaultKeywords(getProfile(), cvForMatching().text).slice(0, 4).join(" · ");
     const enabled = listSourceRows().filter((x) => x.enabled);
     const names = enabled.slice(0, 5).map((x) => x.label).join(", ");
@@ -64,6 +67,9 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
           <Link href="/app/jobs/new" className="btn btn-outline btn-lg">
             <Link2 size={16} aria-hidden="true" /> {L.pastePosting}
           </Link>
+          {archivedN > 0 && (
+            <Link href="/app/jobs?archived=1" className="btn btn-ghost btn-lg">{fmt(L.seeArchived, { n: archivedN })}</Link>
+          )}
           <form action={async () => { "use server"; await loadDemoJobs(); }} className="basis-full text-center">
             <p className="text-[0.78rem] text-muted">
               {L.orDemo} <button className="font-semibold text-accent-text hover:underline">{L.loadDemo}</button>
@@ -74,6 +80,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
     );
   }
 
+  const engine = await getEngine(getProfile().settings);
   return (
     <>
       <PageHeader
@@ -81,7 +88,7 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
         lead={pending.length ? fmt(o.lead2, { n: s.jobs, e: s.evaluated, u: pending.length }) : fmt(o.lead2None, { n: s.jobs, e: s.evaluated })}
         actions={
           <>
-            <ScoreNewButton n={pending.length} />
+            <ScoreNewButton n={pending.length} online={engine.online} engine={engine.online ? L.engineOnline : L.engineOffline} />
             <Link href="/app/jobs/new" className="btn btn-outline">
               <Plus size={15} aria-hidden="true" /> {o.add}
             </Link>
@@ -91,7 +98,6 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
       <OffersBrowser
         key={JSON.stringify(f)}
         all={all}
-        total={all.length}
         filters={f}
         views={listViews()}
         sources={listSources()}

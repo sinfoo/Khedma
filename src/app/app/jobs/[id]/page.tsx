@@ -51,6 +51,11 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
   const cv = cvForMatching();
   const ats = atsKeywords(job, cv.text);
   const href = (k: Tab) => (k === "overview" ? `/app/jobs/${job.id}` : `/app/jobs/${job.id}?tab=${k}`);
+  const app = job.application;
+  // Sent (or further): the deadline no longer matters and "Apply" becomes "Open application".
+  const sent = !!app && (!!app.applied_at || ["applied", "responded", "interview", "offer", "hired"].includes(app.status));
+  const gates = eligibilityGates(job, getProfile(), getProfileExtra().langs);
+  const blockers = sent ? [] : gates.filter((g) => g.level === "fail");
 
   const tabBtn = (k: Tab, label: string) => (
     <Link
@@ -100,7 +105,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
         </div>
 
-        {d !== null && d < 0 && (
+        {d !== null && d < 0 && !sent && (
           <p role="note" className="mt-3 rounded-lg bg-danger-soft px-3 py-2 text-[0.82rem] text-danger no-print">{fmt(o.expiredWarn, { date: fmtDate(job.deadline!, locale) })}</p>
         )}
         <div className="mt-3.5 flex flex-wrap items-center gap-2 no-print">
@@ -115,11 +120,6 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           ) : (
             <ActionButton action={applyTo.bind(null, job.id)} className="btn btn-saffron !h-9">
               <Send size={14} aria-hidden="true" /> {o.apply}
-            </ActionButton>
-          )}
-          {!ev && (
-            <ActionButton action={runEvaluation.bind(null, job.id)} pendingLabel={o.evaluating} className="btn btn-outline !h-9">
-              <Sparkles size={14} aria-hidden="true" /> {o.scoreIt}
             </ActionButton>
           )}
           {!job.application?.applied_at && (
@@ -137,6 +137,13 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           </span>
         </div>
 
+        {blockers.length > 0 && (
+          // Eligibility knock-outs sit beside "Apply", not only in the Fit tab.
+          <p role="note" className="mt-2.5 rounded-lg bg-danger-soft px-3 py-2 text-[0.82rem] text-danger no-print">
+            {blockers.map((g) => fmt(o.v2.gateKeys[g.key], { lang: g.lang ?? "" })).join(" · ")}{" "}
+            <Link href={href("fit")} className="font-semibold underline">{o.blockerSee}</Link>
+          </p>
+        )}
         <nav aria-label={o.tabsLabel} className="mt-3 flex gap-1 border-b border-line no-print">
           {tabBtn("overview", o.tabs.overview)}
           {tabBtn("fit", o.tabs.fit)}
@@ -155,13 +162,17 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
             <section className="card p-4 rise" style={{ ["--i" as string]: 2 }} aria-labelledby="fit-mini-h">
               <h2 id="fit-mini-h" className="card-title text-[0.9rem]">{o.fitScore}</h2>
               {ev ? (
-                <Link href={href("fit")} className="mt-3 flex items-center gap-3 rounded-lg hover:text-accent-text">
-                  <ScoreRing value={ev.global} size={52} label={scoreLabel(t, ev.global)} animate={false} />
-                  <span className="space-y-1">
-                    <VerdictChip verdict={ev.verdict} t={t} />
-                    <span className="block text-xs text-muted">{fmtDate(ev.created_at, locale)}</span>
-                  </span>
-                </Link>
+                <>
+                  <Link href={href("fit")} className="mt-3 flex items-center gap-3 rounded-lg hover:text-accent-text">
+                    <ScoreRing value={ev.global} size={52} label={scoreLabel(t, ev.global)} animate={false} />
+                    <span className="space-y-1">
+                      <VerdictChip verdict={ev.verdict} t={t} />
+                      <span className="block text-xs text-muted">{fmtDate(ev.created_at, locale)}</span>
+                    </span>
+                  </Link>
+                  {/* The "why" one glance away, not one tab away. */}
+                  {ev.summary && <p className="mt-2.5 line-clamp-4 text-[0.8rem] leading-relaxed text-ink-2">{ev.summary}</p>}
+                </>
               ) : (
                 <>
                   <p className="mt-2 text-sm text-muted">{o.notEvaluatedHint}</p>
@@ -192,8 +203,9 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
           jobId={job.id}
           ev={latestEvaluationV2(job.id)}
           appId={job.application?.id ?? null}
+          sent={sent}
           marginals={getTriageMarginals()}
-          gates={eligibilityGates(job, getProfile(), getProfileExtra().langs)}
+          gates={gates}
           match={matchBreakdown(job, getProfile(), cv.text, getSearchPrefs().levels)}
           t={t}
           locale={locale}
@@ -278,7 +290,7 @@ function KeywordReport({ ats, t, fileName, appId, jobId }: { ats: ReturnType<typ
   );
 }
 
-function FitTab({ jobId, ev, appId, marginals, gates, match, t, locale }: { jobId: number; ev: Evaluation | null; appId: number | null; marginals: boolean; gates: Gate[]; match: MatchBreakdown; t: Dict; locale: Locale }) {
+function FitTab({ jobId, ev, appId, sent, marginals, gates, match, t, locale }: { jobId: number; ev: Evaluation | null; appId: number | null; sent: boolean; marginals: boolean; gates: Gate[]; match: MatchBreakdown; t: Dict; locale: Locale }) {
   const o = t.offers2;
   if (!ev)
     return (
@@ -321,9 +333,15 @@ function FitTab({ jobId, ev, appId, marginals, gates, match, t, locale }: { jobI
           </div>
           <div className="mt-6 flex flex-wrap gap-2 no-print">
             {/* The verdict is read: the next step sits right under it. */}
-            <ActionButton action={applyTo.bind(null, jobId)} className="btn btn-saffron">
-              <Send size={16} aria-hidden="true" /> {o.apply}
-            </ActionButton>
+            {sent && appId ? (
+              <Link href={`/app/pipeline/${appId}`} className="btn btn-primary">
+                <Bookmark size={16} aria-hidden="true" /> {o.openApplication}
+              </Link>
+            ) : (
+              <ActionButton action={applyTo.bind(null, jobId)} className="btn btn-saffron">
+                <Send size={16} aria-hidden="true" /> {o.apply}
+              </ActionButton>
+            )}
             <ActionButton action={runEvaluation.bind(null, jobId)} pendingLabel={o.evaluating} className="btn btn-secondary">
               <Sparkles size={16} aria-hidden="true" /> {o.reevaluate}
             </ActionButton>

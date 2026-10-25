@@ -14,7 +14,7 @@ import { PostingLink } from "@/components/posting-link";
 import { ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreColor, scoreLabel } from "@/components/ui";
 import type { AppState } from "@/lib/types";
 import type { SavedView } from "@/lib/repo/offers";
-import { applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
+import { BEST_BATCH, applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
 import { applyTo, archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
 import { OffersToolbar } from "./offers-toolbar";
 import { EvergreenChip } from "./evergreen-chip";
@@ -51,7 +51,6 @@ const subscribeView = (l: () => void) => {
 
 export function OffersBrowser({
   all,
-  total,
   filters: initialFilters,
   views,
   sources,
@@ -61,7 +60,6 @@ export function OffersBrowser({
   autoEvaluate,
 }: {
   all: OfferRow[];
-  total: number;
   filters: OfferFilters;
   views: SavedView[];
   sources: string[];
@@ -109,7 +107,14 @@ export function OffersBrowser({
     p.remove ? cur.filter((r) => !p.ids.includes(r.id)) : cur.map((r) => (p.ids.includes(r.id) ? { ...r, ...p.patch } : r)),
   );
   const [live, setLive] = useState<Record<number, Pick<OfferRow, "score" | "verdict">>>({});
-  const shown = useMemo(() => list.map((r) => (live[r.id] && r.score === null ? { ...r, ...live[r.id] } : r)), [list, live]);
+  // Scores from this run show at once, re-scores included, without waiting for the whole batch.
+  const shown = useMemo(() => list.map((r) => (live[r.id] ? { ...r, ...live[r.id] } : r)), [list, live]);
+  // ~50 rows at a time: hundreds of rows made a 47,000 px page and a 7 s server render.
+  const [paged, setPaged] = useState({ query, n: PAGE });
+  const limit = paged.query === query ? paged.n : PAGE;
+  const page = useMemo(() => shown.slice(0, limit), [shown, limit]);
+  const hidden = useMemo(() => (filters.all || filters.archived ? 0 : applyFilters(all, { ...filters, all: true }).length - rows.length), [all, filters, rows]);
+  const unscoredHidden = useMemo(() => (filters.min ? applyFilters(all, { ...filters, min: 0 }).filter((r) => r.score === null).length : 0), [all, filters]);
 
   // ---------- selection + keyboard cursor ----------
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -122,7 +127,7 @@ export function OffersBrowser({
       else n.add(id);
       return n;
     });
-  const allOn = shown.length > 0 && sel.length === shown.length;
+  const allOn = page.length > 0 && page.every((r) => selected.has(r.id));
   const cursor = useRef(-1);
 
   // ---------- mutations ----------
@@ -150,11 +155,14 @@ export function OffersBrowser({
     });
   };
 
-  const track = (ids: number[]) =>
-    run({ ids: ids.filter((id) => !shown.find((r) => r.id === id)?.appId), patch: { status: "evaluated", appId: -1 } }, async () => {
-      const n = await trackOffers(ids);
-      toast.success(fmt(o.toastTracked, { n }));
+  const track = (ids: number[]) => {
+    const fresh = ids.filter((id) => !shown.find((r) => r.id === id)?.appId);
+    run({ ids: fresh, patch: { status: "evaluated", appId: -1 } }, async () => {
+      await trackOffers(fresh);
+      // Count only the offers that were not tracked yet, and point at where they went.
+      toast.success(fmt(o.toastTracked, { n: fresh.length }), undefined, { label: o.openPipeline, onClick: () => router.push("/app/pipeline") });
     });
+  };
 
   const [confirmIds, setConfirmIds] = useState<number[] | null>(null);
   const doDelete = (ids: number[]) =>
@@ -183,10 +191,14 @@ export function OffersBrowser({
     return () => window.removeEventListener("beforeunload", hold);
   }, [progress]);
   const cancel = useRef(false);
+  const [stopping, setStopping] = useState(false);
   const running = useRef(false);
   const evaluate = useCallback(
     async (items: { id: number; title: string }[]) => {
-      if (running.current) return;
+      if (running.current) {
+        toast.info(o.evalBusy);
+        return;
+      }
       if (!items.length) {
         toast.info(o.evalNone);
         return;
@@ -205,6 +217,7 @@ export function OffersBrowser({
         } else failed++;
       }
       setProgress(null);
+      setStopping(false);
       running.current = false;
       router.refresh();
       if (cancel.current) toast.info(fmt(o.evalStopped, { n: done }));
@@ -225,11 +238,12 @@ export function OffersBrowser({
 
   // Header "Score N new" button (server-rendered) asks through a window event.
   useEffect(() => {
-    // Rows matching the current filters go first, so a narrowed list gets its scores long before the rest.
-    const on = () => void evaluate([...pending.filter((p) => visibleIds.has(p.id)), ...pending.filter((p) => !visibleIds.has(p.id))]);
+    // "Score the 20 best matches": unscored rows in best-first order of the current list, then the rest, 20 at most.
+    const order = new Map(shown.map((r, i) => [r.id, i]));
+    const on = () => void evaluate([...pending].sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9)).slice(0, BEST_BATCH));
     window.addEventListener("khedma:score-pending", on);
     return () => window.removeEventListener("khedma:score-pending", on);
-  }, [evaluate, pending, visibleIds]);
+  }, [evaluate, pending, shown]);
 
   // ---------- keyboard: j/k move, x select, s star (Enter is native on the focused link) ----------
   useEffect(() => {
@@ -240,12 +254,12 @@ export function OffersBrowser({
       const k = e.key.toLowerCase();
       if (k === "j" || k === "k") {
         e.preventDefault();
-        const next = Math.max(0, Math.min(shown.length - 1, cursor.current + (k === "j" ? 1 : -1)));
+        const next = Math.max(0, Math.min(page.length - 1, cursor.current + (k === "j" ? 1 : -1)));
         cursor.current = next;
-        document.getElementById(`offer-${shown[next].id}`)?.focus();
-      } else if ((k === "x" || k === "s") && cursor.current >= 0 && shown[cursor.current]) {
+        document.getElementById(`offer-${page[next].id}`)?.focus();
+      } else if ((k === "x" || k === "s") && cursor.current >= 0 && page[cursor.current]) {
         e.preventDefault();
-        const r = shown[cursor.current];
+        const r = page[cursor.current];
         if (k === "x") toggle(r.id);
         else star([r.id], !r.starred);
       }
@@ -288,8 +302,8 @@ export function OffersBrowser({
             <p className="mb-2 truncate text-xs text-muted">{fmt(o.current, { title: progress.title })}</p>
             <Progress value={progress.i - 1} max={progress.n} label={o.progressLabel} tone="saffron" />
           </div>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => (cancel.current = true)}>
-            <X size={14} aria-hidden="true" /> {o.stop}
+          <button type="button" className="btn btn-outline btn-sm" disabled={stopping} aria-busy={stopping} onClick={() => { cancel.current = true; setStopping(true); }}>
+            <X size={14} aria-hidden="true" /> {stopping ? o.stopping : o.stop}
           </button>
         </div>
       )}
@@ -333,26 +347,26 @@ export function OffersBrowser({
           </div>
         ) : view === "table" ? (
           <div className="card overflow-x-auto">
-            <div className="min-w-[880px]">
-              <div className={`${GRID} border-b border-line px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-muted`}>
-                <span>
+            <div className="min-w-[880px]" role="table" aria-label={o.title}>
+              <div role="row" className={`${GRID} border-b border-line px-4 py-2.5 text-[0.72rem] font-semibold uppercase tracking-[0.06em] text-muted`}>
+                <span role="columnheader">
                   <input
                     type="checkbox"
                     className="size-4 accent-[var(--accent)]"
                     aria-label={o.col.selectAll}
                     checked={allOn}
-                    onChange={() => setSelected(allOn ? new Set() : new Set(shown.map((r) => r.id)))}
+                    onChange={() => setSelected(allOn ? new Set() : new Set(page.map((r) => r.id)))}
                   />
                 </span>
-                <span>{o.list2.col.offer}</span>
-                <span>{o.list2.col.typePlace}</span>
-                <span>{o.list2.col.fit}</span>
-                <span>{o.list2.col.deadline}</span>
-                <span>{o.list2.col.status}</span>
-                <span className="sr-only">{o.col.actions}</span>
+                <span role="columnheader">{o.list2.col.offer}</span>
+                <span role="columnheader">{o.list2.col.typePlace}</span>
+                <span role="columnheader">{o.list2.col.fit}</span>
+                <span role="columnheader">{o.list2.col.deadline}</span>
+                <span role="columnheader">{o.list2.col.status}</span>
+                <span role="columnheader" className="sr-only">{o.col.actions}</span>
               </div>
-              <ul>
-                {shown.map((r, i) => (
+              <ul role="rowgroup">
+                {page.map((r, i) => (
                   <TableRow key={r.id} {...rowProps(r, i)} />
                 ))}
               </ul>
@@ -360,13 +374,36 @@ export function OffersBrowser({
           </div>
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {shown.map((r, i) => (
+            {page.map((r, i) => (
               <OfferCard key={r.id} {...rowProps(r, i)} i={i} />
             ))}
           </ul>
         )}
       </div>
-      <p className="mt-2 text-right text-xs text-muted tabular" aria-live="polite">{fmt(o.count, { shown: shown.length, total })}</p>
+      {shown.length > page.length && (
+        <div className="mt-3 flex justify-center">
+          <button type="button" className="btn btn-outline" onClick={() => setPaged({ query, n: limit + PAGE })}>
+            {fmt(o.showMore, { n: Math.min(PAGE, shown.length - page.length), left: shown.length - page.length })}
+          </button>
+        </div>
+      )}
+      <p className="mt-2 text-right text-xs text-muted tabular" aria-live="polite">
+        {fmt(o.count, { shown: page.length, total: shown.length })}
+        {hidden > 0 && (
+          <>
+            {" · "}
+            {fmt(o.hiddenExpired, { n: hidden })}{" "}
+            <button type="button" className="font-semibold text-accent-text hover:underline" onClick={() => setParams({ all: "1" })}>{o.showHidden}</button>
+          </>
+        )}
+        {filters.all && !filters.archived && (
+          <>
+            {" · "}
+            <button type="button" className="font-semibold text-accent-text hover:underline" onClick={() => setParams({ all: null })}>{o.hideExpired}</button>
+          </>
+        )}
+        {unscoredHidden > 0 && <> · {fmt(o.unscoredHidden, { n: unscoredHidden })}</>}
+      </p>
 
       <Dialog
         open={!!confirmIds}
@@ -388,6 +425,7 @@ export function OffersBrowser({
 }
 
 const GRID = "grid grid-cols-[28px_minmax(0,2.2fr)_0.9fr_1fr_1.1fr_0.9fr_72px] items-center gap-3";
+const PAGE = 50;
 
 // ---------- rows ----------
 interface RowProps {
@@ -439,8 +477,8 @@ function Fit({ r }: { r: OfferRow }) {
   const { t } = useT();
   if (r.score === null)
     return (
-      <span className="inline-flex items-center gap-1.5 text-[0.78rem] font-semibold text-saffron">
-        <Sparkles size={13} aria-hidden="true" /> {t.offers2.list2.notScored}
+      <span className="inline-flex items-center gap-1.5 text-[0.78rem] text-muted">
+        {t.offers2.list2.notScored}
       </span>
     );
   return (
@@ -467,7 +505,7 @@ function Score({ r, size }: { r: OfferRow; size: number }) {
       {r.verdict && <VerdictChip verdict={r.verdict} t={t} />}
     </span>
   ) : (
-    <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-saffron"><Sparkles size={12} aria-hidden="true" /> {t.offers2.list2.notScored}</span>
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted">{t.offers2.list2.notScored}</span>
   );
 }
 
@@ -551,16 +589,17 @@ function TableRow(p: RowProps) {
   const { r } = p;
   return (
     <li
+      role="row"
       className={`${GRID} cursor-pointer border-b border-line px-4 py-[11px] transition-colors last:border-b-0 hover:bg-surface-2 focus-within:bg-surface-2 ${p.selected ? "!bg-accent-soft/60" : ""}`}
       onClick={(e) => {
         if ((e.target as HTMLElement).closest("a,button,input,[popover]")) return;
         router.push(`/app/jobs/${r.id}`);
       }}
     >
-      <span onClick={(e) => e.stopPropagation()}>
+      <span role="cell" onClick={(e) => e.stopPropagation()}>
         <input type="checkbox" className="size-4 accent-[var(--accent)]" aria-label={`${o.col.select} : ${r.title}`} checked={p.selected} onChange={p.onToggle} />
       </span>
-      <div className="flex min-w-0 items-center gap-3">
+      <div role="cell" className="flex min-w-0 items-center gap-3">
         <CompanyAvatar name={r.company} size={34} />
         <div className="min-w-0">
           <Link id={`offer-${r.id}`} href={`/app/jobs/${r.id}`} onFocus={p.onFocus} className="block truncate text-[0.9rem] font-semibold text-ink hover:text-accent-text">
@@ -575,7 +614,7 @@ function TableRow(p: RowProps) {
           </p>
         </div>
       </div>
-      <div className="min-w-0 text-[0.8rem] text-ink-2">
+      <div role="cell" className="min-w-0 text-[0.8rem] text-ink-2">
         <p className="font-medium">{t.jobTypes[r.type]}</p>
         <p className="truncate text-muted">
           {r.location || (r.remote ? "" : "—")}
@@ -588,9 +627,9 @@ function TableRow(p: RowProps) {
           )}
         </p>
       </div>
-      <Fit r={r} />
-      <Deadline date={r.deadline} locale={p.locale} />
-      <div className="min-w-0">
+      <div role="cell" className="min-w-0"><Fit r={r} /></div>
+      <div role="cell" className="min-w-0"><Deadline date={r.deadline} locale={p.locale} /></div>
+      <div role="cell" className="min-w-0">
         {r.status && r.status !== "evaluated" ? (
           <span className="status" style={{ color: STATE_FG[r.status] ?? "var(--ink-2)" }}>{t.states[r.status as AppState]}</span>
         ) : p.archivedView ? (
@@ -599,7 +638,7 @@ function TableRow(p: RowProps) {
           <ApplyButton {...p} />
         )}
       </div>
-      <div className="flex items-center justify-end">
+      <div role="cell" className="flex items-center justify-end">
         <StarButton r={r} onStar={p.onStar} />
         <RowMenu {...p} />
       </div>

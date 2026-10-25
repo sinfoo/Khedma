@@ -5,6 +5,19 @@ import { fold } from "./sources/classify";
 import type { EvergreenReason } from "./evergreen";
 
 export const VERDICTS = ["apply_now", "apply", "maybe", "skip"] as const;
+
+/** How many offers "Score the best matches" scores in one run. */
+export const BEST_BATCH = 20;
+/**
+ * One honest estimate for n scores with the active engine: the online AI reads each posting (about 10 s each),
+ * the offline rules are near instant. Units read the same in French and English.
+ */
+export function scoreTime(n: number, online: boolean): string {
+  const s = n * (online ? 10 : 0.2);
+  if (s < 60) return "< 1 min";
+  const m = Math.round(s / 60);
+  return m < 60 ? `≈ ${m} min` : `≈ ${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+}
 export const SORTS = ["newest", "score", "deadline", "company"] as const;
 export type Sort = (typeof SORTS)[number];
 export type VerdictFilter = Evaluation["verdict"] | "none";
@@ -22,6 +35,8 @@ export interface OfferFilters {
   source: string;
   dup: boolean;
   archived: boolean;
+  /** Also list expired offers and "skip" verdicts, hidden by default. */
+  all: boolean;
   sort: Sort;
 }
 
@@ -53,6 +68,7 @@ export function parseFilters(p: Params): OfferFilters {
     source: get(p, "source").slice(0, 30),
     dup: get(p, "dup") === "1",
     archived: get(p, "archived") === "1",
+    all: get(p, "all") === "1",
     sort: SORTS.includes(sort) ? sort : "score",
   };
 }
@@ -72,6 +88,7 @@ export function filtersToQuery(f: OfferFilters): string {
   if (f.source) p.set("source", f.source);
   if (f.dup) p.set("dup", "1");
   if (f.archived) p.set("archived", "1");
+  if (f.all) p.set("all", "1");
   if (f.sort !== "score") p.set("sort", f.sort);
   return p.toString();
 }
@@ -101,10 +118,22 @@ export interface OfferRow {
 
 const today = () => new Date().toLocaleDateString("sv");
 const dkey = (d: string | null) => (!d ? "9" : d.slice(0, 10) < today() ? `8${d}` : `0${d}`);
+const expired = (r: OfferRow) => !!r.deadline && r.deadline.slice(0, 10) < today();
+
+/** Hidden unless "show all": expired offers and "skip" verdicts. Tracked and starred offers always stay visible. */
+export const hiddenByDefault = (r: OfferRow) => !r.appId && !r.starred && (expired(r) || r.verdict === "skip");
+
+/**
+ * Best-first rank: live offers before expired ones, then the fit score. A keyword estimate counts half a point less
+ * than a real evaluation, so a 4.2 estimate no longer outranks a 4.0 scored by the AI.
+ */
+// ponytail: flat 0.5 discount for estimates; calibrate against outcomes if the ranking still misleads.
+const rank = (r: OfferRow) => (expired(r) ? -10 : 0) + (r.score === null ? -1 : r.score - (r.engine === "heuristic" ? 0.5 : 0));
 
 export function applyFilters(rows: OfferRow[], f: OfferFilters): OfferRow[] {
   const q = fold(f.q);
   const out = rows.filter((r) => {
+    if (!f.all && !f.archived && hiddenByDefault(r)) return false;
     if (q && !fold(`${r.title} ${r.company} ${r.location} ${r.tags.join(" ")}`).includes(q)) return false;
     if (f.types.length && !f.types.includes(r.type)) return false;
     if (f.verdicts.length && !f.verdicts.includes(r.verdict ?? "none")) return false;
@@ -124,7 +153,7 @@ export function applyFilters(rows: OfferRow[], f: OfferFilters): OfferRow[] {
   });
   const by: Record<Sort, (a: OfferRow, b: OfferRow) => number> = {
     newest: (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id,
-    score: (a, b) => (b.score ?? -1) - (a.score ?? -1) || b.id - a.id,
+    score: (a, b) => rank(b) - rank(a) || b.id - a.id,
     // Live deadlines first (soonest on top), then expired ones, then none.
     deadline: (a, b) => dkey(a.deadline).localeCompare(dkey(b.deadline)) || b.id - a.id,
     company: (a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title),

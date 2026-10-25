@@ -160,8 +160,14 @@ function pickName(jobs: JobWithMeta[]): string {
   return canonicalName(best);
 }
 
-export function statsFor(jobs: JobWithMeta[]): CompanyStats {
-  const open = jobs.filter((j) => !j.archived);
+/**
+ * Numbers for one employer. "Open" means not archived and not past its deadline; the fit average covers those offers.
+ * `deep` reads skills from the whole description (the company page); the list reads titles and tags only, which is
+ * 15× faster with hundreds of offers.
+ */
+export function statsFor(jobs: JobWithMeta[], deep = true): CompanyStats {
+  const today = new Date().toISOString().slice(0, 10);
+  const open = jobs.filter((j) => !j.archived && !(j.deadline && j.deadline < today));
   const types: Record<string, number> = {};
   const locs = new Map<string, number>();
   const skills = new Map<string, number>();
@@ -172,8 +178,8 @@ export function statsFor(jobs: JobWithMeta[]): CompanyStats {
     types[j.type] = (types[j.type] ?? 0) + 1;
     const loc = j.remote && !j.location ? "Remote" : j.location.trim();
     if (loc) locs.set(loc, (locs.get(loc) ?? 0) + 1);
-    for (const s of new Set([...extractSkills(`${j.title}\n${j.tags.join(", ")}\n${j.description}`)])) skills.set(s, (skills.get(s) ?? 0) + 1);
-    if (j.evaluation) scores.push(j.evaluation.global);
+    for (const s of new Set([...extractSkills(`${j.title}\n${j.tags.join(", ")}${deep ? `\n${j.description}` : ""}`)])) skills.set(s, (skills.get(s) ?? 0) + 1);
+    if (j.evaluation && open.includes(j)) scores.push(j.evaluation.global);
     if (j.application) {
       applications++;
       outcomes[j.application.status] = (outcomes[j.application.status] ?? 0) + 1;
@@ -196,8 +202,20 @@ export function statsFor(jobs: JobWithMeta[]): CompanyStats {
 
 /** Make sure every employer seen in the offers has a companies row. Cheap: INSERT OR IGNORE per slug. */
 function syncCompanies(groups: Map<string, JobWithMeta[]>): void {
-  const ins = db().prepare("INSERT OR IGNORE INTO companies (slug, name) VALUES (?, ?)");
-  for (const [slug, jobs] of groups) ins.run(slug, pickName(jobs));
+  const d = db();
+  const known = new Set((d.prepare("SELECT slug FROM companies").all() as { slug: string }[]).map((r) => r.slug));
+  const fresh = [...groups].filter(([slug]) => !known.has(slug));
+  if (!fresh.length) return;
+  // One transaction: a commit per employer made every Companies visit write hundreds of times.
+  const ins = d.prepare("INSERT OR IGNORE INTO companies (slug, name) VALUES (?, ?)");
+  d.exec("BEGIN");
+  try {
+    for (const [slug, jobs] of fresh) ins.run(slug, pickName(jobs));
+    d.exec("COMMIT");
+  } catch (e) {
+    d.exec("ROLLBACK");
+    throw e;
+  }
 }
 
 function loadAll(): { rows: Map<string, Company>; groups: Map<string, JobWithMeta[]> } {
@@ -211,7 +229,7 @@ function loadAll(): { rows: Map<string, Company>; groups: Map<string, JobWithMet
 
 export function listCompanies(): CompanyRow[] {
   const { rows, groups } = loadAll();
-  return [...rows.values()].map((c) => ({ ...c, ...statsFor(groups.get(c.slug) ?? []) })).sort((a, b) => b.open - a.open || b.lastSeen.localeCompare(a.lastSeen) || a.name.localeCompare(b.name));
+  return [...rows.values()].map((c) => ({ ...c, ...statsFor(groups.get(c.slug) ?? [], false) })).sort((a, b) => b.open - a.open || b.lastSeen.localeCompare(a.lastSeen) || a.name.localeCompare(b.name));
 }
 
 export function getCompany(slug: string): CompanyRow | null {

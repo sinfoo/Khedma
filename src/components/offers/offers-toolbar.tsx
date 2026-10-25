@@ -181,6 +181,15 @@ export function OffersToolbar({
           <SlidersHorizontal size={15} aria-hidden="true" /> {L.filters}
           {active > 0 && <span className="mono inline-grid h-[18px] min-w-[18px] place-items-center rounded-full bg-accent px-1 text-[0.68rem] text-accent-ink">{active}</span>}
         </button>
+        {/* The order is always visible: "best score" by default, so the list reads best-first. */}
+        <label className="flex items-center gap-1.5 text-[0.8rem] text-muted">
+          <span>{L.sort}</span>
+          <select className="input !h-[38px] !w-auto !border-line !py-0 text-sm" value={f.sort} onChange={(e) => setParams({ sort: e.target.value === "score" ? null : e.target.value })}>
+            {(["score", "newest", "deadline", "company"] as const).map((s) => (
+              <option key={s} value={s}>{o.sorts[s]}</option>
+            ))}
+          </select>
+        </label>
         <span className="ml-auto hidden text-[0.78rem] text-muted xl:inline">{L.keys}</span>
       </div>
 
@@ -264,14 +273,6 @@ export function OffersToolbar({
                 ))}
               </select>,
             )}
-          {group(
-            L.sort,
-            <select className="input !h-7 !w-auto !py-0 text-[0.78rem]" aria-label={o.sort} value={f.sort} onChange={(e) => setParams({ sort: e.target.value === "score" ? null : e.target.value })}>
-              {(["newest", "score", "deadline", "company"] as const).map((s) => (
-                <option key={s} value={s}>{o.sorts[s]}</option>
-              ))}
-            </select>,
-          )}
           {group(
             L.layout,
             <span role="group" aria-label={o.view} className="seg seg-sm">
