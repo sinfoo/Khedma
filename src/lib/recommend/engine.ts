@@ -187,7 +187,8 @@ export function recommendOffers(
   });
 
   return out
-    .filter((r) => (!opts.hideTracked || !r.tracked) && r.score > 0)
+    // An offer whose deadline passed is not a recommendation (tracked ones stay: the user decides).
+    .filter((r) => (!opts.hideTracked || !r.tracked) && r.score > 0 && (r.tracked || (daysUntil(r.deadline, now) ?? 0) >= 0))
     .sort((a, b) => b.score - a.score || a.id - b.id)
     .slice(0, opts.limit ?? 12);
 }
