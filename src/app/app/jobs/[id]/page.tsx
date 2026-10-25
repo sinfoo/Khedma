@@ -64,7 +64,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
       key={k}
       href={href(k)}
       aria-current={tab === k ? "page" : undefined}
-      className={`h-9 border-b-2 px-3 text-[0.85rem] font-semibold leading-9 transition-colors ${tab === k ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
+      className={`h-9 shrink-0 whitespace-nowrap border-b-2 px-3 text-[0.85rem] font-semibold leading-9 transition-colors ${tab === k ? "border-accent text-ink" : "border-transparent text-muted hover:text-ink"}`}
     >
       {label}
     </Link>
@@ -146,7 +146,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
             <Link href={href("fit")} className="font-semibold underline">{o.blockerSee}</Link>
           </p>
         )}
-        <nav aria-label={o.tabsLabel} className="mt-3 flex gap-1 border-b border-line no-print">
+        <nav aria-label={o.tabsLabel} className="mt-3 flex gap-1 overflow-x-auto border-b border-line no-print">
           {tabBtn("overview", o.tabs.overview)}
           {tabBtn("fit", o.tabs.fit)}
           {tabBtn("keywords", ats.keywords.length && !cv.empty ? `${o.tabs.keywords} · ${ats.pct}%` : o.tabs.keywords)}
