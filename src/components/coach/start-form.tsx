@@ -14,6 +14,8 @@ export interface AppOption {
   company: string;
   /** Next interview, when one is scheduled. */
   interviewAt?: string | null;
+  /** Language of the posting: the interview is practised in it by default. */
+  lang?: "fr" | "en";
 }
 
 /** Start in three taps: a suggested application, the kind of session, then Start. */
@@ -26,7 +28,7 @@ export function StartForm({ apps, preselect, locale, suggestedLabel }: { apps: A
   const [source, setSource] = useState<"app" | "generic">(pre !== null ? "app" : "generic");
   const [appId, setAppId] = useState<number | null>(pre);
   const [kind, setKind] = useState<(typeof KINDS)[number]>("mixed");
-  const [lang, setLang] = useState<"fr" | "en">(locale);
+  const [lang, setLang] = useState<"fr" | "en">((pre !== null && apps.find((a) => a.id === pre)?.lang) || locale);
   const [length, setLength] = useState<(typeof LENGTHS)[number]>(8);
   const [level, setLevel] = useState<"1" | "2" | "3">("2");
   const [more, setMore] = useState(false);
@@ -97,7 +99,12 @@ export function StartForm({ apps, preselect, locale, suggestedLabel }: { apps: A
             apps.length ? (
               <>
                 <label htmlFor="coach-app" className="label">{s.application}</label>
-                <select id="coach-app" className="input !h-9 !py-0 text-sm" value={appId ?? ""} onChange={(e) => setAppId(Number(e.target.value) || null)}>
+                <select id="coach-app" className="input !h-9 !py-0 text-sm" value={appId ?? ""} onChange={(e) => {
+                  const id = Number(e.target.value) || null;
+                  setAppId(id);
+                  const l = apps.find((a) => a.id === id)?.lang;
+                  if (l) setLang(l);
+                }}>
                   {apps.map((a) => (
                     <option key={a.id} value={a.id}>{a.title} — {a.company}</option>
                   ))}

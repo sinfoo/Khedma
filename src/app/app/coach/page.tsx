@@ -5,6 +5,7 @@ import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { listApplications } from "@/lib/db";
 import { BANK } from "@/lib/coach/bank";
+import { detectLanguage } from "@/lib/ai/heuristic";
 import { allInterviewStarts } from "@/lib/repo/apps";
 import { drillStates, listSessions, listStories } from "@/lib/repo/coach";
 import { ScoreRing, fmtDate, scoreColor, scoreLabel } from "@/components/ui";
@@ -32,7 +33,7 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
   for (const iv of allInterviewStarts()) if (iv.starts_at.slice(0, 10) >= today && !next.has(iv.application_id)) next.set(iv.application_id, iv.starts_at);
   const apps = listApplications()
     .filter((a) => a.status !== "discarded")
-    .map((a) => ({ id: a.id, title: a.job.title, company: a.job.company, interviewAt: next.get(a.id) ?? null }))
+    .map((a) => ({ id: a.id, title: a.job.title, company: a.job.company, interviewAt: next.get(a.id) ?? null, lang: detectLanguage(`${a.job.title} ${a.job.description}`, locale === "fr" ? "fr" : "en") }))
     .sort((a, b) => (a.interviewAt ?? "9").localeCompare(b.interviewAt ?? "9"));
   const sessions = listSessions();
   const done = sessions.filter((s) => s.status === "done" && s.score !== null);
