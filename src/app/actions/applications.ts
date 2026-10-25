@@ -134,7 +134,8 @@ export async function setNextAction(id: number, date: string | null): Promise<Re
 
 export async function toggleChecklist(id: number, key: string, done: boolean): Promise<Result> {
   if (!exists(id)) return fail("notFound");
-  if (!isCheckKey(key)) return fail("invalid");
+  // "Sent" is a fact only "I've sent it" records (date, channel, follow-up); a tick here would mark nothing sent.
+  if (!isCheckKey(key) || key === "applied") return fail("invalid");
   const cur = getExtras(id).checklist.filter((k) => k !== key);
   setExtras(id, { checklist: done ? [...cur, key] : cur });
   refresh();

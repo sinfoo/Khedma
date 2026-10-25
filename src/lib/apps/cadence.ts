@@ -108,12 +108,15 @@ export function computeCadence(input: CadenceInput, now: Date, cfg = DEFAULT_CAD
       nextDue = plusDays(last, cfg.responded_subsequent);
       urgency = daysSinceLast! >= cfg.responded_subsequent ? "overdue" : "waiting";
     } else {
-      nextDue = plusDays(start, cfg.responded_initial);
       urgency = daysSinceStart < cfg.responded_initial ? "urgent" : daysSinceStart >= cfg.responded_subsequent ? "overdue" : "waiting";
+      // Days 1-2: the 24 h window has passed, so the next date shown is the reminder, never yesterday.
+      nextDue = plusDays(start, urgency === "waiting" ? cfg.responded_subsequent : cfg.responded_initial);
     }
   } else {
-    // interview: thank-you within a day of the interview (or of entering the stage), then every 3 days
+    // interview: thank-you within a day of the interview, then every 3 days. With no interview date yet
+    // (the "plan the interview" dialog was skipped), nothing is due: there is nothing to thank them for.
     const iv = parseTs(input.lastInterviewAt) ?? null;
+    if (!iv && !last) return none;
     const anchor = iv && iv.getTime() <= now.getTime() ? iv : start;
     if (iv && iv.getTime() > now.getTime()) {
       nextDue = plusDays(iv, cfg.interview_thankyou);

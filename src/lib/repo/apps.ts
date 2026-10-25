@@ -266,7 +266,8 @@ export function cadenceFor(apps: { id: number; status: AppState; applied_at: str
   for (const r of d.prepare("SELECT application_id AS id, created_at AS at FROM events WHERE kind = 'followup'").all() as Row[])
     followups.set(r.id as number, [...(followups.get(r.id as number) ?? []), r.at as string]);
   const lastIv = new Map<number, string>();
-  for (const r of d.prepare("SELECT application_id AS id, MAX(starts_at) AS at FROM interviews WHERE starts_at <= ? GROUP BY application_id").all(now.toISOString().slice(0, 16)) as Row[])
+  // The latest interview, past or planned: a planned one means no thank-you is due yet.
+  for (const r of d.prepare("SELECT application_id AS id, MAX(starts_at) AS at FROM interviews GROUP BY application_id").all() as Row[])
     lastIv.set(r.id as number, r.at as string);
   // First response per application (status event in a response state, after applying).
   const rows = d

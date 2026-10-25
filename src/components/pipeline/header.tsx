@@ -22,6 +22,7 @@ export function WorkspaceHeader({
   meta,
   jobId,
   postingUrl,
+  missing = [],
 }: {
   id: number;
   status: AppState;
@@ -30,6 +31,8 @@ export function WorkspaceHeader({
   meta: string;
   jobId: number;
   postingUrl: string | null;
+  /** Documents not written yet: marking it sent from the stepper warns, like "I've sent it". */
+  missing?: ("cv" | "letter")[];
 }) {
   const { t } = useT();
   const s = t.apps2.stage;
@@ -37,8 +40,14 @@ export function WorkspaceHeader({
   const [cur, setCur] = useOptimistic(status);
   const [live, setLive] = useState("");
   const { move, node, pending } = useStageMove((_, st) => setCur(st), setLive);
-  const go = (to: AppState) => move({ id, status: cur, title: `${company} — ${title}` }, to);
   const idx = STEPS.indexOf(cur);
+  const go = (to: AppState) => {
+    const F = t.apps2.flow;
+    // One stray click must not jump to "Hired" or mark an empty pack as sent.
+    if (idx < 1 && STEPS.indexOf(to) >= 1 && missing.length && !window.confirm(fmt(F.missingDocs, { docs: missing.map((k) => (k === "cv" ? F.packCv : F.packLetter)).join(" + ") }))) return;
+    if (STEPS.indexOf(to) - idx > 1 && !window.confirm(fmt(s.jumpConfirm, { s: t.states[to] }))) return;
+    move({ id, status: cur, title: `${company} — ${title}` }, to);
+  };
   const closed = idx < 0;
 
   return (

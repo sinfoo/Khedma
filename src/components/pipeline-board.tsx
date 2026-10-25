@@ -30,6 +30,9 @@ export interface BoardItem {
   location: string;
   source: string;
   cadence: CadenceView | null;
+  /** The offer's deadline, and whether the tailored CV and letter exist (cards still to send). */
+  deadline: string | null;
+  docs: { cv: boolean; letter: boolean };
 }
 
 const ACTIVE: AppState[] = ["evaluated", "applied", "responded", "interview", "offer", "hired"];
@@ -53,6 +56,8 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
   const { t, locale } = useT();
   const b = t.apps2.board;
   const f = t.apps2.flow;
+  // Deadlines within 3 days turn red on cards still to send.
+  const soon = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("sv");
   const [opt, setOpt] = useOptimistic(items, (state, m: { id: number; status: AppState }) => state.map((x) => (x.id === m.id ? { ...x, status: m.status } : x)));
   const [live, setLive] = useState("");
   const { move, node } = useStageMove((id, status) => setOpt({ id, status }), setLive);
@@ -151,7 +156,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           e.dataTransfer.setData("text/plain", String(item.id));
           e.dataTransfer.effectAllowed = "move";
         }}
-        className={`card card-shadow flex flex-col gap-2 p-3 ${grabbed ? "outline-2 outline-offset-2 outline-accent" : ""}`}
+        className={`card card-shadow flex flex-col gap-2 p-3 ${grabbed ? "outline-2 outline-offset-2 outline-accent" : ""} ${item.status === "evaluated" && item.score !== null && item.score < 2.5 ? "opacity-70" : ""}`}
         style={{ ...(grabbed ? { outlineStyle: "solid" } : {}), animation: "rise .4s cubic-bezier(.2,.7,.2,1) both" }}
       >
         <div className="flex items-start gap-2">
@@ -171,7 +176,19 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
             {item.overdue && !item.interviewAt && <span className="sr-only">{b.overdue}</span>}
           </p>
         )}
-        {item.cadence && !nextLine && <CadenceChip c={item.cadence} t={t} locale={locale} />}
+        {/* Due follow-ups show even when a date line is there: "Candidature envoyée" cards always have one. */}
+        {item.cadence && <CadenceChip c={item.cadence} t={t} locale={locale} />}
+        {item.status === "evaluated" && (
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.72rem] text-muted">
+            <span className={item.docs.cv ? "text-success" : ""}>{item.docs.cv ? "✓" : "○"} {f.packCv}</span>
+            <span className={item.docs.letter ? "text-success" : ""}>{item.docs.letter ? "✓" : "○"} {f.packLetter}</span>
+            {item.deadline && (
+              <span className={`whitespace-nowrap font-semibold ${item.deadline.slice(0, 10) <= soon ? "text-danger" : "text-ink-2"}`}>
+                {t.common.deadline} {shortDate(item.deadline, locale)}
+              </span>
+            )}
+          </p>
+        )}
         <div className="flex items-center justify-between gap-1.5 border-t border-line pt-2">
           <span className="tabular whitespace-nowrap text-[0.7rem] text-muted">{fmt(f.hereDays, { n: item.stageDays })}</span>
           <div className="flex gap-1">

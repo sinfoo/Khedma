@@ -44,6 +44,8 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
     location: x.job.location,
     source: x.job.source,
     cadence: toView(cadence.get(x.id)),
+    deadline: x.job.deadline,
+    docs: { cv: !!x.cv_md?.trim(), letter: !!x.cover_letter_md?.trim() },
   }));
   const s = pipelineStats(apps, interviews, now);
 

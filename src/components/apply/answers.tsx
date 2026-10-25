@@ -28,6 +28,8 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
   const [custom, setCustom] = useState<string[]>(() => saved.filter((s) => !isQuestionId(s.qid)).map((s) => s.question));
   const [customInput, setCustomInput] = useState("");
   const [max, setMax] = useState(saved[0]?.max_chars ?? DEFAULT_MAX);
+  // Typed freely, clamped on blur: clamping on each keystroke turned "4" into the minimum before "400" could be typed.
+  const [maxInput, setMaxInput] = useState(String(max));
   const [drafts, setDrafts] = useState<Draft[]>(saved);
   const [gen, runGen] = useRun();
   const [loading, runLoad] = useRun();
@@ -44,17 +46,24 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
   const toggle = (qid: string) => setSelected((s) => { const n = new Set(s); if (n.has(qid)) n.delete(qid); else n.add(qid); return n; });
   const count = selected.size + custom.length;
 
-  const generate = (limit = max, only?: { qids: string[]; custom: string[] }) =>
-    runGen(
+  const generate = (limit = max, only?: { qids: string[]; custom: string[] }) => {
+    // Answers edited by hand are only rewritten after a yes.
+    const asked = only ? new Set([...only.qids, ...only.custom]) : null;
+    const edited = drafts.filter((x) => x.engine === "edited" && (!asked || asked.has(x.qid) || asked.has(x.question))).length;
+    if (edited && !window.confirm(fmt(a.overwriteEdited, { n: edited }))) return;
+    return runGen(
       () => generateFormAnswers(id, only?.qids ?? [...selected], only?.custom ?? custom, limit),
       a.saved,
       (r) => setDrafts((d) => { const m = new Map(d.map((x) => [x.qid, x])); for (const x of r.answers) m.set(x.qid, { ...x, max_chars: limit }); return [...m.values()]; }),
     );
+  };
   const resize = (delta: number) => {
     const limit = Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, max + delta));
     setMax(limit);
+    setMaxInput(String(limit));
     generate(limit);
   };
+  const markEdited = (qid: string, answer: string) => setDrafts((xs) => xs.map((x) => (x.qid === qid ? { ...x, answer, engine: "edited" } : x)));
 
   return (
     <div className="space-y-5">
@@ -113,7 +122,21 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
           </div>
           <div>
             <label className="label" htmlFor="max-chars">{a.maxChars}</label>
-            <input id="max-chars" type="number" className="input w-28 tabular" min={MIN_LIMIT} max={MAX_LIMIT} step={10} value={max} onChange={(e) => setMax(Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Number(e.target.value) || DEFAULT_MAX)))} />
+            <input
+              id="max-chars"
+              type="number"
+              className="input w-28 tabular"
+              min={MIN_LIMIT}
+              max={MAX_LIMIT}
+              step={10}
+              value={maxInput}
+              onChange={(e) => setMaxInput(e.target.value)}
+              onBlur={() => {
+                const v = Math.min(MAX_LIMIT, Math.max(MIN_LIMIT, Number(maxInput) || DEFAULT_MAX));
+                setMax(v);
+                setMaxInput(String(v));
+              }}
+            />
           </div>
           <button type="button" className="btn btn-primary" onClick={() => generate()} disabled={gen || count === 0} aria-busy={gen}>
             {gen ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
@@ -136,6 +159,7 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
           <AnswerCard key={d.qid} id={id} draft={d} i={i}
             onRegen={() => generate(max, isQuestionId(d.qid) ? { qids: [d.qid], custom: [] } : { qids: [], custom: [d.question] })}
             onRemove={() => { setDrafts((xs) => xs.filter((x) => x.qid !== d.qid)); if (isQuestionId(d.qid)) toggle(d.qid); else setCustom((c) => c.filter((x) => x !== d.question)); }}
+            onSaved={(text) => markEdited(d.qid, text)}
             busy={gen} />
         ))}
       </div>
@@ -145,7 +169,7 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
   );
 }
 
-function AnswerCard({ id, draft, i, onRegen, onRemove, busy }: { id: number; draft: Draft; i: number; onRegen: () => void; onRemove: () => void; busy: boolean }) {
+function AnswerCard({ id, draft, i, onRegen, onRemove, onSaved, busy }: { id: number; draft: Draft; i: number; onRegen: () => void; onRemove: () => void; onSaved: (text: string) => void; busy: boolean }) {
   const { t } = useT();
   const a = t.apply2.answers;
   const [text, setText] = useState(draft.answer);
@@ -175,7 +199,7 @@ function AnswerCard({ id, draft, i, onRegen, onRemove, busy }: { id: number; dra
       <textarea id={tid} className="input min-h-28 w-full resize-y text-sm leading-relaxed" value={text} aria-invalid={over || unfilled || undefined} aria-required={sensitive || undefined}
         aria-describedby={sensitive ? `${tid}-s ${tid}-c` : `${tid}-c`}
         onChange={(e) => { setText(e.target.value); setDirty(true); }}
-        onBlur={() => { if (dirty) runSave(() => saveFormAnswer(id, draft.qid, text, draft.max_chars), t.common.saved, () => setDirty(false)); }} />
+        onBlur={() => { if (dirty) runSave(() => saveFormAnswer(id, draft.qid, text, draft.max_chars), t.common.saved, () => { setDirty(false); onSaved(text); }); }} />
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <span id={`${tid}-c`} className={`text-xs tabular ${over ? "text-danger" : "text-muted"}`}>
           {fmt(a.counter, { n: text.length, max: draft.max_chars })}{over ? ` · ${a.tooLong}` : ""}
@@ -186,7 +210,7 @@ function AnswerCard({ id, draft, i, onRegen, onRemove, busy }: { id: number; dra
           </button>
           <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={onRegen}><RefreshCw size={14} aria-hidden="true" />{a.regenOne}</button>
           <button type="button" className="btn btn-ghost btn-sm text-danger" onClick={() => runRemove(() => removeFormAnswer(id, draft.qid), a.removed, onRemove)}><Trash2 size={14} aria-hidden="true" />{a.removeOne}</button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={!dirty || saving} aria-busy={saving} onClick={() => runSave(() => saveFormAnswer(id, draft.qid, text, draft.max_chars), t.common.saved, () => setDirty(false))}>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={!dirty || saving} aria-busy={saving} onClick={() => runSave(() => saveFormAnswer(id, draft.qid, text, draft.max_chars), t.common.saved, () => { setDirty(false); onSaved(text); })}>
             {a.saveOne}
           </button>
         </div>

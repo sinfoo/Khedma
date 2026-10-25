@@ -25,7 +25,7 @@ export function Checklist({ id, items, compact = false, title }: { id: number; i
         {items.map((it) => (
           <li key={it.key}>
             <label className={`flex items-center gap-2 ${it.auto ? "" : "cursor-pointer"}`}>
-              <input type="checkbox" className="peer sr-only" checked={it.done} disabled={it.auto || pending} onChange={(e) => run(() => toggleChecklist(id, it.key, e.target.checked))} />
+              <input type="checkbox" className="peer sr-only" checked={it.done} disabled={it.auto || it.key === "applied" || pending} onChange={(e) => run(() => toggleChecklist(id, it.key, e.target.checked))} />
               <span
                 aria-hidden="true"
                 className={`grid size-[18px] shrink-0 place-items-center rounded-md border text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--ring)] ${it.done ? "border-success bg-success" : "border-line-strong bg-surface"}`}

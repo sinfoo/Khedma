@@ -137,7 +137,7 @@ export default defineMessages({
       lead: "Every tracked offer, from first evaluation to signed offer. Drag cards, or use the keyboard.",
       exportIcs: "Export calendar (.ics)",
       emptyTitle: "Your pipeline is empty",
-      emptyHint: "Evaluate an offer, then press “Track this offer” — it lands here in “To apply” and you can move it forward.",
+      emptyHint: "Press “Apply” on an offer: it lands here in “To apply”, and moves on when you send it.",
       emptyCta: "Browse offers",
       searchPh: "Search title or company…",
       allTypes: "All types",
@@ -183,6 +183,7 @@ export default defineMessages({
     },
     stage: {
       stepperLabel: "Application stage",
+      jumpConfirm: "Move straight to “{s}”? The steps in between are skipped (you can undo).",
       current: "current stage",
       changeTo: "Move to {s}",
       markAs: "Mark as {s}",
@@ -244,6 +245,7 @@ export default defineMessages({
     },
     docs: {
       cv: "Tailored CV",
+      generatingHint: "Writing from your CV and the posting… this usually takes under a minute. Stay on this page; the result replaces the current text when it is ready.",
       letter: "Cover letter",
       switchLabel: "Document",
       source: "Source",
@@ -733,7 +735,7 @@ export default defineMessages({
       lead: "Toutes vos offres suivies, de la première évaluation à la proposition signée. Glissez les cartes ou utilisez le clavier.",
       exportIcs: "Exporter le calendrier (.ics)",
       emptyTitle: "Votre pipeline est vide",
-      emptyHint: "Évaluez une offre puis cliquez sur « Suivre cette offre » : elle arrive ici en « À postuler » et tu la fais avancer.",
+      emptyHint: "Appuie sur « Postuler » sur une offre : elle arrive ici en « À postuler », puis avance quand tu l'envoies.",
       emptyCta: "Parcourir les offres",
       searchPh: "Rechercher un poste ou une entreprise…",
       allTypes: "Tous les types",
@@ -779,6 +781,7 @@ export default defineMessages({
     },
     stage: {
       stepperLabel: "Étape de la candidature",
+      jumpConfirm: "Passer directement à « {s} » ? Les étapes intermédiaires sont sautées (tu peux annuler).",
       current: "étape actuelle",
       changeTo: "Passer à {s}",
       markAs: "Marquer comme {s}",
@@ -840,6 +843,7 @@ export default defineMessages({
     },
     docs: {
       cv: "CV adapté",
+      generatingHint: "Rédaction à partir de ton CV et de l'annonce… en général moins d'une minute. Reste sur cette page ; le résultat remplace le texte actuel quand il est prêt.",
       letter: "Lettre de motivation",
       switchLabel: "Document",
       source: "Source",
@@ -1039,7 +1043,7 @@ export default defineMessages({
       titlePh: "Envoyer la convention de stage signée…",
       due: "Échéance",
       empty: "Aucun rappel",
-      emptyHint: "Passer une candidature en « Postulé » crée automatiquement un rappel de relance 7 jours plus tard.",
+      emptyHint: "Passer une candidature en « Candidature envoyée » crée automatiquement un rappel de relance 7 jours plus tard.",
       overdue: "En retard",
       today: "Aujourd'hui",
       followupBadge: "Relance",

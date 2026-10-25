@@ -92,6 +92,13 @@ test("interview: no thank-you is due before a future interview", () => {
   assert.ok(c.nextDue && c.nextDue > "2026-10-15", String(c.nextDue));
 });
 
+test("interview with no date yet: nothing due; a reply on day 2 never shows yesterday as the next date", () => {
+  assert.equal(computeCadence({ ...base, status: "interview", stageEnteredAt: "2026-10-10 09:00:00" }, now).urgency, "none");
+  const r = computeCadence({ ...base, status: "responded", stageEnteredAt: "2026-10-11 09:00:00" }, now);
+  assert.equal(r.urgency, "waiting");
+  assert.ok(r.nextDue! >= "2026-10-13", String(r.nextDue));
+});
+
 test("applied: 60 days of silence is cold even without follow-ups", () => {
   const stale = computeCadence({ ...base, applied_at: "2026-08-10T09:00:00Z", stageEnteredAt: "2026-08-10 09:00:00" }, now);
   assert.equal(stale.urgency, "cold");

@@ -198,6 +198,8 @@ export function DocEditor({
         )}
       </div>
       <span role="status" className="sr-only">{copied ? t.common.copied : gen ? t.common.generating : ""}</span>
+      {/* More than "Generating…": how long, and that waiting here is fine. */}
+      {gen && <p className="mb-4 rounded-lg bg-surface-2 px-3 py-2 text-sm text-ink-2 no-print">{d.generatingHint}</p>}
       {disabledReason && (
         <div className="mb-4 no-print">
           <p id="doc-disabled" className="mb-3 text-sm font-medium text-saffron">{disabledReason}</p>

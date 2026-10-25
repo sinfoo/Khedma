@@ -193,9 +193,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         status={app.status}
         title={job.title}
         company={job.company}
-        meta={[t.jobTypes[job.type], job.location, app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), n: daysSince(app.applied_at, nowMs) }) : a.overview.notApplied].filter(Boolean).join(" · ")}
+        meta={[t.jobTypes[job.type], job.location, app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), n: daysSince(app.applied_at, nowMs) }) : a.overview.notApplied, !applied && job.deadline ? `${t.common.deadline} ${shortDate(job.deadline, locale)}` : ""].filter(Boolean).join(" · ")}
         jobId={job.id}
         postingUrl={/^https?:\/\//.test(job.url) ? job.url : null}
+        missing={missingDocs}
       />
       <CadenceBanner id={app.id} c={cadence} t={t} locale={locale} />
 
@@ -375,7 +376,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <aside className="no-print flex flex-col gap-3.5">
               {(doc === "cv" ? app.cv_md : app.cover_letter_md)?.trim() && <DocStylePanel initial={docStyle} />}
               {doc === "cv" && <AtsPanel t={t} before={hasCv ? atsCheck(job, source.text) : null} after={app.cv_md ? atsCheck(job, app.cv_md) : null} />}
-              <Checklist id={app.id} items={checklist.items} compact title={F.beforeSend} />
+              {/* "Before you send" lists only what comes before sending, so it can be completed. */}
+              <Checklist id={app.id} items={checklist.items.filter((i) => !["applied", "followup", "interview_prep"].includes(i.key))} compact title={F.beforeSend} />
               <Link href={`/app/coach?application=${app.id}`} className="inline-flex items-center gap-1.5 px-1 text-[0.8rem] font-semibold">
                 <GraduationCap size={13} aria-hidden="true" /> {F.prepareInterview}
               </Link>
