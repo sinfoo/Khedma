@@ -313,6 +313,15 @@ export default defineMessages({
         downloadTxt: "Download .txt (ATS, standard headings)",
       },
     },
+    linkedin: {
+      title: "Your LinkedIn, from this profile",
+      lead: "A headline and an About text built only from what your profile says. Copy them, then make them yours on LinkedIn: Khedma never posts anything there.",
+      headline: "Headline",
+      about: "About",
+      copy: "Copy",
+      copied: "Copied",
+      empty: "Add your school, skills and target roles above to get a draft.",
+    },
     onb: {
       welcome: "Welcome",
       title: "Five questions, then Khedma starts working.",
@@ -667,6 +676,15 @@ export default defineMessages({
         coverageHint: "N'ajoutez un mot-clé manquant que si vous avez vraiment la compétence.",
         downloadTxt: "Télécharger .txt (ATS, titres standard)",
       },
+    },
+    linkedin: {
+      title: "Ton LinkedIn, depuis ce profil",
+      lead: "Un titre et un texte « Infos » construits uniquement à partir de ce que dit ton profil. Copie-les puis personnalise-les sur LinkedIn : Khedma n'y publie jamais rien.",
+      headline: "Titre",
+      about: "Infos",
+      copy: "Copier",
+      copied: "Copié",
+      empty: "Ajoute ton école, tes compétences et tes postes visés ci-dessus pour obtenir une proposition.",
     },
     onb: {
       welcome: "Bienvenue",
