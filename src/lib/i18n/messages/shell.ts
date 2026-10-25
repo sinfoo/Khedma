@@ -5,6 +5,7 @@ export default defineMessages({
   en: {
     kit: { close: "Close", dismiss: "Dismiss notification", loading: "Loading…" },
     groups: { find: "Find", choose: "Choose", apply: "Apply", follow: "Follow up" },
+    notFound: { title: "This page no longer exists", text: "The offer or application may have been deleted or merged with a duplicate.", offers: "Offers", pipeline: "Pipeline", today: "Today" },
     badges: { offers: "{n} good matches not tracked yet", pipeline: "{n} tracked, still to send", calendar: "{n} due this week", coach: "{n} cards to review", sources: "{n}" },
     nav: {
       today: "Today",
@@ -94,6 +95,7 @@ export default defineMessages({
   fr: {
     kit: { close: "Fermer", dismiss: "Fermer la notification", loading: "Chargement…" },
     groups: { find: "Trouver", choose: "Choisir", apply: "Postuler", follow: "Relancer" },
+    notFound: { title: "Cette page n'existe plus", text: "L'offre ou la candidature a peut-être été supprimée ou fusionnée avec un doublon.", offers: "Offres", pipeline: "Pipeline", today: "Aujourd'hui" },
     badges: { offers: "{n} bonnes offres pas encore suivies", pipeline: "{n} suivies, encore à envoyer", calendar: "{n} échéances cette semaine", coach: "{n} cartes à revoir", sources: "{n}" },
     nav: {
       today: "Aujourd'hui",

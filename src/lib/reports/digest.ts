@@ -1,6 +1,7 @@
 // Weekly digest: pure week math and bucketing over plain rows, so it can be
 // unit-tested without a database. Weeks start on Monday (local time).
 import type { AppState } from "../types";
+import { parseTs } from "../apps/cadence";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 export const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -21,12 +22,15 @@ export function addDays(date: string, n: number): string {
   return localDate(d);
 }
 
-/** Local YYYY-MM-DD for an ISO timestamp (UTC "Z" ones are shifted to local), or the date part of a date-only string. */
+/**
+ * Local YYYY-MM-DD for a stored timestamp, or the date part of a date-only string. SQLite's "YYYY-MM-DD HH:MM:SS"
+ * is UTC (read through parseTs, not as local time), so an evening event no longer lands on the next day.
+ */
 export function toLocalDay(s: string | null | undefined): string | null {
   if (!s) return null;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? s.slice(0, 10) : localDate(d);
+  const d = parseTs(s);
+  return d ? localDate(d) : s.slice(0, 10);
 }
 
 export const inWeek = (day: string | null, start: string) => !!day && day >= start && day < addDays(start, 7);
@@ -196,17 +200,18 @@ export function buildDigest(d: DigestInput, today = localDate(new Date())): Dige
     .filter((i) => inWeek(toLocalDay(i.starts_at), ws))
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
     .map((i) => ({ ...i, ...label(i.application_id) }));
+  const latest = new Map<number, number>();
+  for (const e of d.evaluations) latest.set(e.job_id, e.global); // sorted ascending by caller: last wins
+  // Priority #1 is often a deadline: only offers you track, or untracked ones that scored well, qualify.
   const deadlinesNext = d.jobs
     .filter((j) => !j.archived && inWeek(j.deadline, nextStart))
     .filter((j) => {
       const a = appByJob.get(j.id);
-      return !a || OPEN.includes(a.status);
+      return a ? OPEN.includes(a.status) : (latest.get(j.id) ?? 0) >= GOOD_SCORE;
     })
     .sort((a, b) => a.deadline!.localeCompare(b.deadline!))
     .map((j) => ({ application_id: appByJob.get(j.id)?.id ?? null, job_id: j.id, title: j.title, company: j.company, deadline: j.deadline! }));
 
-  const latest = new Map<number, number>();
-  for (const e of d.evaluations) latest.set(e.job_id, e.global); // sorted ascending by caller: last wins
   const top = d.jobs
     .filter((j) => !j.archived && latest.has(j.id) && (!j.deadline || j.deadline >= today))
     .filter((j) => {
@@ -223,7 +228,7 @@ export function buildDigest(d: DigestInput, today = localDate(new Date())): Dige
 
   // Suggested focus for next week: deterministic sentences, highest impact first.
   const focus: Digest["focus"] = [];
-  const unevaluated = d.jobs.filter((j) => !j.archived && !latest.has(j.id)).length;
+  const unevaluated = d.jobs.filter((j) => !j.archived && !latest.has(j.id) && (!j.deadline || j.deadline >= today)).length;
   const waiting = d.apps.filter((a) => a.status === "applied" && a.applied_at && toLocalDay(a.applied_at)! <= addDays(today, -7)).length;
   const upcoming = d.interviews.filter((i) => toLocalDay(i.starts_at)! >= today && toLocalDay(i.starts_at)! < addDays(today, 14)).length;
   if (deadlinesNext.length) focus.push({ key: "deadlines", vars: { n: deadlinesNext.length, first: `${deadlinesNext[0].title} — ${deadlinesNext[0].company}` } });
@@ -269,3 +274,5 @@ export function buildDigest(d: DigestInput, today = localDate(new Date())): Dige
   };
 }
 const PAST: AppState[] = ["applied", "responded", "interview", "offer", "hired"];
+/** An untracked offer this good is worth a deadline reminder in the weekly priorities. */
+const GOOD_SCORE = 3.5;

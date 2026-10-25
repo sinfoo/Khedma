@@ -107,3 +107,19 @@ test("reportMarkdown escapes pipes in table cells and lists sections", () => {
   assert.ok(md.includes("# Rapport <jury>") && md.includes("## Apps") && md.includes("| Offre | Entreprise |"));
   assert.ok(md.includes("_—_")); // empty interviews
 });
+
+test("buildDigest: a deadline priority needs a tracked or well-scored offer; SQLite UTC times map to the local day", () => {
+  const input: DigestInput = {
+    weekStart: "2026-10-12",
+    jobs: [job(1, { deadline: "2026-10-20" }), job(2, { deadline: "2026-10-21" }), job(3, { deadline: "2026-10-22" })],
+    evaluations: [{ job_id: 2, created_at: "2026-10-13T10:00", global: 2.1 }, { job_id: 3, created_at: "2026-10-13T10:00", global: 4.4 }],
+    apps: [app(10, 1)],
+    statusEvents: [],
+    interviews: [],
+  };
+  // Job 1 is tracked, job 3 scored well; job 2 (untracked, weak) is not a priority.
+  assert.deepEqual(buildDigest(input, "2026-10-13").deadlinesNext.map((x) => x.job_id), [1, 3]);
+  const local = new Date(Date.UTC(2026, 9, 13, 23, 30));
+  const day = `${local.getFullYear()}-${String(local.getMonth() + 1).padStart(2, "0")}-${String(local.getDate()).padStart(2, "0")}`;
+  assert.equal(toLocalDay("2026-10-13 23:30:00"), day);
+});

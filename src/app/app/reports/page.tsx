@@ -81,7 +81,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           </dl>
           <h2 className={h2}><Lightbulb size={16} className="text-saffron" aria-hidden="true" /> {r.focus}</h2>
           <ol className="flex flex-col gap-1 pl-5 text-[0.92rem] text-ink-2" style={{ listStyle: "decimal" }}>
-            {d.focus.map((f) => <li key={f.key}>{fmt(r.focusKeys[f.key], f.vars)}</li>)}
+            {d.focus.map((f) => {
+              // Each priority is one click from being done.
+              const top = d.top[0];
+              const href = { evaluateBacklog: "/app/jobs?evaluate=1", applyTop: top ? (top.application_id ? `/app/pipeline/${top.application_id}?tab=overview` : `/app/jobs/${top.job_id}`) : "/app/jobs", followUp: "/app/pipeline", deadlines: "/app/calendar", prepInterviews: "/app/coach", findOffers: "/app/sources", keepGoing: "/app/jobs" }[f.key];
+              return (
+                <li key={f.key}>
+                  {fmt(r.focusKeys[f.key], f.vars)}{" "}
+                  <Link href={href} className="whitespace-nowrap font-semibold text-accent-text hover:underline no-print">{r.focusGo[f.key]} →</Link>
+                </li>
+              );
+            })}
           </ol>
           <PolishFocus week={week} />
           <h2 className={h2}><Trophy size={16} className="text-success" aria-hidden="true" /> {r.top}</h2>
