@@ -1,7 +1,7 @@
 import type { NewJob } from "../db";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { htmlToText, pickJsonLdJobPosting, pickMeta, pickTitle } from "./html";
-import { getText } from "./http";
+import { getText, isPrivateHost } from "./http";
 
 const MAX_DESC = 12_000;
 
@@ -35,13 +35,7 @@ export function validatePublicUrl(raw: string): { url?: URL; error?: string } {
     return { error: "Invalid URL" };
   }
   if (u.protocol !== "http:" && u.protocol !== "https:") return { error: "Only http(s) URLs are allowed" };
-  const h = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  const privateHost =
-    h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") ||
-    h === "0.0.0.0" || h === "::1" || h === "::" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd") ||
-    /^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
-    /^169\.254\./.test(h) || /^::ffff:/.test(h) || !h.includes(".") && !h.includes(":");
-  if (privateHost) return { error: "Private or local hosts are not allowed" };
+  if (isPrivateHost(u.hostname)) return { error: "Private or local hosts are not allowed" };
   return { url: u };
 }
 

@@ -1,5 +1,5 @@
 // Polite page fetch: public hosts only, robots.txt honoured (cached per origin), 10s timeout, bounded body.
-import { USER_AGENT } from "../sources/http";
+import { decodeBody, publicFetch, USER_AGENT } from "../sources/http";
 import { validatePublicUrl } from "../sources/url";
 
 interface Rule {
@@ -68,7 +68,7 @@ async function rulesFor(u: URL): Promise<Rule[]> {
   if (hit && Date.now() - hit.at < TTL) return hit.rules;
   let rules: Rule[] = [];
   try {
-    const res = await fetch(`${u.origin}/robots.txt`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(6_000), redirect: "follow" });
+    const { res } = await publicFetch(`${u.origin}/robots.txt`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(6_000) });
     if (res.ok) rules = parseRobots((await res.text()).slice(0, 200_000));
   } catch {
     // unreachable robots.txt = no restrictions, same as the crawling convention
@@ -90,13 +90,12 @@ export async function politeFetch(raw: string): Promise<Fetched> {
   if (!url) return { status: 0, html: "", finalUrl: raw, error, blocked: true };
   if (!robotsAllow(await rulesFor(url), url.pathname + url.search)) return { status: 0, html: "", finalUrl: url.toString(), error: "Disallowed by robots.txt", blocked: true };
   try {
-    const res = await fetch(url, {
+    const { res, url: finalUrl } = await publicFetch(url.toString(), {
       headers: { "User-Agent": USER_AGENT, Accept: "text/html, application/xhtml+xml;q=0.9, */*;q=0.5", "Accept-Language": "fr, en;q=0.8" },
       signal: AbortSignal.timeout(10_000),
-      redirect: "follow",
     });
-    const html = (await res.text()).slice(0, MAX_BODY);
-    return { status: res.status, html, finalUrl: res.url || url.toString() };
+    const html = (await decodeBody(res)).slice(0, MAX_BODY);
+    return { status: res.status, html, finalUrl };
   } catch (e) {
     return { status: 0, html: "", finalUrl: url.toString(), error: (e as Error).name === "TimeoutError" ? "Timeout" : `Network error: ${(e as Error).message}` };
   }

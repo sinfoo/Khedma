@@ -62,3 +62,26 @@ test("offers already known are not returned again but stay listed, so they are n
   assert.equal(r.jobs.length, 0, "known offers are not returned again");
   assert.ok(r.listed, "but still listed, so they are not closed");
 });
+
+test("a redirect to a private address is refused, and non-UTF-8 pages decode by their charset", async () => {
+  const { getText, isPrivateHost, isLoopbackHost, isSameOrigin } = await import("./http");
+  route = (url) => (url.includes("hop") ? new Response(null, { status: 302, headers: { location: "http://127.0.0.1:3000/" } }) : new Response("x"));
+  const r = await getText("https://example.com/hop");
+  assert.match(r.error ?? "", /Private or local/);
+  assert.ok(!asked.some((u) => u.includes("127.0.0.1")), "the private hop is never fetched");
+
+  route = () => new Response(new Uint8Array([0x45, 0x6d, 0x70, 0x72, 0xe9, 0x67, 0x6f]), { headers: { "content-type": "text/xml; charset=ISO-8859-1" } });
+  assert.equal((await getText("https://example.com/feed")).text, "Emprégo");
+
+  for (const h of ["127.0.0.1", "10.1.2.3", "100.64.0.1", "0.0.0.1", "169.254.1.1", "172.16.0.1", "192.168.0.1", "::1", "[::1]", "fd00::1", "fe80::1", "::ffff:127.0.0.1", "box.local", "intranet"])
+    assert.ok(isPrivateHost(h), h);
+  for (const h of ["fdj.fr", "fcbarcelona.com", "8.8.8.8", "100.128.0.1", "2001:db8::1", "example.com"]) assert.ok(!isPrivateHost(h), h);
+
+  assert.ok(isLoopbackHost("localhost:3000") && isLoopbackHost("127.0.0.1:3000") && isLoopbackHost("[::1]:3000"));
+  assert.ok(!isLoopbackHost("192.168.1.20:3000") && !isLoopbackHost("evil.example:3000") && !isLoopbackHost(null));
+  const req = (h: Record<string, string>) => new Request("http://localhost:3000/api/x", { method: "POST", headers: h });
+  assert.ok(isSameOrigin(req({ host: "localhost:3000", origin: "http://localhost:3000" })));
+  assert.ok(!isSameOrigin(req({ host: "evil.example:3000", origin: "http://evil.example:3000" })), "DNS rebinding: Host is not loopback");
+  assert.ok(!isSameOrigin(req({ host: "localhost:3000", origin: "https://evil.example" })), "CSRF: foreign Origin");
+  assert.ok(!isSameOrigin(req({ host: "localhost:3000", "sec-fetch-site": "cross-site" })));
+});
