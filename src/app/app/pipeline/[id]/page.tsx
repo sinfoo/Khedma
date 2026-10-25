@@ -4,7 +4,9 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
-import { fmt, type Dict } from "@/lib/i18n/dict";
+import { dicts, fmt, type Dict } from "@/lib/i18n/dict";
+import { postingLocale } from "@/lib/ai/heuristic";
+import { getChecks } from "@/lib/company";
 import { getApplication, getJob, getProfile, latestEvaluation, listEvents } from "@/lib/db";
 import type { AppEvent, AppState, InterviewPrep, Locale } from "@/lib/types";
 import { getCvSource } from "@/lib/cv/source";
@@ -12,7 +14,9 @@ import { atsCheck, cvBase, type MessageType } from "@/lib/ai/apps";
 import {
   cadenceFor,
   computeChecklist,
+  contactsAtCompany,
   getExtras,
+  LETTER_SKIPPED,
   getOffer,
   listContacts,
   listInterviews,
@@ -33,9 +37,9 @@ import { CadenceBanner, toView } from "@/components/pipeline/cadence";
 import { MarkSentButton } from "@/components/pipeline/mark-sent";
 import { ApplyFormCard } from "@/components/pipeline/apply-form-card";
 import { PackButton } from "@/components/pipeline/pack-button";
-import { ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
+import { ContactSuggestions, ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
 import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
-import { generateDoc, generatePrep, saveDoc } from "@/app/actions/applications";
+import { generateDoc, generatePrep, saveDoc, skipLetter } from "@/app/actions/applications";
 import { listStories } from "@/lib/repo/coach";
 import { mapStories } from "@/lib/coach/logic";
 import { likelyConcerns } from "@/lib/coach/concerns";
@@ -85,7 +89,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const nowMs = now.getTime();
   const today = localDate(now);
   const applied = !!app.applied_at || PAST_APPLIED.includes(app.status);
-  const defaultTab: Tab = applied ? "messages" : !app.cv_md?.trim() ? "documents" : !app.cover_letter_md?.trim() ? "documents" : "overview";
+  const extras = getExtras(app.id);
+  const defaultTab: Tab = applied ? "messages" : !app.cv_md?.trim() ? "documents" : !app.cover_letter_md?.trim() && !extras.checklist.includes(LETTER_SKIPPED) ? "documents" : "overview";
   const defaultDoc = app.cv_md?.trim() ? "letter" : "cv";
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : defaultTab;
   const doc = sp.doc === "letter" || sp.doc === "cv" ? sp.doc : tab === "documents" && !sp.tab ? defaultDoc : "cv";
@@ -93,7 +98,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const stepHref = (k: Step) => (k === "tailor" ? `/app/pipeline/${appId}?tab=documents&doc=cv` : k === "letter" ? `/app/pipeline/${appId}?tab=documents&doc=letter` : k === "review" ? `/app/pipeline/${appId}?tab=overview` : `/app/pipeline/${appId}?tab=messages`);
 
   const ev = latestEvaluation(job.id);
-  const extras = getExtras(app.id);
   const cvSrc = getCvSource();
   const override = extras.cv_override_text?.trim() ? extras : null;
   const source = override ? { text: override.cv_override_text!, format: "text" as const } : { text: cvSrc.text, format: cvSrc.format };
@@ -107,13 +111,18 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const events = listEvents(app.id);
   const openReminders = reminders.filter((r) => !r.done);
   const overdue = !!app.next_action_at && app.next_action_at.slice(0, 10) < today;
+  const hasLetter = !!app.cover_letter_md?.trim();
+  // "Skip this step" sticks: no letter is asked for in the rail, the pack or "I've sent it".
+  const letterSkipped = !hasLetter && extras.checklist.includes(LETTER_SKIPPED);
+  const letterDone = hasLetter || letterSkipped;
+  const PLACEHOLDER = /\[[^\]]+\](?!\()/;
 
   const checklist = computeChecklist(
     {
       profile_cv: hasCv,
       evaluated: !!ev,
       cv_tailored: !!app.cv_md?.trim(),
-      letter: !!app.cover_letter_md?.trim(),
+      letter: letterDone,
       applied,
       followup: events.some((e) => e.kind === "followup"),
       interview_prep: !!app.interview_prep,
@@ -151,6 +160,27 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       : null;
   const pack = AFTER_TABS.includes(tab) ? getPack(app.id) : null;
+  const known = tab === "overview" || tab === "contacts" ? contactsAtCompany(job.company, app.id) : [];
+  const lastCheck = tab === "overview" ? getChecks([job.id]).get(job.id) : undefined;
+  // A check from the last 24 h is reused; older ones run again when the review step opens.
+  const freshCheck = lastCheck && nowMs - Date.parse(lastCheck.checked_at.replace(" ", "T") + "Z") < 86_400_000 ? { alive: lastCheck.status === "unknown" ? null : lastCheck.status === "open", status: lastCheck.http_status ?? 0 } : null;
+  // The e-mail goes to the employer: written in the posting's language, and it only mentions a letter that exists.
+  const PF = dicts[postingLocale(job, locale)].apps2.flow;
+  const missingDocs = [...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(letterDone ? [] : ["letter" as const])];
+  const sentButton = (className?: string) => (
+    <MarkSentButton
+      id={app.id}
+      status={app.status}
+      title={`${job.company} — ${job.title}`}
+      missing={missingDocs}
+      afterHref={stepHref("after")}
+      channel={applyEmail && (!contactEmail || !/^https?:\/\//.test(job.url)) ? "email" : "site"}
+      answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
+      unfilled={review?.saved.filter((x) => PLACEHOLDER.test(x.answer)).length ?? 0}
+      unfilledDocs={(["cv", "letter"] as const).filter((k) => PLACEHOLDER.test((k === "cv" ? app.cv_md : app.cover_letter_md) ?? ""))}
+      className={className}
+    />
+  );
   const offer = getOffer(app.id);
   const docStyle = getDocStyle();
   // Changes with the style, so the preview frame reloads after "Mise en page" edits.
@@ -172,7 +202,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       {/* Step rail: the application is a path, not a set of tabs */}
       <ol aria-label={F.stepsLabel} className="card mb-[18px] grid grid-cols-2 gap-1 p-1.5 no-print lg:grid-cols-4">
         {STEPS.map((k, i) => {
-          const done = k === "tailor" ? !!app.cv_md?.trim() : k === "letter" ? !!app.cover_letter_md?.trim() : k === "review" ? applied : false;
+          const done = k === "tailor" ? !!app.cv_md?.trim() : k === "letter" ? letterDone : k === "review" ? applied : false;
           const current = k === step;
           return (
             <li key={k}>
@@ -185,7 +215,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   {done ? <Check size={13} aria-hidden="true" /> : i + 1}
                 </span>
                 <span className="min-w-0">
-                  <span className={`block whitespace-nowrap text-[0.85rem] font-semibold ${current ? "text-ink" : "text-ink-2"}`}>{F.steps[k].label}</span>
+                  <span className={`block whitespace-nowrap text-[0.85rem] font-semibold ${current ? "text-ink" : "text-ink-2"}`}>
+                    {F.steps[k].label}
+                    {done && <span className="sr-only"> ({k === "letter" && letterSkipped ? F.stepSkipped : F.stepDone})</span>}
+                  </span>
                   <span className="block truncate text-[0.7rem] text-muted">{F.steps[k].hint}</span>
                 </span>
               </Link>
@@ -197,11 +230,11 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       {tab === "overview" && (
         <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_320px]" style={{ animation: "fade .25s ease both" }}>
           <section className="flex flex-col gap-3">
-            {review && !applied && <SafetyCard id={app.id} safety={review.safety} company={job.company} manual={!/^https?:\/\//i.test(job.url)} />}
+            {review && !applied && <SafetyCard id={app.id} safety={review.safety} company={job.company} manual={!/^https?:\/\//i.test(job.url)} checked={freshCheck} />}
             <div className="card p-[18px]">
               <h2 className="mb-3 text-[1.15rem] tracking-[-0.01em]">{F.pack}</h2>
-              {!(app.cv_md?.trim() && app.cover_letter_md?.trim()) && (
-                <PackButton id={app.id} missing={!app.cv_md?.trim() && !app.cover_letter_md?.trim() ? "both" : !app.cv_md?.trim() ? "cv" : "letter"} needCvHref={hasCv ? undefined : stepHref("tailor")} />
+              {missingDocs.length > 0 && (
+                <PackButton id={app.id} missing={missingDocs.length === 2 ? "both" : missingDocs[0]} needCvHref={hasCv ? undefined : stepHref("tailor")} />
               )}
               <ul className="flex flex-col gap-2">
                 {([["cv", app.cv_md, F.packCv], ["letter", app.cover_letter_md, F.packLetter]] as const).map(([k, text, label]) => (
@@ -210,12 +243,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{label}</p>
                       <p className={`text-[0.75rem] ${text?.trim() && words(text) > (k === "cv" ? 900 : 320) ? "text-danger" : "text-muted"}`}>
-                        {text?.trim() ? fmt(F.packWords, { n: words(text) }) : F.packMissing}
+                        {text?.trim() ? fmt(F.packWords, { n: words(text) }) : k === "letter" && letterSkipped ? F.letterSkipped : F.packMissing}
                         {text?.trim() && words(text) > (k === "cv" ? 900 : 320) && ` · ${fmt(a.docs.tooLongShort, { p: k === "cv" ? 2 : 1 })}`}
                       </p>
                     </div>
                     <div className="flex gap-1">
-                      <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{F.edit}</Link>
+                      <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{k === "letter" && letterSkipped ? F.writeLetter : F.edit}</Link>
                       {text?.trim() && (
                         <>
                           <a href={`/api/applications/${app.id}/export?doc=${k}&format=pdf`} download className="btn btn-outline btn-sm !h-7 text-ink-2" aria-label={fmt(F.dlPdf, { doc: label })} title={fmt(F.dlPdf, { doc: label })}>
@@ -232,15 +265,13 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 ))}
               </ul>
             </div>
-            {review && (
-              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
-            )}
+            {/* How to apply sits right under the pack: the portal is the next click, not 5,000 px down on a phone. */}
             <div className="card p-[18px]">
               <h2 className="mb-1 text-[1.15rem] tracking-[-0.01em]">{F.howToApply}</h2>
               <p className="mb-3 text-[0.82rem] text-muted">{F.howToApplyLead}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {applyEmail ? (
-                  <a href={`mailto:${applyEmail}?subject=${encodeURIComponent(fmt(F.mailSubject, { title: job.title }))}&body=${encodeURIComponent(fmt(F.mailBody, { title: job.title, name: getProfile().name }))}`} className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
+                  <a href={`mailto:${applyEmail}?subject=${encodeURIComponent(fmt(PF.mailSubject, { title: job.title }))}&body=${encodeURIComponent(fmt(hasLetter ? PF.mailBody : PF.mailBodyCv, { title: job.title, name: getProfile().name }))}`} className="flex items-center gap-2.5 rounded-xl border border-line p-3 text-left hover:border-line-strong">
                     <Mail size={18} aria-hidden="true" className="text-accent-text" />
                     <span className="min-w-0">
                       <span className="block text-[0.85rem] font-semibold">{F.email}</span>
@@ -274,13 +305,23 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </span>
                 )}
               </div>
+              {!applied && (
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
+                  <p className="min-w-0 flex-1 basis-60 text-[0.8rem] text-muted">{F.sentPrompt}</p>
+                  {sentButton("btn btn-outline btn-sm")}
+                </div>
+              )}
             </div>
+            {review && (
+              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
+            )}
             <Suspense fallback={null}>
               <ApplyFormCard url={job.url} />
             </Suspense>
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
+            <ContactSuggestions appId={app.id} company={job.company} people={known} />
             <Checklist id={app.id} items={checklist.items} />
             <section className="card p-4">
               <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
@@ -415,7 +456,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       )}
 
       {tab === "contacts" && (
-        <div className="rise" style={{ ["--i" as string]: 1 }}>
+        <div className="space-y-4 rise" style={{ ["--i" as string]: 1 }}>
+          <ContactSuggestions appId={app.id} company={job.company} people={known} />
           <ContactsPanel appId={app.id} contacts={contacts} />
         </div>
       )}
@@ -453,9 +495,19 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       )}
 
       {/* Flow bar: always know where you are and what is next */}
-      <div className="sticky bottom-0 z-10 -mx-4 mt-[22px] flex items-center gap-3 border-t border-line bg-bg/90 px-4 py-3 backdrop-blur-md no-print sm:-mx-8 sm:px-8">
-        <p className="text-[0.82rem] text-muted">
-          <span className="font-semibold text-ink">{fmt(F.stepOf, { n: STEPS.indexOf(step) + 1 })}</span> · {F.steps[step].label}
+      <div className="sticky bottom-0 z-10 -mx-4 mt-[22px] flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-bg/90 px-4 py-3 backdrop-blur-md no-print sm:-mx-8 sm:px-8">
+        <p className="min-w-0 text-[0.82rem] text-muted">
+          {step === "after" ? (
+            // After sending, the stage and the next date matter, not "step 4 of 4".
+            <>
+              <span className="font-semibold text-ink">{t.states[app.status]}</span>
+              {cadence?.nextDue && ` · ${fmt(F.nextTouch, { date: shortDate(cadence.nextDue, locale) })}`}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold text-ink">{fmt(F.stepOf, { n: STEPS.indexOf(step) + 1 })}</span> · {F.steps[step].label}
+            </>
+          )}
         </p>
         <span className="flex-1" />
         {STEPS.indexOf(step) > 0 && (
@@ -463,21 +515,16 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             <ArrowLeft size={14} aria-hidden="true" /> {F.back}
           </Link>
         )}
-        {step === "letter" && !app.cover_letter_md?.trim() && (
-          <Link href={stepHref("review")} className="btn btn-ghost !h-10 text-ink-2">{F.skipStep}</Link>
+        {step === "letter" && !hasLetter && (
+          <form action={skipLetter.bind(null, app.id)}>
+            <button type="submit" className="btn btn-ghost !h-10 text-ink-2">{F.skipStep}</button>
+          </form>
         )}
         {step === "review" && !applied ? (
-          <MarkSentButton
-            id={app.id}
-            status={app.status}
-            title={`${job.company} — ${job.title}`}
-            missing={[...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(app.cover_letter_md?.trim() ? [] : ["letter" as const])]}
-            afterHref={stepHref("after")}
-            channel={applyEmail && (!contactEmail || !/^https?:\/\//.test(job.url)) ? "email" : "site"}
-            answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
-            unfilled={review?.saved.filter((x) => /\[[^\]]+\](?!\()/.test(x.answer)).length ?? 0}
-          />
-        ) : step !== "after" && (
+          sentButton()
+        ) : step === "after" ? (
+          <Link href="/app/pipeline" className="btn btn-primary !h-10">{F.toPipeline}</Link>
+        ) : (
           <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>
             {step === "review" ? F.steps.after.label : F.next} <ArrowRight size={14} aria-hidden="true" />
           </Link>

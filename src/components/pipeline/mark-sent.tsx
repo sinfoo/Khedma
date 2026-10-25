@@ -16,7 +16,7 @@ import { useStageMove } from "./stage";
  * (toast + undo, follow-up reminder, answers kept as sent) and opens the after-step.
  */
 export function MarkSentButton({
-  id, status, title, missing, afterHref, channel: initial, answers, unfilled = 0, className = "btn btn-saffron !h-10",
+  id, status, title, missing, afterHref, channel: initial, answers, unfilled = 0, unfilledDocs = [], className = "btn btn-saffron !h-10",
 }: {
   id: number;
   status: AppState;
@@ -28,6 +28,8 @@ export function MarkSentButton({
   /** Form answers that will be stored as sent, and how many still hold a [placeholder]. */
   answers: number;
   unfilled?: number;
+  /** Written documents that still hold a [placeholder]. */
+  unfilledDocs?: ("cv" | "letter")[];
   className?: string;
 }) {
   const { t } = useT();
@@ -64,6 +66,12 @@ export function MarkSentButton({
           <p className="mb-4 flex items-start gap-2 rounded-xl bg-saffron-soft p-3 text-sm" role="note">
             <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
             {fmt(F.missingDocs, { docs })}
+          </p>
+        )}
+        {unfilledDocs.length > 0 && (
+          <p className="mb-4 flex items-start gap-2 rounded-xl bg-saffron-soft p-3 text-sm" role="note">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-saffron" aria-hidden="true" />
+            {fmt(F.unfilledDocs, { docs: unfilledDocs.map((k) => (k === "cv" ? F.packCv : F.packLetter)).join(" + ") })}
           </p>
         )}
         {unfilled > 0 && (

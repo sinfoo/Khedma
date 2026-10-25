@@ -12,6 +12,8 @@ import { deleteAnswer as repoDeleteAnswer, getPack, isOutcome, listAnswers, save
 import { bumpBankUse, deleteBankAnswer, findBankAnswer, listBank, profileFactAnswer, updateBankAnswer, upsertBankAnswer, type BankAnswer } from "@/lib/apply/bank";
 import type { FormFields } from "@/lib/apply/fields";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
+import { postingLocale } from "@/lib/ai/heuristic";
+import { checkJobs } from "@/lib/company/liveness";
 import { applyStageChange, completeFollowups, logEvent } from "@/lib/repo/apps";
 import type { Result } from "@/lib/repo/apps";
 
@@ -74,7 +76,8 @@ export async function importFormQuestions(id: number): Promise<Result<{ question
 export async function generateFormAnswers(id: number, qids: string[], custom: string[], maxChars: number): Promise<Result<{ answers: GeneratedAnswer[] }>> {
   const ctx = load(id);
   if (!ctx) return fail("notFound");
-  const { locale } = await getDict();
+  // The form is the employer's: questions and answers in the posting's language, like the CV and letter.
+  const locale = postingLocale(ctx.job, (await getDict()).locale);
   const asked = askedList(qids, custom, locale);
   if (!asked.length) return fail("invalid");
   const profile = getProfile();
@@ -154,7 +157,7 @@ export async function deleteBankEntry(bankId: number): Promise<Result> {
 export async function generateFormFields(id: number): Promise<Result<{ fields: FormFields }>> {
   const ctx = load(id);
   if (!ctx) return fail("notFound");
-  const { locale } = await getDict();
+  const locale = postingLocale(ctx.job, (await getDict()).locale);
   const profile = getProfile();
   try {
     const cvText = ctx.app.cv_md?.trim() || getCvSource().text || profile.cv_md;
@@ -195,21 +198,11 @@ export async function logOutcome(id: number, outcome: string, reason: string, le
 }
 
 // ---------- liveness ----------
-/** HEAD/GET the posting URL with a short timeout. null = cannot tell (manual posting or offline). */
+/** Is the posting still online? The shared liveness check (closed-page markers, safe fetch), saved with the offer. null = cannot tell. */
 export async function checkPostingAlive(id: number): Promise<Result<{ alive: boolean | null; status: number }>> {
   const ctx = load(id);
   if (!ctx) return fail("notFound");
-  const url = ctx.job.url;
-  if (!/^https?:\/\//i.test(url)) return { ok: true, alive: null, status: 0 };
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 6000);
-  try {
-    let res = await fetch(url, { method: "HEAD", redirect: "follow", signal: ctl.signal });
-    if (res.status === 405 || res.status === 403) res = await fetch(url, { method: "GET", redirect: "follow", signal: ctl.signal });
-    return { ok: true, alive: res.status < 400, status: res.status };
-  } catch {
-    return { ok: true, alive: null, status: 0 };
-  } finally {
-    clearTimeout(timer);
-  }
+  if (!/^https?:\/\//i.test(ctx.job.url)) return { ok: true, alive: null, status: 0 };
+  const [c] = await checkJobs([ctx.job.id]);
+  return { ok: true, alive: !c || c.status === "unknown" ? null : c.status === "open", status: c?.http_status ?? 0 };
 }

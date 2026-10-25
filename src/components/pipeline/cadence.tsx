@@ -34,7 +34,7 @@ const ICON: Record<Urgency, React.ReactNode> = {
 export function CadenceChip({ c, t, locale, showWaiting = false }: { c: CadenceView | null; t: Dict; locale: Locale; showWaiting?: boolean }) {
   if (!c || (c.urgency === "waiting" && !showWaiting)) return null;
   const m = t.apps2.cadence;
-  const label = c.urgency === "waiting" && c.nextDue ? fmt(m.nextDue, { date: shortDate(c.nextDue, locale) }) : m.urgency[c.urgency];
+  const label = c.urgency === "waiting" && c.nextDue ? fmt(m.nextDue, { date: shortDate(c.nextDue, locale) }) : c.urgency === "overdue" ? m.due[c.angle] : m.urgency[c.urgency];
   const angle = c.urgency === "overdue" || c.urgency === "urgent" ? m.angle[c.angle] : "";
   return (
     <span className={`chip !py-0 text-[0.7rem] ${CLS[c.urgency]} ${c.urgency === "cold" ? "text-muted" : ""}`} title={angle || undefined}>
@@ -49,10 +49,11 @@ export function CadenceBanner({ id, c, t, locale }: { id: number; c: CadenceView
   if (!c) return null;
   const m = t.apps2.cadence;
   const tone = c.urgency === "urgent" ? "border-danger/40 bg-danger-soft" : c.urgency === "overdue" ? "border-saffron/40 bg-saffron-soft" : c.urgency === "cold" ? "border-line bg-surface-2" : "border-line bg-surface";
-  const long = c.urgency === "waiting" ? fmt(m.urgencyLong.waiting, { date: shortDate(c.nextDue, locale) }) : m.urgencyLong[c.urgency];
+  // Headline and button name the same message: "Thank-you note due" next to "Thank-you note".
+  const long = c.urgency === "waiting" ? fmt(m.nextLong[c.angle], { date: shortDate(c.nextDue, locale) }) : c.urgency === "overdue" ? m.dueLong[c.angle] : m.urgencyLong[c.urgency];
   const draft = c.urgency === "overdue" || c.urgency === "urgent" ? c.angle : null;
   return (
-    <aside className={`no-print mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 text-sm ${tone}`} aria-label={m.urgency[c.urgency]}>
+    <aside className={`no-print mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border px-4 py-3 text-sm ${tone}`} aria-label={c.urgency === "overdue" ? m.due[c.angle] : m.urgency[c.urgency]}>
       <CadenceChip c={c} t={t} locale={locale} showWaiting />
       <span className="text-ink-2">{long}</span>
       {c.followupCount > 0 && <span className="mono text-xs text-muted tabular">{fmt(m.sent, { n: c.followupCount })}</span>}

@@ -52,7 +52,7 @@ test("sensitive questions are flagged and never get invented values", () => {
   assert.equal(sal.confirm, true);
   assert.ok(!/\d{3,}/.test(sal.answer), "no invented amount");
   const fact = profileFactAnswer("salary", profile, extra, "fr");
-  assert.ok(fact.confirm && /\[/.test(fact.answer));
+  assert.ok(fact.confirm && !/\[|\d{3,}/.test(fact.answer), "no amount and no placeholder left to fill");
   const avail = profileFactAnswer("availability", profile, { ...extra, availability: { from: "2026-07-01", to: "" } }, "en");
   assert.ok(!avail.confirm && /from/.test(avail.answer) && /\[for N months\]/.test(avail.answer));
   assert.ok(!profileFactAnswer("mobility", profile, extra, "fr").confirm);

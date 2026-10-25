@@ -4,6 +4,7 @@ import { db, getApplication, kvGet, kvSet, migrate } from "../db";
 import { companyLatency, computeCadence, type Cadence } from "../apps/cadence";
 import { COMPARE_DIMS, DEFAULT_WEIGHTS, type CompareDim } from "../apps/compare";
 import { normalizeOffer, type OfferRecord } from "../apps/offer";
+import { normalizeCompany } from "../company/normalize";
 import {
   APP_STATES,
   INTERVIEW_KINDS,
@@ -88,6 +89,8 @@ export function stageEffects(from: AppState, to: AppState, s: StageInput, now: D
 }
 
 export const CHECK_KEYS = ["profile_cv", "evaluated", "cv_tailored", "letter", "applied", "followup", "interview_prep"] as const;
+/** Stored in the extras checklist when the student skips the letter step: no letter is needed for this offer. */
+export const LETTER_SKIPPED = "letter_skipped";
 export type CheckKey = (typeof CHECK_KEYS)[number];
 export const isCheckKey = (s: unknown): s is CheckKey => typeof s === "string" && (CHECK_KEYS as readonly string[]).includes(s);
 
@@ -337,7 +340,10 @@ export function applyStageChange(id: number, to: AppState, followupTitle: string
   try {
     d.prepare("UPDATE applications SET status=?, applied_at=?, next_action_at=?, updated_at=datetime('now') WHERE id=?").run(to, fx.appliedAt, fx.nextActionAt, id);
     snapshot.eventIds.push(logEvent(id, "status", to));
-    if (fx.followupDue) snapshot.reminderId = addReminder({ application_id: id, title: followupTitle, due_at: fx.followupDue, kind: "followup" });
+    if (fx.followupDue) {
+      const company = (d.prepare("SELECT company FROM jobs WHERE id = ?").get(app.job_id) as Row | undefined)?.company ?? "";
+      snapshot.reminderId = addReminder({ application_id: id, title: followupTitle.replace("{company}", String(company)), due_at: fx.followupDue, kind: "followup" });
+    }
     if (to === "evaluated") d.prepare("UPDATE reminders SET done = 1 WHERE application_id = ? AND kind = 'followup' AND done = 0").run(id);
     d.exec("COMMIT");
   } catch (e) {
@@ -394,6 +400,15 @@ export function listAllContacts(): NetworkContact[] {
       .prepare("SELECT c.*, j.title AS job_title FROM contacts c LEFT JOIN applications a ON a.id = c.application_id LEFT JOIN jobs j ON j.id = a.job_id ORDER BY c.name COLLATE NOCASE, c.id")
       .all() as Row[]
   ).map((r) => ({ ...rowToContact(r), job_title: (r.job_title as string) ?? null }));
+}
+/** People met elsewhere who work at this application's company: "you know X at Y, ask for a referral". */
+export function contactsAtCompany(company: string, appId: number): NetworkContact[] {
+  const key = normalizeCompany(company);
+  return key ? listAllContacts().filter((c) => c.application_id !== appId && normalizeCompany(c.company) === key) : [];
+}
+/** Attach a network contact (on no application yet) to an application. */
+export function attachContact(appId: number, contactId: number): boolean {
+  return db().prepare("UPDATE contacts SET application_id = ? WHERE id = ? AND application_id IS NULL").run(appId, contactId).changes > 0;
 }
 /** appId null = a network contact. `IS` matches both a number and NULL. */
 export function saveContact(appId: number | null, c: ContactInput, contactId?: number): void {

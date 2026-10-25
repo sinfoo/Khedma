@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getApplication, getJob, getProfile, updateApplication } from "@/lib/db";
 import { prepareInterview } from "@/lib/ai";
 import { postingLocale } from "@/lib/ai/heuristic";
@@ -26,6 +27,9 @@ import { isReplyKind, MAX_REPLY_CHARS, type ReplyResult } from "@/lib/apps/reply
 import {
   addReminder as repoAddReminder,
   applyStageChange,
+  attachContact as repoAttachContact,
+  LETTER_SKIPPED,
+  listReminders,
   cadenceFor,
   COMPARE_DIMS,
   completeFollowups,
@@ -135,6 +139,14 @@ export async function toggleChecklist(id: number, key: string, done: boolean): P
   setExtras(id, { checklist: done ? [...cur, key] : cur });
   refresh();
   return { ok: true };
+}
+
+/** "Skip this step": no letter for this offer. The rail, the pack and "I've sent it" stop asking for one. */
+export async function skipLetter(id: number): Promise<void> {
+  if (!exists(id)) return;
+  setExtras(id, { checklist: [...getExtras(id).checklist.filter((k) => k !== LETTER_SKIPPED), LETTER_SKIPPED] });
+  refresh();
+  redirect(`/app/pipeline/${id}?tab=overview`);
 }
 
 export async function addNote(id: number, text: string): Promise<Result> {
@@ -446,6 +458,8 @@ export async function saveInterview(id: number, f: InterviewForm, interviewId?: 
   if (!interviewId) {
     const { t } = await getDict();
     logEvent(id, "interview", `${t.apps2.interviews.kinds[data.kind]} · ${data.starts_at.replace("T", " ")}`);
+    // A planned interview is the Interview stage, whatever the card said before.
+    if (["evaluated", "applied", "responded"].includes(getApplication(id)!.status)) applyStageChange(id, "interview", t.apps2.reminders.autoFollowup);
     const app = getApplication(id)!;
     if (!app.next_action_at || app.next_action_at > data.starts_at.slice(0, 10)) updateApplication(id, { next_action_at: data.starts_at.slice(0, 10) });
   }
@@ -469,6 +483,14 @@ export interface ContactForm {
   phone: string;
   linkedin: string;
   notes: string;
+}
+
+/** Put a person from the network on this application ("you know X at this company"). */
+export async function attachContact(id: number, contactId: number): Promise<Result> {
+  if (!exists(id) || !okId(contactId)) return fail("invalid");
+  if (!repoAttachContact(id, contactId)) return fail("notFound");
+  refresh();
+  return { ok: true };
 }
 
 /** id null = a network contact (Contacts page), else one application's. */
@@ -511,7 +533,10 @@ export async function addReminder(id: number, title: string, due: string): Promi
 
 export async function toggleReminder(id: number, reminderId: number, done: boolean): Promise<Result> {
   if (!exists(id) || !okId(reminderId)) return fail("invalid");
+  const r = listReminders(id).find((x) => x.id === reminderId);
   setReminderDone(id, reminderId, !!done);
+  // Ticking the automatic follow-up reminder means the follow-up went out: the cadence counts it.
+  if (done && r && !r.done && r.kind === "followup") logEvent(id, "followup", r.title);
   refresh();
   return { ok: true };
 }

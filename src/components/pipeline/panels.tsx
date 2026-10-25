@@ -25,7 +25,7 @@ import { Dialog } from "@/components/kit/dialog";
 import { EmptyState } from "@/components/kit";
 import type { Contact, Interview } from "@/lib/types";
 import type { AppReminder } from "@/lib/repo/apps";
-import { addNote, addReminder, deleteContact, deleteInterview, deleteReminder, saveContact, toggleReminder } from "@/app/actions/applications";
+import { addNote, addReminder, attachContact, deleteContact, deleteInterview, deleteReminder, saveContact, toggleReminder } from "@/app/actions/applications";
 import { InterviewDialog, defaultSlot } from "./stage";
 import { shortDate } from "./format";
 import { useRun } from "./use-run";
@@ -135,6 +135,44 @@ export function InterviewsPanel({ appId, interviews, today }: { appId: number; i
 // ---------- contacts ----------
 const FIELDS = ["name", "role", "company", "email", "phone", "linkedin", "notes"] as const;
 
+/** "You know X at this company": people from the network at the same employer, attachable in one click. */
+export function ContactSuggestions({ appId, company, people }: { appId: number; company: string; people: (Contact & { job_title: string | null })[] }) {
+  const { t } = useT();
+  const c = t.apps2.contacts;
+  const [pending, run] = useRun();
+  if (!people.length) return null;
+  return (
+    <section className="card p-4" aria-labelledby="know-h">
+      <h2 id="know-h" className="card-title flex items-center gap-1.5 text-[0.9rem]">
+        <UserRound size={14} aria-hidden="true" className="text-accent-text" /> {fmt(c.knowTitle, { company })}
+      </h2>
+      <p className="mt-1 text-[0.78rem] leading-relaxed text-muted">{c.knowLead}</p>
+      <ul className="mt-3 flex flex-col gap-2.5">
+        {people.slice(0, 4).map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">{p.name}</span>
+              <span className="block truncate text-[0.75rem] text-muted">
+                {[p.role, p.application_id !== null && p.job_title ? fmt(c.knowVia, { offer: p.job_title }) : ""].filter(Boolean).join(" · ")}
+              </span>
+            </span>
+            {p.email && (
+              <a href={`mailto:${p.email}`} className="btn btn-ghost btn-sm" aria-label={`${p.email} — ${p.name}`}>
+                <Mail size={14} aria-hidden="true" />
+              </a>
+            )}
+            {p.application_id === null && (
+              <button type="button" className="btn btn-outline btn-sm" disabled={pending} onClick={() => run(() => attachContact(appId, p.id), c.attached)}>
+                <Plus size={14} aria-hidden="true" /> {c.attach}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 /**
  * One application's contacts (appId), or the whole network (appId null: the Contacts page, where each person
  * keeps the application they came from and a search appears once the list is long).
@@ -165,6 +203,11 @@ export function ContactsPanel({ appId, contacts, title }: { appId: number | null
       )}
       {contacts.length === 0 ? (
         <EmptyState icon={<UserRound size={22} aria-hidden="true" />} title={c.empty} hint={c.emptyHint} />
+      ) : shown.length === 0 ? (
+        <div className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm" role="status">
+          <span className="text-muted">{fmt(c.noMatch, { q: q.trim() })}</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setQ("")}>{c.clearSearch}</button>
+        </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {shown.map((p) => (

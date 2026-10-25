@@ -200,7 +200,7 @@ export function heuristicAnswer(id: QuestionId, c: AnswerCtx, f = cvFacts(c.job,
         s = `Je suis disponible [à partir du JJ/MM/AAAA] pour une durée de [N mois]${job.deadline ? `, et j'ai noté la date limite du ${job.deadline}` : ""}. Je peux m'adapter aux dates de démarrage souhaitées par ${job.company}.`;
         break;
       case "salary":
-        s = `Je suis ouvert à une gratification conforme aux pratiques de ${job.company} pour un ${kind} de ${job.title}. [Indiquez une fourchette en DT si le formulaire l'exige, ou « à discuter ».]`;
+        s = `Je suis ouvert à une gratification conforme aux pratiques de ${job.company} pour un ${kind} de ${job.title}.`;
         break;
       case "english":
         s =
@@ -237,7 +237,7 @@ export function heuristicAnswer(id: QuestionId, c: AnswerCtx, f = cvFacts(c.job,
         s = `I am available [from DD/MM/YYYY] for [N months]${job.deadline ? `, and I noted the ${job.deadline} deadline` : ""}. I can adapt to the start date ${job.company} prefers.`;
         break;
       case "salary":
-        s = `I am open to a stipend in line with ${job.company}'s practice for a ${job.title} ${kind}. [Give a range in DT if the form requires one, or "to be discussed".]`;
+        s = `I am open to a stipend in line with ${job.company}'s practice for a ${job.title} ${kind}.`;
         break;
       case "english":
         s =

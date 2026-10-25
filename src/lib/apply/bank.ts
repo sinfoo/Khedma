@@ -135,7 +135,7 @@ export function profileFactAnswer(qid: "availability" | "english" | "mobility" |
     case "salary":
       // No salary expectation lives in the profile: never invent a number.
       return {
-        answer: fr ? "Prétentions : [montant en DT brut/mois, ou « à discuter »], en ligne avec les pratiques du secteur pour ce type de poste." : "Expectations: [amount in DT gross/month, or “to be discussed”], in line with sector practice for this kind of role.",
+        answer: fr ? "Prétentions : à discuter, en ligne avec les pratiques du secteur pour ce type de poste." : "Expectations: open to discussion, in line with sector practice for this kind of role.",
         confirm: true,
       };
   }

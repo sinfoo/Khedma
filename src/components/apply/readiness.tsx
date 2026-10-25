@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { AlertTriangle, Globe, Lightbulb, Loader2, ShieldAlert } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
@@ -11,13 +11,19 @@ import { checkPostingAlive } from "@/app/actions/apply";
 const ATS_NAME = { ashby: "Ashby", lever: "Lever", workday: "Workday", successfactors: "SuccessFactors", greenhouse: "Greenhouse", workable: "Workable", smartrecruiters: "SmartRecruiters" } as const;
 
 /** Before sending: knock-out criteria quoted from the posting, a repeat-application warning, "is it still online?" and ATS tips. */
-export function SafetyCard({ id, safety, company, manual }: { id: number; safety: ApplySafety; company: string; manual: boolean }) {
+export function SafetyCard({ id, safety, company, manual, checked = null }: { id: number; safety: ApplySafety; company: string; manual: boolean; /** Last saved liveness check of this posting, if recent. */ checked?: { alive: boolean | null; status: number } | null }) {
   const { t, locale } = useT();
   const r = t.apply2.ready;
   const sf = t.apply2.safety;
   const gateLabel = t.offers2.v2.gateKeys;
-  const [live, setLive] = useState<{ alive: boolean | null; status: number } | null>(null);
+  const [live, setLive] = useState<{ alive: boolean | null; status: number } | null>(checked);
   const [pending, start] = useTransition();
+  const check = () => start(async () => { const res = await checkPostingAlive(id); if (res.ok) setLive({ alive: res.alive, status: res.status }); });
+  // Opening the review step checks the posting once: nobody should write a letter for a closed offer.
+  useEffect(() => {
+    if (!manual && !checked) check();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const danger = safety.knockouts.some((k) => k.level === "danger");
 
   const koText = (k: ApplySafety["knockouts"][number]) =>
@@ -33,9 +39,9 @@ export function SafetyCard({ id, safety, company, manual }: { id: number; safety
           <p className="text-[0.82rem] text-muted">{sf.knockoutsHint}</p>
         </div>
         {!manual && (
-          <button type="button" className="btn btn-outline btn-sm" disabled={pending} aria-busy={pending} onClick={() => start(async () => { const res = await checkPostingAlive(id); if (res.ok) setLive({ alive: res.alive, status: res.status }); })}>
+          <button type="button" className={`btn btn-outline btn-sm ${live?.alive === false ? "!border-danger/50 text-danger" : ""}`} disabled={pending} aria-busy={pending} onClick={check} title={r.checkLink}>
             {pending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Globe size={14} aria-hidden="true" />}
-            {live ? (live.alive === null ? t.common.unknown : live.alive ? r.online : fmt(r.offline, { s: live.status })) : r.checkLink}
+            {pending ? r.checking : live ? (live.alive === null ? r.unknownLive : live.alive ? r.online : r.offline) : r.checkLink}
           </button>
         )}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlarmClock, Check, Copy, Handshake, Link2, Loader2, Mail, MailCheck, MessageSquareReply, PartyPopper, PhoneMissed, Reply, Send, Snowflake, Sparkles, UserRound } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
@@ -33,6 +33,7 @@ const VICON: Record<DraftVariant, React.ReactNode> = {
 const MESSAGE_TYPES = (Object.keys(ICON) as MessageType[]).filter((k) => k !== "followup" && k !== "thanks");
 const LINKEDIN_MAX = 300; // same limit as LINKEDIN_MAX in lib/ai/apps
 type Pick = MessageType | DraftVariant;
+type Draft = { subject: string; body: string; engine: string; issues: string[]; lint: { rule: string; excerpt: string; suggestion: string }[] };
 
 export function MessagesPanel({
   id,
@@ -52,11 +53,17 @@ export function MessagesPanel({
   const m = t.apps2.messages;
   const c = t.apps2.cadence;
   const toast = useToast();
-  const start: Pick = isDraftVariant(initialDraft) ? initialDraft : cadence && cadence.angle !== "none" && cadence.urgency !== "cold" ? cadence.angle : suggested === "followup" ? "first" : suggested === "thanks" ? "thankyou" : suggested;
+  // A follow-up is offered first only once it is due: on the day of sending, a LinkedIn note to the recruiter fits better.
+  const due = cadence && cadence.angle !== "none" && (cadence.urgency === "overdue" || cadence.urgency === "urgent");
+  const start: Pick = isDraftVariant(initialDraft) ? initialDraft : due ? (cadence!.angle as DraftVariant) : suggested === "followup" ? (cadence?.urgency === "waiting" ? "linkedin" : "first") : suggested === "thanks" ? "thankyou" : suggested;
   const [type, setType] = useState<Pick>(start);
   const [contactId, setContactId] = useState<number | null>(contacts[0]?.id ?? null);
   const [missedAt, setMissedAt] = useState("");
-  const [draft, setDraft] = useState<{ subject: string; body: string; engine: string; issues: string[]; lint: { rule: string; excerpt: string; suggestion: string }[] } | null>(null);
+  // One draft per message type, so switching type and back keeps an edited draft.
+  const [drafts, setDrafts] = useState<Partial<Record<Pick, Draft>>>({});
+  const draft = drafts[type] ?? null;
+  const setDraft = (d: Draft | null) => setDrafts((s) => ({ ...s, [type]: d ?? undefined }));
+  const [sentTypes, setSentTypes] = useState<Pick[]>([]);
   const [copied, setCopied] = useState(false);
   const [gen, runGen] = useRun();
   const [sending, runSend] = useRun();
@@ -69,6 +76,11 @@ export function MessagesPanel({
     isVariant
       ? runGen(() => draftCadenceMessage(id, type, { contactId, missedAt: missedAt || null }), undefined, (r) => setDraft({ subject: r.subject, body: r.body, engine: r.engine, issues: r.issues, lint: r.lint }))
       : runGen(() => draftMessage(id, type, { contactId }), undefined, (r) => setDraft({ subject: r.subject, body: r.body, engine: r.engine, issues: [], lint: [] }));
+  // Arriving from a "Draft the follow-up" button (Today, the banner): the draft is written straight away.
+  useEffect(() => {
+    if (isDraftVariant(initialDraft) && !(cadence?.urgency === "cold" && (initialDraft === "first" || initialDraft === "second"))) generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const mailto = draft
     ? `mailto:${encodeURIComponent(contact?.email ?? "")}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}`
     : "";
@@ -82,10 +94,7 @@ export function MessagesPanel({
         name="msg-type"
         value={k}
         checked={type === k}
-        onChange={() => {
-          setType(k);
-          setDraft(null);
-        }}
+        onChange={() => setType(k)}
         className="sr-only"
       />
       <span className={`mt-0.5 ${type === k ? "text-accent-text" : "text-muted"}`}>{isDraftVariant(k) ? VICON[k] : ICON[k]}</span>
@@ -224,11 +233,11 @@ export function MessagesPanel({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm ml-auto"
-                  disabled={sending || tooLong}
+                  disabled={sending || tooLong || sentTypes.includes(type)}
                   aria-busy={sending}
-                  onClick={() => runSend(() => markMessageSent(id, type, draft.subject), isVariant ? m.sentFollowup : m.sent)}
+                  onClick={() => runSend(() => markMessageSent(id, type, draft.subject), isVariant ? m.sentFollowup : m.sent, () => setSentTypes((s) => [...s, type]))}
                 >
-                  <MailCheck size={14} aria-hidden="true" /> {m.markSent}
+                  <MailCheck size={14} aria-hidden="true" /> {sentTypes.includes(type) ? m.loggedSent : m.markSent}
                 </button>
               </div>
               <span role="status" className="sr-only">{copied ? t.common.copied : ""}</span>
