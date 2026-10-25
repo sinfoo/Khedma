@@ -140,49 +140,58 @@ export function cvForMatching(): { text: string; fileName: string | null; empty:
 }
 
 // ---------- soft delete (undo) ----------
-type Snap = Record<string, Record<string, unknown>[]>;
-// Children first-level by job id, then by application id. Order = insert order on restore.
-const JOB_TABLES = ["jobs", "evaluations", "applications", "reminders"] as const;
-const APP_TABLES = ["events", "contacts", "interviews", "reminders"] as const;
+type Rows = Record<string, unknown>[];
+/** One table's saved rows, in restore order (parents first). `col` points at the parent; `cascade` is false when deleting only unlinks the row. */
+interface SnapPart { table: string; col: string | null; cascade: boolean; rows: Rows }
 const TRASH_KEY = "offers:trash";
 
-const tableExists = (t: string) => !!db().prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t);
+/** Tables with a foreign key to `parent`, read from the schema so feature tables added later are covered too. */
+const childTables = (parent: string) =>
+  db()
+    .prepare(`SELECT m.name AS t, f."from" AS col, COALESCE(f."to", 'id') AS ref, f.on_delete AS del FROM sqlite_master m, pragma_foreign_key_list(m.name) f WHERE m.type = 'table' AND f."table" = ?`)
+    .all(parent) as { t: string; col: string; ref: string; del: string }[];
 
-/** Delete offers, keeping a snapshot (one undo level) of every dependent row. Returns the undo token. */
+/**
+ * Delete offers, keeping a snapshot (one undo level) of every row that hangs off them: evaluations, checks, the
+ * application and everything under it (events, interviews, reminders, extras with the per-application CV, answers,
+ * pack, offer terms), and the link of contacts and coach sessions, which deleting only unlinks. Returns the undo token.
+ */
 export function deleteWithUndo(ids: number[]): string {
   const d = db();
-  const marks = ids.map(() => "?").join(",");
-  const snap: Snap = {};
-  for (const t of JOB_TABLES) {
-    if (!tableExists(t)) continue;
-    snap[t] = d.prepare(`SELECT * FROM ${t} WHERE ${t === "jobs" ? "id" : "job_id"} IN (${marks})`).all(...ids) as Record<string, unknown>[];
-  }
-  const appIds = (snap.applications ?? []).map((a) => a.id as number);
-  if (appIds.length) {
-    const am = appIds.map(() => "?").join(",");
-    for (const t of APP_TABLES) {
-      if (!tableExists(t)) continue;
-      const rows = d.prepare(`SELECT * FROM ${t} WHERE application_id IN (${am})`).all(...appIds) as Record<string, unknown>[];
-      const seen = new Set((snap[t] ?? []).map((r) => r.id));
-      snap[t] = [...(snap[t] ?? []), ...rows.filter((r) => !seen.has(r.id))];
+  const marks = (n: number) => Array(n).fill("?").join(",");
+  const parts: SnapPart[] = [{ table: "jobs", col: null, cascade: true, rows: d.prepare(`SELECT * FROM jobs WHERE id IN (${marks(ids.length)})`).all(...ids) as Rows }];
+  // Walk down the foreign keys; unlinked (SET NULL) rows survive the delete, so their own children are not saved.
+  for (let i = 0; i < parts.length; i++) {
+    if (!parts[i].cascade) continue;
+    for (const c of childTables(parts[i].table)) {
+      const keys = [...new Set(parts[i].rows.map((r) => r[c.ref]).filter((v) => v !== null && v !== undefined))] as (string | number)[];
+      if (!keys.length) continue;
+      const rows = d.prepare(`SELECT * FROM ${c.t} WHERE ${c.col} IN (${marks(keys.length)})`).all(...keys) as Rows;
+      if (rows.length) parts.push({ table: c.t, col: c.col, cascade: c.del === "CASCADE", rows });
     }
   }
+  const appIds = parts.filter((p) => p.table === "applications").flatMap((p) => p.rows.map((r) => r.id as number));
+  // Per-application values kept in kv: offer terms and the employer-form fields.
+  const kvKeys = appIds.flatMap((id) => [`offer:${id}`, `apply:fields:${id}`]);
+  const kv = Object.fromEntries(kvKeys.map((k) => [k, kvGet<unknown>(k, null)]).filter(([, v]) => v !== null));
   const token = randomUUID();
-  kvSet(TRASH_KEY, { token, snap });
-  d.prepare(`DELETE FROM jobs WHERE id IN (${marks})`).run(...ids);
+  kvSet(TRASH_KEY, { token, parts, kv });
+  d.prepare(`DELETE FROM jobs WHERE id IN (${marks(ids.length)})`).run(...ids);
   return token;
 }
 
+/** Put back everything `deleteWithUndo` saved; rows that survived the delete (contacts) are linked again. */
 export function restoreDeleted(token: string): number {
-  const trash = kvGet<{ token: string; snap: Snap } | null>(TRASH_KEY, null);
-  if (!trash || trash.token !== token) return 0;
+  const trash = kvGet<{ token: string; parts?: SnapPart[]; kv?: Record<string, unknown> } | null>(TRASH_KEY, null);
+  if (!trash || trash.token !== token || !trash.parts) return 0;
   const d = db();
   d.exec("BEGIN");
   try {
-    for (const t of ["jobs", "evaluations", "applications", "events", "contacts", "interviews", "reminders"]) {
-      for (const row of trash.snap[t] ?? []) {
+    for (const p of trash.parts) {
+      for (const row of p.rows) {
         const cols = Object.keys(row);
-        d.prepare(`INSERT OR IGNORE INTO ${t} (${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")})`).run(
+        const onConflict = p.col ? `UPDATE SET ${p.col} = excluded.${p.col}` : "NOTHING";
+        d.prepare(`INSERT INTO ${p.table} (${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")}) ON CONFLICT DO ${onConflict}`).run(
           ...(cols.map((c) => row[c]) as (string | number | null)[]),
         );
       }
@@ -192,8 +201,9 @@ export function restoreDeleted(token: string): number {
     d.exec("ROLLBACK");
     throw e;
   }
+  for (const [k, v] of Object.entries(trash.kv ?? {})) kvSet(k, v);
   kvSet(TRASH_KEY, null);
-  return trash.snap.jobs?.length ?? 0;
+  return trash.parts[0]?.rows.length ?? 0;
 }
 
 // ---------- paste parser ----------
