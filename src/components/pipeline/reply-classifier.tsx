@@ -7,7 +7,7 @@ import { EngineChip } from "@/components/ui";
 import { useToast } from "@/components/kit/toast";
 import { APP_STATES, INTERVIEW_KINDS } from "@/lib/types";
 import type { ReplyResult } from "@/lib/apps/reply";
-import { applyReply, classifyReply } from "@/app/actions/applications";
+import { applyReply, classifyReply, undoMove } from "@/app/actions/applications";
 import { useRun } from "./use-run";
 import { MAX_EML_BYTES, MAX_MBOX_BYTES, emailText, parseEml, parseMbox, type Parsed } from "@/lib/apps/mail";
 import { fmt } from "@/lib/i18n/dict";
@@ -42,7 +42,12 @@ export function ReplyClassifier({ id, currentStatus }: { id: number; currentStat
       (out) => {
         setRes(null);
         setText("");
-        toast.success(out.interview ? r.appliedInterview : out.moved ? r.appliedMoved : r.applied);
+        const snap = out.snapshot;
+        toast.success(
+          out.interview ? r.appliedInterview : out.moved ? r.appliedMoved : r.applied,
+          undefined,
+          snap ? { label: t.apps2.board.undo, onClick: async () => void ((await undoMove(id, snap)).ok ? toast.info(t.apps2.board.undone) : toast.error(t.common.error)) } : undefined,
+        );
       },
     );
 

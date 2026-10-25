@@ -382,7 +382,7 @@ export interface ApplyReplyForm {
 }
 
 /** Apply a classified reply: log it, move the stage, create the interview when a date is known. */
-export async function applyReply(id: number, f: ApplyReplyForm): Promise<Result<{ moved: boolean; interview: boolean }>> {
+export async function applyReply(id: number, f: ApplyReplyForm): Promise<Result<{ moved: boolean; interview: boolean; snapshot: MoveSnapshot | null }>> {
   if (!exists(id)) return fail("notFound");
   if (!f || !isReplyKind(f.kind)) return fail("invalid");
   const stage = f.stage ? (isState(f.stage) ? f.stage : null) : null;
@@ -392,10 +392,12 @@ export async function applyReply(id: number, f: ApplyReplyForm): Promise<Result<
   logEvent(id, "message", `${kindLabel}\n${clamp(f.text, MAX_REPLY_CHARS)}`);
   let moved = false;
   let interview = false;
+  let snapshot: MoveSnapshot | null = null;
   const app = getApplication(id)!;
   if (stage && stage !== app.status) {
     const r = applyStageChange(id, stage, t.apps2.reminders.autoFollowup);
     moved = !!r;
+    snapshot = r?.snapshot ?? null; // the toast offers Undo, as a board move does
   }
   if (isDate(f.date) && (f.kind === "interview" || stage === "interview")) {
     const starts = `${f.date}T${/^\d{2}:\d{2}$/.test(f.time ?? "") ? f.time : "10:00"}`;
@@ -409,7 +411,7 @@ export async function applyReply(id: number, f: ApplyReplyForm): Promise<Result<
     interview = true;
   }
   refresh();
-  return { ok: true, moved, interview };
+  return { ok: true, moved, interview, snapshot };
 }
 
 // ---------- compare ----------
