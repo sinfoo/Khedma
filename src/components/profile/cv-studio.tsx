@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CheckCircle2, Download, FileText, Printer, XCircle } from "lucide-react";
@@ -75,6 +75,24 @@ export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverag
   const [tpl, setTpl] = useState<Template>("classic");
   const [accent, setAccent] = useState<AccentKey>("blue");
   const [labels, setLabels] = useState<Locale | "asis">(locale);
+  // The chosen design, accent and heading language survive a reload (this browser only; nothing to sync).
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem("khedma:cv-studio") ?? "{}") as { tpl?: Template; accent?: AccentKey; labels?: Locale | "asis" };
+      if (v.tpl && v.tpl in LAYOUT) setTpl(v.tpl);
+      if (v.accent && ACCENTS.some((a) => a.key === v.accent)) setAccent(v.accent);
+      if (v.labels === "fr" || v.labels === "en" || v.labels === "asis") setLabels(v.labels);
+    } catch {
+      // storage blocked or malformed: keep the defaults
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("khedma:cv-studio", JSON.stringify({ tpl, accent, labels }));
+    } catch {
+      // storage blocked
+    }
+  }, [tpl, accent, labels]);
   const hex = tpl === "ats" ? "#111111" : ACCENTS.find((a) => a.key === accent)!.hex;
   const ats = atsVerify(markdown, LAYOUT[tpl]);
   const textLocale: Locale = labels === "asis" ? locale : labels;
