@@ -163,8 +163,8 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
           >
             {nextLocale.toUpperCase()}
           </button>
-          {/* Opens the radar page; the scan itself starts there, after the keywords and countries are in view. */}
-          <Link href="/app/sources" aria-label={s.scanCta} title={s.scanCta} aria-current={onSources ? "page" : undefined} className="btn btn-outline ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
+          {/* Opens the scan form with the keywords focused (also when already on Sources); the scan starts from there. */}
+          <Link href="/app/sources?scan=1" aria-label={s.scanCta} title={s.scanCta} aria-current={onSources ? "page" : undefined} className="btn btn-outline ml-1.5 h-9 !min-h-9 shrink-0 !px-3.5">
             <Radar size={15} aria-hidden="true" />
             <span className="hidden md:inline">{s.scanCta}</span>
           </Link>

@@ -37,7 +37,7 @@ export interface CatalogEntry {
   keywords: boolean;
   /** Cannot be scanned; only opened in the browser through `searchUrl`. */
   linkOnly?: true;
-  /** Free API key(s) read from .env.local; the catalog shows a hint instead of "Add" while one is missing. */
+  /** Free API key(s), entered in Settings or .env.local (providerKey); Settings lists them from here, and the catalog links there while one is missing. */
   needsEnv?: string[];
   /** Countries the board covers besides `country`: a country search runs it once for the chosen ones (a slug handle gets their codes, "nl,de"). */
   countries?: CatalogCountry[];

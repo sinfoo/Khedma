@@ -8,14 +8,14 @@ import { ToggleBox } from "@/components/toggle-box";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import type { SourceRow } from "@/lib/repo/sources";
-import type { SearchPrefs } from "@/lib/search/prefs";
 import { addTrackedCompany, removeSource } from "@/app/actions/sources";
-import { SearchPrefsForm } from "./search-prefs";
+import { errorReason } from "./error-reason";
+import { YieldNote, type Yields } from "./sources-board";
 
 type Kind = "greenhouse" | "lever" | "ashby" | "rss" | "careers";
 
-/** "Entreprises suivies" + search preferences, mounted on the Sources page. */
-export function TrackedCompanies({ tracked, suggestions, prefs }: { tracked: SourceRow[]; suggestions: { name: string; url: string }[]; prefs: SearchPrefs }) {
+/** "Entreprises suivies", mounted on the Sources tab. `school` names the suggestions (ENIT by default). */
+export function TrackedCompanies({ tracked, suggestions, school, yields }: { tracked: SourceRow[]; suggestions: { name: string; url: string }[]; school: string; yields: Yields }) {
   const { t } = useT();
   const s = t.sources2.tracked;
   const toast = useToast();
@@ -44,83 +44,77 @@ export function TrackedCompanies({ tracked, suggestions, prefs }: { tracked: Sou
   };
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <Section id="tracked" title={s.title} i={7}>
-        <p className="-mt-2 mb-4 text-sm text-muted">{s.lead}</p>
-        <form
-          className="flex flex-col gap-2 sm:flex-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (url.trim() && !pending) add(url.trim());
-          }}
-        >
-          <label className="sr-only" htmlFor="tracked-url">
-            {s.urlLabel}
-          </label>
-          <input
-            id="tracked-url"
-            type="url"
-            inputMode="url"
-            className="input mono flex-1"
-            placeholder={s.urlPh}
-            value={url}
-            required
-            aria-invalid={!!error || undefined}
-            aria-describedby={error ? "tracked-error" : undefined}
-            onChange={(e) => setUrl(e.target.value)}
-          />
-          <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
-            {pending && busyName === "__url" ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
-            {pending && busyName === "__url" ? s.adding : s.add}
-          </button>
-        </form>
-        {error && (
-          <p id="tracked-error" role="alert" className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
-            {error}
-          </p>
-        )}
+    <Section id="tracked" title={s.title} i={7}>
+      <p className="-mt-2 mb-4 text-sm text-muted">{s.lead}</p>
+      <form
+        className="flex flex-col gap-2 sm:flex-row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (url.trim() && !pending) add(url.trim());
+        }}
+      >
+        <label className="sr-only" htmlFor="tracked-url">
+          {s.urlLabel}
+        </label>
+        <input
+          id="tracked-url"
+          type="url"
+          inputMode="url"
+          className="input mono flex-1"
+          placeholder={s.urlPh}
+          value={url}
+          required
+          aria-invalid={!!error || undefined}
+          aria-describedby={error ? "tracked-error" : undefined}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <button type="submit" className="btn btn-primary" disabled={pending} aria-busy={pending}>
+          {pending && busyName === "__url" ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+          {pending && busyName === "__url" ? s.adding : s.add}
+        </button>
+      </form>
+      {error && (
+        <p id="tracked-error" role="alert" className="mt-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
-        {tracked.length === 0 ? (
-          <div className="mt-4 flex items-start gap-3 rounded-xl border border-dashed border-line-strong p-4">
-            <Building2 size={18} className="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
-            <div>
-              <p className="text-sm font-medium">{s.empty}</p>
-              <p className="text-sm text-muted">{s.emptyHint}</p>
-            </div>
+      {tracked.length === 0 ? (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-dashed border-line-strong p-4">
+          <Building2 size={18} className="mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium">{s.empty}</p>
+            <p className="text-sm text-muted">{fmt(s.emptyHint, { school })}</p>
           </div>
-        ) : (
-          <ul className="mt-4 divide-y divide-line border-t border-line">
-            {tracked.map((c) => (
-              <TrackedItem key={c.id} source={c} />
-            ))}
-          </ul>
-        )}
-
-        <div className="mt-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">{s.suggestions}</p>
-          <p className="mb-2 text-xs text-muted">{s.suggestionsHint}</p>
-          <ul className="flex flex-wrap gap-1.5">
-            {suggestions
-              .filter((c) => !have.has(c.name.toLowerCase()))
-              .map((c) => (
-                <li key={c.url}>
-                  <button type="button" className="chip min-h-7 cursor-pointer hover:border-line-strong" disabled={pending} onClick={() => add(c.url, c.name)} aria-label={fmt(s.enable, { label: c.name })}>
-                    {busyName === c.name ? <Loader2 size={11} className="animate-spin" aria-hidden="true" /> : <Plus size={11} aria-hidden="true" />} {c.name}
-                  </button>
-                </li>
-              ))}
-          </ul>
         </div>
-      </Section>
+      ) : (
+        <ul className="mt-4 divide-y divide-line border-t border-line">
+          {tracked.map((c) => (
+            <TrackedItem key={c.id} source={c} y={yields[c.id]} />
+          ))}
+        </ul>
+      )}
 
-      <Section id="search-prefs" title={t.sources2.prefs.title} i={8}>
-        <SearchPrefsForm prefs={prefs} />
-      </Section>
-    </div>
+      <div className="mt-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">{fmt(s.suggestions, { school })}</p>
+        <p className="mb-2 text-xs text-muted">{s.suggestionsHint}</p>
+        <ul className="flex flex-wrap gap-1.5">
+          {suggestions
+            .filter((c) => !have.has(c.name.toLowerCase()))
+            .map((c) => (
+              <li key={c.url}>
+                <button type="button" className="chip min-h-7 cursor-pointer hover:border-line-strong" disabled={pending} onClick={() => add(c.url, c.name)} aria-label={fmt(s.enable, { label: c.name })}>
+                  {busyName === c.name ? <Loader2 size={11} className="animate-spin" aria-hidden="true" /> : <Plus size={11} aria-hidden="true" />} {c.name}
+                </button>
+              </li>
+            ))}
+        </ul>
+      </div>
+  </Section>
   );
 }
 
-function TrackedItem({ source: c }: { source: SourceRow }) {
+function TrackedItem({ source: c, y }: { source: SourceRow; y?: Yields[number] }) {
   const { t } = useT();
   const s = t.sources2.tracked;
   const toast = useToast();
@@ -133,8 +127,9 @@ function TrackedItem({ source: c }: { source: SourceRow }) {
         <p className="truncate font-medium">{c.label}</p>
         <p className="truncate text-xs text-muted">
           <span className="chip !py-0 text-[0.7rem]">{kind}</span> <span className="mono">{c.handle}</span>
-          {c.last_error && <span className="text-danger"> · {c.last_error}</span>}
+          {c.last_error && <span className="text-danger"> · {errorReason(t, c.last_error)}</span>}
         </p>
+        <YieldNote y={y} />
       </div>
       <ToggleBox id={c.id} enabled={c.enabled} label={fmt(s.enable, { label: c.label })} />
       <button

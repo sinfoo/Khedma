@@ -18,7 +18,9 @@ import type { Pick } from "@/lib/picks";
 export function Picks({ ids, refreshKey }: { ids: number[]; refreshKey: string }) {
   const { t } = useT();
   const p = t.sources2.scan2.picks;
+  const toast = useToast();
   const [picks, setPicks] = useState<Pick[] | null>(null);
+  const [reload, setReload] = useState(0);
   const [now] = useState(() => Date.now());
   const idsKey = ids.join(",");
 
@@ -28,7 +30,20 @@ export function Picks({ ids, refreshKey }: { ids: number[]; refreshKey: string }
     return () => {
       live = false;
     };
-  }, [idsKey, refreshKey]);
+  }, [idsKey, refreshKey, reload]);
+
+  // Same Skip as the scan feed: the offer is archived, and Undo brings it back into the list.
+  const skip = async (x: Pick) => {
+    setPicks((ps) => ps?.filter((y) => y.id !== x.id) ?? null);
+    if (!(await archiveOffers([x.id], true))) {
+      toast.error(t.common.error);
+      return setReload((n) => n + 1);
+    }
+    toast.info(t.sources2.scan2.skippedToast, x.title, {
+      label: t.sources2.scan2.undo,
+      onClick: () => void archiveOffers([x.id], false).then(() => setReload((n) => n + 1)),
+    });
+  };
 
   return (
     <section aria-labelledby="picks-h" className="card overflow-hidden" style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) both" }}>
@@ -56,7 +71,7 @@ export function Picks({ ids, refreshKey }: { ids: number[]; refreshKey: string }
       ) : (
         <ol className="flex flex-col gap-1.5 p-2">
           {picks.map((x, i) => (
-            <PickRow key={x.id} pick={x} rank={i + 1} now={now} onHide={() => setPicks((ps) => ps?.filter((y) => y.id !== x.id) ?? null)} />
+            <PickRow key={x.id} pick={x} rank={i + 1} now={now} onSkip={() => void skip(x)} />
           ))}
         </ol>
       )}
@@ -64,12 +79,10 @@ export function Picks({ ids, refreshKey }: { ids: number[]; refreshKey: string }
   );
 }
 
-function PickRow({ pick: x, rank, now, onHide }: { pick: Pick; rank: number; now: number; onHide: () => void }) {
+function PickRow({ pick: x, rank, now, onSkip }: { pick: Pick; rank: number; now: number; onSkip: () => void }) {
   const { t } = useT();
   const p = t.sources2.scan2.picks;
-  const toast = useToast();
   const [applying, startApply] = useTransition();
-  const [, startHide] = useTransition();
   const d = x.deadline ? Math.ceil((new Date(x.deadline).getTime() - now) / 86_400_000) : null;
   const reasons = [
     x.found.length ? fmt(p.skills, { v: x.found.join(", ") }) : "",
@@ -119,12 +132,7 @@ function PickRow({ pick: x, rank, now, onHide }: { pick: Pick; rank: number; now
           className="btn btn-ghost btn-icon btn-sm text-muted"
           aria-label={`${p.notForMe}: ${x.title}`}
           title={p.notForMe}
-          onClick={() => {
-            onHide();
-            startHide(async () => {
-              if (!(await archiveOffers([x.id], true))) toast.error(t.common.error);
-            });
-          }}
+          onClick={onSkip}
         >
           <X size={14} aria-hidden="true" />
         </button>

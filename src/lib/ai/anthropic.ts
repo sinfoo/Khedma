@@ -1,5 +1,7 @@
 // Thin client for the Claude Messages API. No SDK: three calls via fetch.
-// The key is read from the environment only (.env.local, gitignored) and never stored or returned.
+// The key comes from Settings (kv) or .env.local (providerKey); it is never returned, logged or exported.
+import { AI_KEY, providerKey } from "../provider-keys";
+
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -16,13 +18,13 @@ export class ClaudeUnavailable extends Error {
 }
 
 export function claudeConfigured(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY?.trim();
+  return !!providerKey(AI_KEY);
 }
 
 function headers() {
   return {
     "content-type": "application/json",
-    "x-api-key": process.env.ANTHROPIC_API_KEY!.trim(),
+    "x-api-key": providerKey(AI_KEY),
     "anthropic-version": VERSION,
   };
 }
@@ -133,11 +135,14 @@ export async function* claudeStream(opts: { model: string; messages: ChatMessage
   }
 }
 
-let healthCache: { at: number; ok: boolean } | null = null;
+// Keyed by the key itself, so a key changed in Settings is checked again at once.
+let healthCache: { at: number; ok: boolean; key: string } | null = null;
 /** Cheap key check (GET /v1/models), cached 10 minutes so page loads stay fast. */
-export async function claudeHealth(): Promise<boolean> {
+/** `fresh`: skip the 10-minute cache (the Settings "Test" button). */
+export async function claudeHealth(fresh = false): Promise<boolean> {
   if (!claudeConfigured()) return false;
-  if (healthCache && Date.now() - healthCache.at < 600_000) return healthCache.ok;
+  const key = providerKey(AI_KEY);
+  if (!fresh && healthCache?.key === key && Date.now() - healthCache.at < 600_000) return healthCache.ok;
   let ok = false;
   try {
     const r = await fetch("https://api.anthropic.com/v1/models?limit=1", { headers: headers(), signal: AbortSignal.timeout(4000) });
@@ -145,6 +150,6 @@ export async function claudeHealth(): Promise<boolean> {
   } catch {
     ok = false;
   }
-  healthCache = { at: Date.now(), ok };
+  healthCache = { at: Date.now(), ok, key };
   return ok;
 }

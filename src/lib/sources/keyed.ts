@@ -1,7 +1,8 @@
-// Aggregator APIs that hand out free developer keys. Keys live in .env.local; the names come from the
-// catalog entry's `needsEnv`, so a missing key yields a clear scan error instead of a request.
+// Aggregator APIs that hand out free developer keys. Keys come from Settings or .env.local (providerKey); the
+// names come from the catalog entry's `needsEnv`, so a missing key yields a clear scan error instead of a request.
 import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
+import { providerKey } from "../provider-keys";
 import { CATALOG } from "./catalog";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
@@ -10,11 +11,12 @@ import { getJson, getText } from "./http";
 type Listed = { jobs: NewJob[]; error?: string };
 const text = (html?: string) => htmlToText(decodeEntities(html ?? ""));
 
-/** Env values for a keyed provider, or the error to show when one is missing. */
+/** Key values for a keyed provider (Settings, then env), or the error to show when one is missing. */
 function envFor(kind: string): { keys: string[]; error?: string } {
   const names = CATALOG.find((c) => c.kind === kind)?.needsEnv ?? [];
-  const missing = names.filter((n) => !process.env[n]?.trim());
-  return missing.length ? { keys: [], error: `Missing env: ${missing.join(", ")}` } : { keys: names.map((n) => process.env[n]!.trim()) };
+  const keys = names.map(providerKey);
+  const missing = names.filter((_, i) => !keys[i]);
+  return missing.length ? { keys: [], error: `Missing env: ${missing.join(", ")}` } : { keys };
 }
 
 // ---------- Adzuna — https://developer.adzuna.com (free app id + key, 19 countries) ----------

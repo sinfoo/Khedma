@@ -115,6 +115,7 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
     const pages: Cmd[] = NAV_ITEMS.map((i) => ({ id: `p-${i.key}`, group: p.pages, label: t.shell2.nav[i.key], Icon: i.Icon, run: () => go(i.href) }));
     const actions: Cmd[] = [
       { id: "a-add", group: p.actions, label: a.addOffer, Icon: Plus, run: () => go("/app/jobs/new") },
+      // ?scan=1 opens the scan form with the keywords focused; nothing starts until the student presses Scan.
       { id: "a-scan", group: p.actions, label: a.scanSources, Icon: RefreshCw, run: () => go("/app/sources?scan=1") },
       { id: "a-eval", group: p.actions, label: a.evaluateAll, Icon: Sparkles, run: () => go("/app/jobs?evaluate=1") },
       { id: "a-mock", group: p.actions, label: a.mockInterview, Icon: MessagesSquare, run: () => go("/app/coach") },

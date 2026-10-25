@@ -7,20 +7,26 @@ import { validatePublicUrl } from "@/lib/sources/url";
 import {
   AUTO_HOURS,
   createSourceRow,
+  feedState,
   getAutoScan,
   getSearchPrefs,
   lastRunAt,
   listSourceRows,
   runScan,
   setAutoScan as saveAutoScan,
+  setScanOptions,
   setSearchPrefs as savePrefs,
   sweep,
   trackCompany,
   updateSourceRow,
+  widenLastScan,
+  type FeedRowState,
+  type FoundJob,
+  type ScanOptionsSaved,
   type SourceInput,
 } from "@/lib/repo/sources";
 import { normalizePrefs, type SearchPrefs } from "@/lib/search/prefs";
-import type { Source } from "@/lib/types";
+import { JOB_TYPES, type JobType, type Source } from "@/lib/types";
 
 const id = (v: unknown) => {
   const n = Number(v);
@@ -135,6 +141,26 @@ export async function saveSearchPrefs(prefs: Partial<SearchPrefs>): Promise<Sear
   const next = savePrefs(normalizePrefs(prefs));
   revalidatePath("/app", "layout");
   return next;
+}
+
+/** Search options kept between scans (contract types, excluded words). Validated: they come from the client. */
+export async function saveScanOptions(v: { types?: unknown; negatives?: unknown }): Promise<ScanOptionsSaved> {
+  const types = (Array.isArray(v.types) ? v.types : []).filter((t): t is JobType => JOB_TYPES.includes(t as JobType));
+  const negatives = (Array.isArray(v.negatives) ? v.negatives : []).map((x) => String(x ?? "").trim().slice(0, 40)).filter(Boolean).slice(0, 12);
+  return setScanOptions({ types: [...new Set(types)], negatives });
+}
+
+/** Row state of the scan feed (evaluation, tracked, skipped), from the database. */
+export async function loadFeedState(ids: number[]): Promise<Record<number, FeedRowState>> {
+  return feedState((Array.isArray(ids) ? ids : []).map(id).filter(Boolean).slice(0, 300));
+}
+
+/** Widen button: re-runs only the filter step of the last scan. null = nothing to widen (no scan since the server started, or one is running). */
+export async function widenScan(w: string): Promise<FoundJob[] | null> {
+  if (w !== "type" && w !== "age") return null;
+  const jobs = widenLastScan(w);
+  if (jobs?.length) revalidatePath("/app", "layout");
+  return jobs;
 }
 
 /** Deadline sweep + mass-posting consolidation on demand. */

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Bot, Database, Info, Palette, Bell } from "lucide-react";
+import { Bot, Database, Info, KeyRound, Palette, Bell } from "lucide-react";
 import { PageHeader } from "@/components/kit";
 import { getDict, getTheme } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { db, getProfile } from "@/lib/db";
 import { getEngine } from "@/lib/ai";
 import { claudeStatus, getMotion, getNotify } from "@/app/actions/settings";
+import { listKeyGroups } from "@/app/actions/keys";
+import { ApiKeys } from "@/components/settings/api-keys";
 import { storageInfo } from "@/app/api/backup/backup";
 import { SettingsNav } from "@/components/settings/settings-nav";
 import { AiEngine } from "@/components/settings/ai-engine";
@@ -39,7 +41,7 @@ export default async function SettingsPage() {
   const [{ t }, theme, motion, notify] = await Promise.all([getDict(), getTheme(), getMotion(), getNotify()]);
   const st = t.sources2.settings;
   const { settings } = getProfile();
-  const [engine, claude] = await Promise.all([getEngine(settings), claudeStatus()]);
+  const [engine, claude, keyGroups] = await Promise.all([getEngine(settings), claudeStatus(), listKeyGroups()]);
   const storage = storageInfo();
   const count = (sql: string) => (db().prepare(sql).get() as { n: number }).n;
   const k = st.about.keys;
@@ -57,8 +59,8 @@ export default async function SettingsPage() {
     [["G", "S"], k.goInsights],
     [["?"], k.help],
   ];
-  const icons = { ai: <Bot size={15} />, appearance: <Palette size={15} />, notifications: <Bell size={15} />, data: <Database size={15} />, about: <Info size={15} /> };
-  const sections = (["ai", "appearance", "notifications", "data", "about"] as const).map((id) => ({ id, label: st.sections[id], icon: icons[id] }));
+  const icons = { ai: <Bot size={15} />, keys: <KeyRound size={15} />, appearance: <Palette size={15} />, notifications: <Bell size={15} />, data: <Database size={15} />, about: <Info size={15} /> };
+  const sections = (["ai", "keys", "appearance", "notifications", "data", "about"] as const).map((id) => ({ id, label: st.sections[id], icon: icons[id] }));
 
   return (
     <>
@@ -73,6 +75,10 @@ export default async function SettingsPage() {
               claude={claude}
               engine={engine.label}
             />
+          </SettingsSection>
+
+          <SettingsSection id="keys" i={2} title={st.sections.keys} lead={st.keys.lead}>
+            <ApiKeys groups={keyGroups} />
           </SettingsSection>
 
           <SettingsSection id="appearance" i={2} icon={<Palette size={18} />} title={st.sections.appearance}>

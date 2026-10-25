@@ -1,8 +1,9 @@
 // Generic backup / restore of every app table. Table and column names always come from
 // the live schema (sqlite_master / PRAGMA), never from the uploaded file, so a crafted
-// backup cannot inject SQL. Environment values (API keys) are never part of the DB.
+// backup cannot inject SQL. API keys (env or entered in Settings) are never exported, imported or wiped.
 import { statSync } from "node:fs";
 import { db } from "@/lib/db";
+import { KEY_PREFIX } from "@/lib/provider-keys";
 
 type Row = Record<string, unknown>;
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -32,6 +33,8 @@ const columns = (t: string) => (db().prepare(`PRAGMA table_info(${q(t)})`).all()
 const foreignKeys = (t: string) => (db().prepare(`PRAGMA foreign_key_list(${q(t)})`).all() as Row[]).map((r) => ({ from: r.from as string, table: r.table as string }));
 const parents = (t: string) => foreignKeys(t).map((f) => f.table);
 const count = (t: string) => (db().prepare(`SELECT COUNT(*) AS n FROM ${q(t)}`).get() as Row).n as number;
+/** kv rows holding API keys entered in Settings. */
+const secret = (t: string, r: Row) => t === "kv" && String(r.key ?? "").startsWith(KEY_PREFIX);
 
 export interface Backup {
   app: "khedma";
@@ -42,7 +45,7 @@ export interface Backup {
 
 export function exportBackup(): Backup {
   const tables: Record<string, Row[]> = {};
-  for (const t of dataTables()) tables[t] = db().prepare(`SELECT * FROM ${q(t)}`).all() as Row[];
+  for (const t of dataTables()) tables[t] = (db().prepare(`SELECT * FROM ${q(t)}`).all() as Row[]).filter((r) => !secret(t, r));
   return { app: "khedma", format: FORMAT, exported_at: new Date().toISOString(), tables };
 }
 
@@ -58,7 +61,7 @@ export function validateBackup(raw: unknown): { backup?: Backup; error?: string 
     if (!IDENT.test(name) || !Array.isArray(rows)) return { error: `bad-table:${name.slice(0, 40)}` };
     if (!rows.every((r) => r && typeof r === "object" && !Array.isArray(r))) return { error: `bad-rows:${name}` };
     total += rows.length;
-    tables[name] = rows as Row[];
+    tables[name] = (rows as Row[]).filter((r) => !secret(name, r));
   }
   if (total > MAX_ROWS) return { error: "too-large" };
   return { backup: { app: "khedma", format: FORMAT, exported_at: String(b.exported_at ?? ""), tables } };
@@ -102,7 +105,7 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): { inserted:
     d.exec("PRAGMA foreign_keys = OFF");
     d.exec("BEGIN");
     try {
-      for (const t of [...order].reverse()) d.exec(`DELETE FROM ${q(t)}`);
+      for (const t of [...order].reverse()) d.exec(t === "kv" ? `DELETE FROM kv WHERE key NOT LIKE '${KEY_PREFIX}%'` : `DELETE FROM ${q(t)}`);
       for (const t of order) {
         const cols = columns(t).map((c) => c.name);
         for (const row of b.tables[t] ?? []) inserted += insert(t, row, cols, true).changes;

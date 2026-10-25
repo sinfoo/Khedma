@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   AlertTriangle,
@@ -18,14 +18,16 @@ import {
   Plus,
   Radar,
   RefreshCw,
+  RotateCcw,
   Send,
   Settings2,
   Sparkles,
   Square,
+  Undo2,
   UserSearch,
 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
-import { fmt } from "@/lib/i18n/dict";
+import { fmt, type Dict } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
@@ -33,13 +35,13 @@ import { ScoreRing, scoreLabel } from "@/components/ui";
 import { countryByCode, REMOTE_CODE } from "@/lib/geo";
 import { contactSearchUrl } from "@/lib/links";
 import { JOB_TYPES, type JobType } from "@/lib/types";
-import { planSearch, type Remote } from "@/lib/search/plan";
-import { DEFAULT_PREFS, type SearchPrefs } from "@/lib/search/prefs";
-import { loadSearchPrefs } from "@/app/actions/sources";
-import { applyTo, evaluateOffer, tailorCvFor, trackOffers } from "@/app/actions/jobs";
-import { SearchPrefsForm } from "./search-prefs";
+import { planSearch, runLabel, type Remote } from "@/lib/search/plan";
+import type { FeedRowState } from "@/lib/repo/sources";
+import { loadFeedState, saveScanOptions, widenScan } from "@/app/actions/sources";
+import { applyTo, archiveOffers, evaluateOffer, tailorCvFor, trackOffers } from "@/app/actions/jobs";
 import { Picks } from "./picks";
-import { useScan, type FoundJob, type ScanDone, type ScanOutcome, type SourceStatus } from "./use-scan";
+import { errorReason } from "./error-reason";
+import { useScan, type FoundJob, type ScanDone, type ScanOutcome, type ScanSnapshot, type SourceStatus } from "./use-scan";
 
 interface Src {
   id: number;
@@ -47,13 +49,18 @@ interface Src {
   kind: string;
 }
 
-const STRONG = 4;
+const MAX_KW = 6;
+/** Seconds per evaluation before the first one is timed (the score hint says about 20 s). */
+const SCORE_GUESS_S = 20;
 
 /**
  * The scan is the page: a radar stage (idle / running) that folds away when done,
  * and a live feed of kept offers with one recommended action per row.
  */
 const FEED_KEY = "khedma:last-scan";
+
+const split = (s: string) => s.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean);
+const seconds = () => Date.now() / 1000;
 
 export function ScanPanel({
   keywords,
@@ -62,70 +69,109 @@ export function ScanPanel({
   autoStart,
   typed = false,
   cvKeywords = [],
+  saved = { types: [], negatives: [] },
 }: {
   keywords: string[];
   /** Keywords came from the user (a ?q= link), not from the CV. */
   typed?: boolean;
   places: { countries: string[]; remote: Remote };
   sources: Src[];
+  /** Start at once: a search typed before the page hydrated (?q=). Every other entry point only focuses the form. */
   autoStart: boolean;
   /** Keywords read from the profile CV (roles, then main skills), for "Auto scan". */
   cvKeywords?: string[];
+  /** Search options kept from the last scan. */
+  saved?: { types: JobType[]; negatives: string[] };
 }) {
   const { t, locale } = useT();
   const m = t.sources2.scan2;
   const toast = useToast();
   const router = useRouter();
-  const { start, attach, stop, restore, running, status, total, finished, plan, jobs, dropped } = useScan();
+  const params = useSearchParams();
+  const { start, attach, stop, restore, addJobs, running, status, total, finished, plan, jobs, dropped } = useScan();
   const [kw, setKw] = useState(keywords.join(", "));
   const [countries, setCountries] = useState<string[]>(places.countries);
   const [remote, setRemote] = useState<Remote>(places.remote);
-  const [types, setTypes] = useState<JobType[]>([]);
-  const [negatives, setNegatives] = useState("");
-  const [includeSenior, setIncludeSenior] = useState(false);
+  const [types, setTypes] = useState<JobType[]>(saved.types);
+  const [negatives, setNegatives] = useState(saved.negatives.join(", "));
   const [options, setOptions] = useState(false);
-  const [prefs, setPrefs] = useState<SearchPrefs | null>(null);
   const [preparing, startPrepare] = useTransition();
   const [done, setDone] = useState<ScanDone | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [scoreTick, setScoreTick] = useState(0);
   const startedAt = useRef(0);
+  const kwRef = useRef<HTMLInputElement>(null);
   const L = locale === "fr" ? "fr" : "en";
-
-  useEffect(() => {
-    if (options && !prefs) loadSearchPrefs().then(setPrefs).catch(() => setPrefs(DEFAULT_PREFS));
-  }, [options, prefs]);
+  const num = (n: number) => n.toLocaleString(locale);
+  const countryName = (code: string) => (code === REMOTE_CODE ? t.common.remote : (countryByCode(code)?.[L] ?? code));
 
   // Clock in the stage header.
   useEffect(() => {
-    if (!running) return;
+    if (!running || retrying) return;
     startedAt.current = Date.now();
     const id = setInterval(() => setElapsed(Math.round((Date.now() - startedAt.current) / 1000)), 1000);
     return () => clearInterval(id);
-  }, [running]);
+  }, [running, retrying]);
 
-  const terms = kw.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean).slice(0, 6);
+  const allTerms = split(kw);
+  const terms = allTerms.slice(0, MAX_KW);
+  const negList = split(negatives);
   const preview = planSearch({ keywords: terms, countries, remote, enabledSources: sources });
+  // What this search asks for, shown while it runs and kept in its summary.
+  const lookingFor = [terms.join(" · ") || "—", countries.map(countryName).join(", "), types.length ? types.map((ty) => t.jobTypes[ty]).join(", ") : "", negList.length ? fmt(m.without, { v: negList.join(", ") }) : ""].filter(Boolean);
 
-  const settle = (r: ScanOutcome) => {
-    if (r.kind === "done") {
-      setDone(r.done);
-      router.refresh();
-    } else if (r.kind === "busy") toast.info(t.sources2.busy);
-    else if (r.kind === "cancelled") toast.info(m.stopped);
-    else if (r.kind === "error") toast.error(t.sources2.scanFailed, r.error);
+  // Mirror of the live state for the async scan callbacks (a stopped scan is summed from it).
+  const live = useRef({ jobs, status, dropped, plan });
+  useEffect(() => {
+    live.current = { jobs, status, dropped, plan };
+  });
+
+  /** What a stopped scan found so far, as a finished result. */
+  const stoppedDone = (): ScanDone => {
+    const { jobs: js, status: st, dropped: dr, plan: p } = live.current;
+    const runs = p?.runs ?? [];
+    return {
+      type: "done",
+      run_id: 0,
+      added: js.length,
+      errors: runs.filter((r) => st[r.key]?.state === "error").length,
+      duplicates: runs.reduce((a, r) => a + (st[r.key]?.known ?? 0), 0),
+      dropped: dr,
+      jobs: [],
+      stopped: true,
+    };
   };
 
-  /** `use`: scan with these keywords instead of the box's ("Auto scan" passes the CV's). */
-  const run = (use?: string[]) => {
-    setDone(null);
-    setElapsed(0);
+  const settle = (r: ScanOutcome, asked: boolean) => {
+    if (r.kind === "done") {
+      const retry = asked || !!r.done.retry;
+      // A retry adds to the scan it retries; its widen counts cover the whole scan.
+      setDone((d) => (retry && d ? { ...d, added: d.added + r.done.added, duplicates: d.duplicates + r.done.duplicates, widen: r.done.widen } : { ...r.done, searched: lookingFor.join(" · ") }));
+      router.refresh();
+    } else if (r.kind === "busy") toast.info(t.sources2.busy);
+    else if (r.kind === "cancelled") setDone({ ...stoppedDone(), searched: lookingFor.join(" · ") });
+    else if (r.kind === "error") setFailure(r.error);
+  };
+
+  const persistOptions = (next: { types?: JobType[]; negatives?: string[] }) => void saveScanOptions({ types: next.types ?? types, negatives: next.negatives ?? negList }).catch(() => {});
+
+  /** `use`: scan with these keywords instead of the box's ("Auto scan" passes the CV's). `keys`: retry only these runs. */
+  const run = (use?: string[], keys?: string[]) => {
+    setFailure(null);
+    if (keys) setRetrying(true);
+    else {
+      setDone(null);
+      setElapsed(0);
+    }
     startPrepare(async () => {
-      const untouched = !use && !typed && terms.join(",").toLowerCase() === keywords.slice(0, 6).join(",").toLowerCase();
-      const r = await start({ keywords: untouched ? undefined : (use ?? terms), countries, remote, types, negatives: negatives.split(/[,\n;]+/).map((x) => x.trim()).filter(Boolean), includeSenior });
+      const untouched = !use && !typed && terms.join(",").toLowerCase() === keywords.slice(0, MAX_KW).join(",").toLowerCase();
+      const r = await start({ keywords: untouched ? undefined : (use ?? terms), countries, remote, types, negatives: negList, keys });
       // Another tab (or this page before a reload) is scanning: follow that scan instead.
-      const followed = r.kind === "busy" ? await attach() : null;
-      settle(followed ?? r);
+      const followed = r.kind === "busy" && !keys ? await attach() : null;
+      settle(followed ?? r, !!keys);
+      setRetrying(false);
     });
   };
 
@@ -135,7 +181,7 @@ export function ScanPanel({
     void attach().then((r) => {
       if (!r || r.kind === "busy") return; // busy = this page already follows it (dev runs effects twice)
       setElapsed(0);
-      settle(r);
+      settle(r, false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -144,11 +190,12 @@ export function ScanPanel({
   useEffect(() => {
     if (autoStart) return;
     try {
-      const saved = JSON.parse(sessionStorage.getItem(FEED_KEY) ?? "null") as { jobs: FoundJob[]; done: ScanDone } | null;
-      if (!saved) return;
-      restore(saved.jobs);
+      const snap = JSON.parse(sessionStorage.getItem(FEED_KEY) ?? "null") as (ScanSnapshot & { done: ScanDone; elapsed?: number }) | null;
+      if (!snap?.done) return;
+      restore(snap);
       // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage only exists after hydration
-      setDone(saved.done);
+      setDone(snap.done);
+      setElapsed(snap.elapsed ?? 0);
     } catch {
       // private mode or bad JSON: start empty
     }
@@ -157,32 +204,40 @@ export function ScanPanel({
   useEffect(() => {
     if (!done || running) return;
     try {
-      sessionStorage.setItem(FEED_KEY, JSON.stringify({ jobs, done }));
+      sessionStorage.setItem(FEED_KEY, JSON.stringify({ jobs, plan, status, done, elapsed }));
     } catch {
       // storage full or blocked: nothing to keep
     }
-  }, [done, running, jobs]);
+  }, [done, running, jobs, plan, status, elapsed]);
 
   const kicked = useRef(false);
   useEffect(() => {
     if (!autoStart || kicked.current) return;
     kicked.current = true;
     window.history.replaceState(null, "", "/app/sources");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (sources.length) run();
+    run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
 
+  // Scan buttons elsewhere (topbar, palette, Offers, Discover) link to ?scan=1: show the form with the keywords focused.
+  const focusAsked = params.get("scan") === "1";
+  useEffect(() => {
+    if (!focusAsked) return;
+    router.replace("/app/sources", { scroll: false });
+    const el = kwRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: "center" });
+    el.focus();
+  }, [focusAsked, router]);
+
   const busy = running || preparing;
-  const scanning = busy && plan !== null;
-  const finishedAll = !busy && done !== null;
+  const scanning = busy && plan !== null && !retrying;
+  const finishedAll = done !== null && (!busy || retrying);
   const showStage = !finishedAll;
   const showFeed = scanning || finishedAll || jobs.length > 0;
 
-  // Blips: planned runs while scanning or after; enabled sources when idle.
-  const blips: { key: string; label: string; kind: string; st?: SourceStatus }[] = plan
-    ? plan.runs.map((r) => ({ key: r.key, label: r.label, kind: r.kind, st: status[r.key] }))
-    : sources.map((s) => ({ key: `${s.kind}:${s.id}`, label: s.label, kind: s.kind }));
+  // Blips: planned runs while scanning or after; the runs a scan would make when idle (same count as the scan).
+  const blips: { key: string; label: string; kind: string; st?: SourceStatus }[] = (plan?.runs ?? preview.runs).map((r) => ({ key: r.key, label: runLabel(r, L), kind: r.kind, st: plan ? status[r.key] : undefined }));
   const current = blips.find((b) => b.st?.state === "running");
   const sums = blips.reduce(
     (acc, b) => ({ listed: acc.listed + (b.st?.listed ?? 0), kept: acc.kept + (b.st?.kept ?? b.st?.added ?? 0), errors: acc.errors + (b.st?.state === "error" ? 1 : 0) }),
@@ -194,14 +249,108 @@ export function ScanPanel({
 
   const title = scanning ? fmt(m.titleRunning, { n: total }) : finishedAll ? (jobs.length === 0 ? m.titleDoneNone : jobs.length === 1 ? m.titleDoneOne : fmt(m.titleDone, { n: jobs.length })) : m.titleIdle;
   const lead = scanning ? m.leadRunning : finishedAll ? (jobs.length ? m.leadDone : m.leadDoneNone) : m.leadIdle;
-  const sweepOn = scanning;
+  const announce = failure ? fmt(m.failedScan, { reason: errorReason(t, failure) }) : scanning ? title : finishedAll ? `${title}. ${lead}` : "";
+
+  const onWiden = async (w: "type" | "age") => {
+    const r = await widenScan(w);
+    if (r === null) return toast.info(m.widenExpired);
+    setDone((d) => (d ? { ...d, added: d.added + r.length, widen: d.widen ? { ...d.widen, [w]: 0 } : undefined } : d));
+    if (!r.length) return toast.info(m.widenNone);
+    addJobs(r);
+    setScoreTick((n) => n + 1);
+    toast.success(fmt(m.widened, { n: r.length }));
+  };
+
+  const searchForm = (
+    <form
+      action="/app/sources"
+      method="get"
+      className={finishedAll ? "card mb-5 px-[18px] py-3.5" : "mx-[18px] mt-[18px] rounded-xl bg-surface-2 px-4 py-3"}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!busy && preview.runs.length) run();
+      }}
+    >
+      <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
+      <div className="flex gap-1.5">
+        <input ref={kwRef} id="scan-kw" name="q" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} aria-describedby="scan-kw-hint" className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
+        <button type="submit" className="btn btn-saffron !h-10" disabled={busy || preview.runs.length === 0}>
+          <Radar size={15} aria-hidden="true" /> {m.scan}
+        </button>
+      </div>
+      <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted" role="group" aria-label={m.countries}>
+        {places.countries.map((code) => {
+          const on = countries.includes(code);
+          return (
+            <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? (cs.length > 1 ? cs.filter((x) => x !== code) : cs) : [...cs, code]))}>
+              {countryName(code)}
+            </button>
+          );
+        })}
+        <Link href="/app/profile" className="ml-1 font-semibold text-accent-text">{m.addCountry}</Link>
+      </p>
+      <p id="scan-kw-hint" className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[0.72rem] text-muted">
+        <span>{keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : preview.runs.length ? fmt(m.ready, { n: preview.runs.length }) : m.noSources}</span>
+        {allTerms.length > MAX_KW && <span className="font-semibold text-saffron">{fmt(m.kwCap, { n: MAX_KW })}</span>}
+        {keywords.length > 0 && kw !== keywords.join(", ") && (
+          <button type="button" className="font-semibold text-accent-text" onClick={() => setKw(keywords.join(", "))}>{m.useCv}</button>
+        )}
+        <button type="button" className="ml-auto inline-flex items-center gap-1 font-semibold text-accent-text" aria-expanded={options} aria-controls="scan-options" onClick={() => setOptions((o) => !o)}>
+          <Settings2 size={12} aria-hidden="true" /> {m.options}
+          {(types.length > 0 || negList.length > 0) && <span className="chip chip-accent !h-4 !px-1.5 !py-0 text-[0.62rem]">{types.length + negList.length}</span>}
+        </button>
+      </p>
+      {options && (
+        <div id="scan-options" className="mt-2 space-y-2 rounded-xl border border-line bg-surface p-3 text-sm" style={{ animation: "pop .18s ease both" }}>
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t.offers2.searchBar.typesLabel}>
+            <span className="eyebrow text-[0.68rem]" aria-hidden="true">{t.offers2.searchBar.typesLabel}</span>
+            {JOB_TYPES.map((ty) => {
+              const on = types.includes(ty);
+              return (
+                <button
+                  key={ty}
+                  type="button"
+                  aria-pressed={on}
+                  className={`chip min-h-7 cursor-pointer ${on ? "chip-accent" : ""}`}
+                  onClick={() => {
+                    const next = on ? types.filter((x) => x !== ty) : [...types, ty];
+                    setTypes(next);
+                    persistOptions({ types: next });
+                  }}
+                >
+                  {t.jobTypes[ty]}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <label className="flex items-center gap-2">
+              <span className="eyebrow text-[0.68rem]">{t.offers2.searchBar.remoteLabel}</span>
+              <select id="scan-remote" className="input !h-8 !w-auto !py-0 text-sm" value={remote} onChange={(e) => setRemote(e.target.value as Remote)}>
+                {(["yes", "only", "no"] as const).map((r) => (
+                  <option key={r} value={r}>{t.offers2.searchBar.remoteOpts[r]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-48 flex-1 items-center gap-2">
+              <span className="eyebrow shrink-0 text-[0.68rem]">{t.offers2.searchBar.negatives}</span>
+              <input id="scan-negatives" className="input !h-8 min-w-0 flex-1 !py-0 text-sm" value={negatives} placeholder={t.offers2.searchBar.negativesPh} onChange={(e) => setNegatives(e.target.value)} onBlur={() => persistOptions({})} />
+            </label>
+          </div>
+          <p className="text-[0.75rem] text-muted">
+            {m.optionsSaved} <Link href="/app/sources/preferences" className="font-semibold text-accent-text">{m.prefsLink}</Link>
+          </p>
+        </div>
+      )}
+    </form>
+  );
 
   return (
     <>
       <header className="mb-[18px] flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{title}</h1>
-          <p className="mt-1.5 text-muted" aria-live="polite">{lead}</p>
+          <p className="mt-1.5 text-muted">{lead}</p>
         </div>
         <div className="flex gap-2">
           {(busy || finishedAll) && (
@@ -231,61 +380,37 @@ export function ScanPanel({
           </Link>
         </div>
       </header>
+      {/* Stays mounted: start, end and failure of the scan are announced even when the stage folds away. */}
+      <p className="sr-only" role="status" aria-live="polite">{announce}</p>
+
+      {failure && (
+        <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span className="flex-1">{fmt(m.failedScan, { reason: errorReason(t, failure) })}</span>
+          <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => run()}>
+            <RotateCcw size={13} aria-hidden="true" /> {m.retry}
+          </button>
+        </div>
+      )}
+
+      {finishedAll && searchForm}
 
       <div className={`grid items-stretch gap-5 ${showStage && showFeed ? "lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : ""}`} style={{ transition: "grid-template-columns .5s cubic-bezier(.2,.7,.2,1)" }}>
         {showStage && (
-          <section aria-busy={scanning} className="card relative flex min-h-[520px] flex-col overflow-hidden">
+          <section aria-busy={scanning} aria-label={m.stageLabel} className="card relative flex flex-col overflow-hidden sm:min-h-[520px]">
             <div className="flex items-center gap-2.5 border-b border-line px-[18px] py-3.5">
               {scanning ? <Loader2 size={16} className="animate-spin text-accent-text" aria-hidden="true" /> : <Radar size={16} className="text-muted" aria-hidden="true" />}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[0.95rem] font-semibold">{scanning ? (current ? fmt(m.reading, { label: current.label }) : m.waiting) : sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}</p>
+                <p className="text-[0.95rem] font-semibold">{scanning ? (current ? fmt(m.reading, { label: current.label }) : m.waiting) : preview.runs.length ? fmt(m.ready, { n: preview.runs.length }) : m.noSources}</p>
                 <p className="mt-px text-[0.75rem] text-muted">{scanning ? fmt(m.feedSub, { n: kept, done: finished, total }) : t.sources2.respect}</p>
               </div>
               <span className="mono whitespace-nowrap text-[0.75rem] text-muted">{scanning ? `${elapsed} s` : ""}</span>
             </div>
 
-            {!scanning && (
-                  <form
-                    action="/app/sources"
-                    method="get"
-                    className="mx-[18px] mt-[18px] rounded-xl bg-surface-2 px-4 py-3"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      if (!busy && preview.runs.length) run();
-                    }}
-                  >
-                    <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
-                    <div className="flex gap-1.5">
-                      <input id="scan-kw" name="q" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
-                      <button type="submit" className="btn btn-saffron !h-10" disabled={busy || preview.runs.length === 0}>
-                        <Radar size={15} aria-hidden="true" /> {m.scan}
-                      </button>
-                    </div>
-                    <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted">
-                      {places.countries.map((code) => {
-                        const on = countries.includes(code);
-                        const c = countryByCode(code);
-                        return (
-                          <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? (cs.length > 1 ? cs.filter((x) => x !== code) : cs) : [...cs, code]))}>
-                            {code === REMOTE_CODE ? t.common.remote : (c?.[L] ?? code)}
-                          </button>
-                        );
-                      })}
-                    </p>
-                    <p className="mt-1.5 text-[0.72rem] text-muted">
-                      {keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : sources.length ? fmt(m.ready, { n: sources.length }) : m.noSources}
-                      {keywords.length > 0 && kw !== keywords.join(", ") && (
-                        <>
-                          {" · "}
-                          <button type="button" className="font-semibold text-accent-text" onClick={() => setKw(keywords.join(", "))}>{m.useCv}</button>
-                        </>
-                  )}
-                    </p>
-                  </form>
-            )}
+            {!scanning && searchForm}
             <div className="grid items-center gap-[18px] px-[18px] pb-2 pt-[18px] md:grid-cols-[auto_minmax(0,1fr)]">
-              {/* Radar: 3 rings, sweep, one blip per source */}
-              <div aria-hidden="true" className="relative mx-auto grid size-[300px] place-items-center">
+              {/* Radar: 3 rings, sweep, one blip per source. Decorative, so phones skip it and see the feed sooner. */}
+              <div aria-hidden="true" className="relative mx-auto hidden size-[300px] place-items-center sm:grid">
                 <span className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--accent) 6%, transparent), transparent 70%)" }} />
                 <span className="absolute inset-0 rounded-full border border-line" style={{ animation: "ring-in .6s cubic-bezier(.2,.7,.2,1) both" }} />
                 <span className="absolute inset-[17%] rounded-full border border-dashed border-line" style={{ animation: "ring-in .6s cubic-bezier(.2,.7,.2,1) .1s both" }} />
@@ -296,8 +421,8 @@ export function ScanPanel({
                   className="absolute inset-0 rounded-full"
                   style={{
                     background: "conic-gradient(from 0deg, color-mix(in oklab, var(--accent) 50%, transparent), color-mix(in oklab, var(--accent) 12%, transparent) 40deg, transparent 80deg)",
-                    animation: sweepOn ? "sweep 2.4s linear infinite" : "none",
-                    opacity: sweepOn ? 1 : 0.18,
+                    animation: scanning ? "sweep 2.4s linear infinite" : "none",
+                    opacity: scanning ? 1 : 0.18,
                     transition: "opacity .6s",
                   }}
                 />
@@ -338,8 +463,8 @@ export function ScanPanel({
                   <div className="flex items-center gap-2.5 rounded-xl bg-accent-soft px-3 py-2.5" style={{ animation: "pop .25s ease both" }}>
                     <CompanyAvatar name={current.label} size={34} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[0.82rem] font-semibold text-accent-text">{fmt(m.reading, { label: current.label })}</p>
-                      <p className="truncate text-[0.72rem] text-muted">{fmt(m.readingDetail, { listed: sums.listed })}</p>
+                      <p className="text-[0.82rem] font-semibold text-accent-text">{fmt(m.reading, { label: current.label })}</p>
+                      <p className="truncate text-[0.72rem] text-muted">{fmt(m.readingDetail, { listed: num(sums.listed) })}</p>
                     </div>
                   </div>
                 )}
@@ -356,64 +481,29 @@ export function ScanPanel({
                     </ol>
                   </div>
                 )}
-                {scanning && <dl className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { label: m.tallies.listed, v: sums.listed, color: "var(--ink)" },
-                    { label: m.tallies.kept, v: kept, color: "var(--success)" },
-                    { label: m.tallies.dropped, v: droppedTotal, color: "var(--ink-2)" },
-                    { label: m.tallies.errors, v: sums.errors, color: sums.errors ? "var(--danger)" : "var(--ink-2)" },
-                  ].map((x) => (
-                    <div key={x.label} className="rounded-[10px] border border-line px-2.5 py-2">
-                      <dt className="eyebrow text-[0.66rem]">{x.label}</dt>
-                      <dd className="display tabular mt-0.5 text-[1.15rem] leading-none" style={{ color: x.color }}>{x.v}</dd>
+                {scanning && (
+                  <dl className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { label: m.tallies.listed, v: sums.listed, color: "var(--ink)" },
+                      { label: m.tallies.kept, v: kept, color: "var(--success)" },
+                      { label: m.tallies.dropped, v: droppedTotal, color: "var(--ink-2)" },
+                      { label: m.tallies.errors, v: sums.errors, color: sums.errors ? "var(--danger)" : "var(--ink-2)" },
+                    ].map((x) => (
+                      <div key={x.label} className="rounded-[10px] border border-line px-2.5 py-2">
+                        <dt className="eyebrow text-[0.66rem]">{x.label}</dt>
+                        <dd className="display tabular mt-0.5 text-[1.15rem] leading-none" style={{ color: x.color }}>{num(x.v)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {scanning && (
+                  <div>
+                    <div className="bar">
+                      <span style={{ width: `${pct}%` }} />
                     </div>
-                  ))}
-                </dl>}
-                <div>
-                  {scanning && <div className="bar">
-                    <span style={{ width: `${pct}%` }} />
-                  </div>}
-                  <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[0.72rem] text-muted">
-                    {scanning && <>
-                      {m.lookingFor} <span className="mono text-ink-2">{terms.join(" · ") || "—"}</span> ·{" "}
-                      {countries.map((code) => (code === REMOTE_CODE ? t.common.remote : (countryByCode(code)?.[L] ?? code))).join(", ")}
-                    </>}
-                    <button type="button" className="ml-auto inline-flex items-center gap-1 font-semibold text-accent-text" aria-expanded={options} onClick={() => setOptions((o) => !o)}>
-                      <Settings2 size={12} aria-hidden="true" /> {m.options}
-                    </button>
-                  </p>
-                </div>
-                {options && (
-                  <div className="space-y-2 rounded-xl border border-line p-3 text-sm" style={{ animation: "pop .18s ease both" }}>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="eyebrow text-[0.68rem]">{t.offers2.searchBar.typesLabel}</span>
-                      {JOB_TYPES.map((ty) => {
-                        const on = types.includes(ty);
-                        return (
-                          <button key={ty} type="button" aria-pressed={on} className={`chip min-h-7 cursor-pointer ${on ? "chip-accent" : ""}`} onClick={() => setTypes((xs) => (on ? xs.filter((x) => x !== ty) : [...xs, ty]))}>
-                            {t.jobTypes[ty]}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                      <label className="flex items-center gap-2">
-                        <span className="eyebrow text-[0.68rem]">{t.offers2.searchBar.remoteLabel}</span>
-                        <select className="input !h-8 !w-auto !py-0 text-sm" value={remote} onChange={(e) => setRemote(e.target.value as Remote)}>
-                          {(["yes", "only", "no"] as const).map((r) => (
-                            <option key={r} value={r}>{t.offers2.searchBar.remoteOpts[r]}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex min-w-48 flex-1 items-center gap-2">
-                        <span className="eyebrow shrink-0 text-[0.68rem]">{t.offers2.searchBar.negatives}</span>
-                        <input className="input !h-8 min-w-0 flex-1 !py-0 text-sm" value={negatives} placeholder={t.offers2.searchBar.negativesPh} onChange={(e) => setNegatives(e.target.value)} />
-                      </label>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={includeSenior} onChange={(e) => setIncludeSenior(e.target.checked)} /> {t.offers2.searchBar.includeSenior}
-                      </label>
-                    </div>
-                    {prefs ? <SearchPrefsForm prefs={prefs} compact onSaved={setPrefs} /> : <Loader2 size={16} className="animate-spin text-muted" aria-label={t.common.loading} />}
+                    <p className="mt-1.5 text-[0.72rem] text-muted">
+                      {m.lookingFor} <span className="mono text-ink-2">{lookingFor.join(" · ")}</span>
+                    </p>
                   </div>
                 )}
               </div>
@@ -424,21 +514,26 @@ export function ScanPanel({
         )}
 
         {finishedAll && <Picks ids={jobs.map((j) => j.id)} refreshKey={String(scoreTick)} />}
-        {finishedAll && plan && <div className="card px-[18px] py-1"><SourceList blips={blips} summary={fmt(m.sourcesRead, { n: plan.runs.length, errors: sums.errors })} /></div>}
+        {finishedAll && plan && <SourceResults blips={blips} busy={busy} onRetry={(keys) => run(undefined, keys)} />}
 
-        {showFeed && <Feed
-          jobs={jobs}
-          scanning={scanning}
-          done={finishedAll ? done : null}
-          dropped={droppedTotal}
-          droppedBy={dropped}
-          skipped={(plan?.skipped.length ?? 0) + (plan?.skippedBlacklist ?? 0)}
-          errors={sums.errors}
-          elapsed={elapsed}
-          finished={finished}
-          total={total}
-          onScored={() => setScoreTick((n) => n + 1)}
-        />}
+        {showFeed && (
+          <Feed
+            jobs={jobs}
+            scanning={scanning}
+            done={finishedAll ? done : null}
+            listed={sums.listed}
+            dropped={droppedTotal}
+            droppedBy={dropped}
+            skipped={plan?.skipped.length ?? 0}
+            skippedBlacklist={plan?.skippedBlacklist ?? 0}
+            elapsed={elapsed}
+            finished={finished}
+            total={total}
+            lookingFor={lookingFor.join(" · ")}
+            onScored={() => setScoreTick((n) => n + 1)}
+            onWiden={onWiden}
+          />
+        )}
       </div>
     </>
   );
@@ -450,126 +545,269 @@ function monogram(label: string): string {
   return (words.length > 1 ? a[0] + words[1][0] : a.slice(0, 2)).toUpperCase();
 }
 
+type Blip = { key: string; label: string; st?: SourceStatus };
+
 /** Every planned source with its result, folded by default so the radar stays the focus. */
-function SourceList({ blips, summary }: { blips: { key: string; label: string; st?: SourceStatus }[]; summary: string }) {
+function SourceList({ blips, summary, open = false }: { blips: Blip[]; summary: string; open?: boolean }) {
   const { t } = useT();
+  const s = t.sources2.radar;
   return (
-    <details className="group mt-auto border-t border-line px-[18px] py-2.5">
+    <details className="group mt-auto border-t border-line px-[18px] py-2.5" open={open}>
       <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[0.75rem] font-semibold text-ink-2">
         <ChevronDown size={13} className="transition-transform group-open:rotate-180" aria-hidden="true" /> {summary}
       </summary>
-            <ul aria-label={t.sources2.radar.sourcesLabel} className="mt-2 flex flex-wrap gap-1.5">
-              {blips.map((b) => {
-                const state = b.st?.state;
-                const cls = state === "done" ? "border-transparent bg-success-soft text-success" : state === "running" ? "border-transparent bg-accent-soft text-accent-text" : state === "error" ? "border-transparent bg-danger-soft text-danger" : "border-line bg-surface text-ink-2";
-                const dot = state === "done" ? "var(--success)" : state === "running" ? "var(--accent)" : state === "error" ? "var(--danger)" : "var(--line-strong)";
-                return (
-                  <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls}`} title={state === "error" ? b.st?.error : undefined}>
-                    <span className="size-1.5 rounded-full" style={{ background: dot }} />
-                    {b.label}
-                    {state === "done" && <span className="mono opacity-80">+{b.st?.added ?? 0}</span>}
-                    {state === "error" && b.st?.error && <span className="sr-only">: {b.st.error}</span>}
-                  </li>
-                );
-              })}
-            </ul>
+      <ul aria-label={s.sourcesLabel} className="mt-2 flex flex-wrap gap-1.5">
+        {blips.map((b) => {
+          const state = b.st?.state;
+          const cls = state === "done" ? "border-transparent bg-success-soft text-success" : state === "running" ? "border-transparent bg-accent-soft text-accent-text" : state === "error" ? "border-transparent bg-danger-soft text-danger" : "border-line bg-surface text-ink-2";
+          const dot = state === "done" ? "var(--success)" : state === "running" ? "var(--accent)" : state === "error" ? "var(--danger)" : "var(--line-strong)";
+          const sr = state === "done" ? fmt(s.srKept, { n: b.st?.added ?? 0 }) : state === "error" ? `${s.srError}: ${errorReason(t, b.st?.error)}` : state === "running" ? s.srRunning : s.srQueued;
+          return (
+            <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls}`} title={state === "error" ? errorReason(t, b.st?.error) : undefined}>
+              <span className="size-1.5 rounded-full" style={{ background: dot }} aria-hidden="true" />
+              {b.label}
+              {state === "done" && <span className="mono opacity-80" aria-hidden="true">+{b.st?.added ?? 0}</span>}
+              <span className="sr-only">: {sr}</span>
+            </li>
+          );
+        })}
+      </ul>
     </details>
   );
 }
 
-// ---------- live feed ----------
-type Local = { tracked?: boolean; appId?: number | null; score?: number | null; dismissed?: boolean };
-
-function Feed({ jobs, scanning, done, dropped, droppedBy, skipped, errors, elapsed, finished, total, onScored }: { jobs: FoundJob[]; scanning: boolean; done: ScanDone | null; dropped: number; droppedBy: Record<string, number>; skipped: number; errors: number; elapsed: number; finished: number; total: number; onScored: () => void }) {
+/** After the scan: failed sources stay in view with their reason and a Retry; the full list folds below. */
+function SourceResults({ blips, busy, onRetry }: { blips: Blip[]; busy: boolean; onRetry: (keys: string[]) => void }) {
   const { t } = useT();
   const m = t.sources2.scan2;
+  const failed = blips.filter((b) => b.st?.state === "error");
+  const retrying = blips.filter((b) => b.st?.state === "running" || b.st?.state === "queued");
+  return (
+    <section aria-label={m.sourcesTitle} className="card py-1">
+      {failed.length + retrying.length > 0 && (
+        <div className="border-b border-line px-[18px] py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="flex-1 text-[0.85rem] font-semibold">{failed.length ? fmt(failed.length === 1 ? m.failedOne : m.failedTitle, { n: failed.length }) : m.retryingNow}</p>
+            {failed.length > 1 && (
+              <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => onRetry(failed.map((b) => b.key))}>
+                <RotateCcw size={13} aria-hidden="true" /> {m.retryAll}
+              </button>
+            )}
+          </div>
+          <ul className="mt-2 space-y-1.5">
+            {[...retrying, ...failed].map((b) => (
+              <li key={b.key} className="flex items-center gap-2 text-[0.82rem]">
+                <span className="size-1.5 shrink-0 rounded-full" style={{ background: b.st?.state === "error" ? "var(--danger)" : "var(--accent)" }} aria-hidden="true" />
+                <span className="font-semibold">{b.label}</span>
+                <span className="min-w-0 flex-1 truncate text-muted">{b.st?.state === "error" ? errorReason(t, b.st.error) : m.retryingNow}</span>
+                {b.st?.state === "error" ? (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy} aria-label={`${m.retry}: ${b.label}`} onClick={() => onRetry([b.key])}>
+                    <RotateCcw size={13} aria-hidden="true" /> {m.retry}
+                  </button>
+                ) : (
+                  <Loader2 size={14} className="animate-spin text-muted" aria-hidden="true" />
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <SourceList blips={blips} summary={fmt(m.sourcesRead, { n: blips.length, errors: failed.length })} />
+    </section>
+  );
+}
+
+// ---------- live feed ----------
+/** Server row state plus what this page changed since (optimistic). */
+type RowState = Partial<FeedRowState>;
+
+function Feed({
+  jobs,
+  scanning,
+  done,
+  listed,
+  dropped,
+  droppedBy,
+  skipped,
+  skippedBlacklist,
+  elapsed,
+  finished,
+  total,
+  lookingFor,
+  onScored,
+  onWiden,
+}: {
+  jobs: FoundJob[];
+  scanning: boolean;
+  done: ScanDone | null;
+  listed: number;
+  dropped: number;
+  droppedBy: Record<string, number>;
+  skipped: number;
+  skippedBlacklist: number;
+  elapsed: number;
+  finished: number;
+  total: number;
+  lookingFor: string;
+  onScored: () => void;
+  onWiden: (w: "type" | "age") => Promise<unknown>;
+}) {
+  const { t, locale } = useT();
+  const m = t.sources2.scan2;
   const toast = useToast();
-  const [local, setLocal] = useState<Record<number, Local>>({});
+  const [rows, setRows] = useState<Record<number, RowState>>({});
+  const [pending, setPending] = useState<Set<number>>(new Set());
+  const [widening, startWiden] = useTransition();
+  const num = (n: number) => n.toLocaleString(locale);
+  const ids = jobs.map((j) => j.id).join(",");
+
+  // Scores, tracked state and skips come from the database: a restored feed shows them as they are now.
   useEffect(() => {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem(`${FEED_KEY}:rows`) ?? "null") as Record<number, Local> | null;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage only exists after hydration
-      if (saved) setLocal(saved);
-    } catch {
-      // private mode or bad JSON
-    }
-  }, []);
-  useEffect(() => {
-    if (scanning) return;
-    try {
-      sessionStorage.setItem(`${FEED_KEY}:rows`, JSON.stringify(local));
-    } catch {
-      // storage blocked
-    }
-  }, [local, scanning]);
+    if (scanning || !ids) return;
+    let live = true;
+    loadFeedState(ids.split(",").map(Number))
+      .then((st) => live && setRows((r) => ({ ...st, ...Object.fromEntries(Object.entries(r).filter(([id]) => !(id in st))) })))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [ids, scanning]);
+
   // One clock reading per mount: deadline chips must not change between renders.
   const [now] = useState(() => Date.now());
-  const [scoringAll, setScoringAll] = useState<{ i: number; n: number } | null>(null);
-  const patch = (id: number, p: Local) => setLocal((s) => ({ ...s, [id]: { ...s[id], ...p } }));
-  const sorted = useMemo(
-    () => (scanning ? jobs : [...jobs].sort((a, b) => Number(!!local[a.id]?.dismissed) - Number(!!local[b.id]?.dismissed) || (local[b.id]?.score ?? -1) - (local[a.id]?.score ?? -1) || b.relevance - a.relevance || a.id - b.id)),
-    [jobs, local, scanning],
-  );
+  const [scoringAll, setScoringAll] = useState<{ i: number; n: number; per: number } | null>(null);
+  const cancelAll = useRef(false);
+  const patch = (id: number, p: RowState) => setRows((s) => ({ ...s, [id]: { ...s[id], ...p } }));
+  // Best keyword match first, fixed once the scan is over: scoring or skipping never moves a row under the pointer.
+  const sorted = useMemo(() => (scanning ? jobs : [...jobs].sort((a, b) => b.relevance - a.relevance || a.id - b.id)), [jobs, scanning]);
   const show = scanning || jobs.length > 0 || done !== null;
-  const unscored = jobs.filter((j) => local[j.id]?.score == null && !local[j.id]?.dismissed);
-  const strong = jobs.filter((j) => (local[j.id]?.score ?? 0) >= STRONG && !local[j.id]?.tracked && !local[j.id]?.dismissed);
-  const nTracked = jobs.filter((j) => local[j.id]?.tracked).length;
-  const nScored = jobs.filter((j) => local[j.id]?.score != null).length;
+  const open = (j: FoundJob) => !rows[j.id]?.archived;
+  const unscored = jobs.filter((j) => !rows[j.id]?.ev && open(j));
+  const strong = jobs.filter((j) => open(j) && rows[j.id]?.appId == null && (rows[j.id]?.ev?.verdict === "apply_now" || rows[j.id]?.ev?.verdict === "apply"));
+  const nTracked = jobs.filter((j) => rows[j.id]?.appId != null).length;
+  const nScored = jobs.filter((j) => rows[j.id]?.ev).length;
+
+  // Leaving mid "Score all" would silently stop it: ask first.
+  useEffect(() => {
+    if (!scoringAll) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [scoringAll]);
 
   const scoreOne = async (j: FoundJob) => {
+    setPending((s) => new Set(s).add(j.id));
     const r = await evaluateOffer(j.id);
-    if (r.ok && r.global !== undefined) {
-      patch(j.id, { score: r.global });
+    setPending((s) => {
+      const n = new Set(s);
+      n.delete(j.id);
+      return n;
+    });
+    if (r.ok && r.global !== undefined && r.verdict) {
+      patch(j.id, { ev: { global: r.global, verdict: r.verdict, engine: r.engine ?? "heuristic", triage: r.triaged ? { verdict: r.triaged.verdict, skipped: r.triaged.skipped, reason: r.triaged.reason } : undefined } });
       onScored();
     } else toast.error(t.common.error);
   };
   const scoreAll = async () => {
-    const items = unscored;
-    setScoringAll({ i: 0, n: items.length });
-    for (let i = 0; i < items.length; i++) {
-      setScoringAll({ i: i + 1, n: items.length });
+    const items = unscored.filter((j) => !pending.has(j.id));
+    cancelAll.current = false;
+    const t0 = seconds();
+    for (let i = 0; i < items.length && !cancelAll.current; i++) {
+      // Seconds per offer so far (a first guess before one is done), for the "~N min left".
+      setScoringAll({ i: i + 1, n: items.length, per: i ? (seconds() - t0) / i : SCORE_GUESS_S });
       await scoreOne(items[i]);
     }
     setScoringAll(null);
   };
-  const trackMany = async (ids: number[]) => {
-    const n = await trackOffers(ids);
+  const minLeft = scoringAll ? Math.ceil(((scoringAll.n - scoringAll.i + 1) * scoringAll.per) / 60) : 0;
+  const left = minLeft <= 1 ? m.scoreLeftSoon : fmt(m.scoreLeft, { n: minLeft });
+  const trackMany = async (list: number[]) => {
+    const n = await trackOffers(list);
     if (n) {
-      for (const id of ids) patch(id, { tracked: true });
+      for (const id of list) patch(id, { appId: rows[id]?.appId ?? -1 });
       toast.success(fmt(t.offers2.toastTracked, { n }));
     } else toast.error(t.common.error);
   };
+  // One kind of Skip everywhere: the offer is archived, and Undo brings it back.
+  const unskip = async (j: FoundJob) => {
+    patch(j.id, { archived: false });
+    if (!(await archiveOffers([j.id], false))) toast.error(t.common.error);
+  };
+  const skip = async (j: FoundJob) => {
+    patch(j.id, { archived: true });
+    if (await archiveOffers([j.id], true)) toast.info(m.skippedToast, j.title, { label: m.undo, onClick: () => void unskip(j) });
+    else {
+      patch(j.id, { archived: false });
+      toast.error(t.common.error);
+    }
+  };
+
+  const reasons = Object.entries(droppedBy).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  const notes = [
+    skipped ? fmt(m.sourcesSkipped, { n: skipped }) : "",
+    skippedBlacklist ? fmt(t.sources2.radar.skippedBlacklist, { n: skippedBlacklist }) : "",
+    done?.closed ? fmt(m.closedRemoved, { n: done.closed }) : "",
+  ].filter(Boolean);
+  const w = done?.widen;
 
   return (
-    <section className="card flex flex-col overflow-hidden" style={{ minHeight: done && !jobs.length ? 0 : show ? 520 : 320 }}>
+    // overflow-clip, not hidden: the done banner below stays sticky while the list scrolls.
+    <section aria-label={m.feedLabel} className="card flex flex-col overflow-clip" style={{ minHeight: done && !jobs.length ? 0 : show ? 520 : 320 }}>
       {done && (
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg-elev px-[18px] py-3.5" style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) .25s both" }}>
+        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg-elev px-[18px] py-3.5" style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) .25s both" }}>
           <span className="tile tile-sm tone-success !size-10 !rounded-xl" style={{ animation: "land .6s cubic-bezier(.2,.7,.2,1) .3s both" }}>
             <CircleCheck size={20} aria-hidden="true" />
           </span>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 basis-64">
             <h2 className="text-[1.05rem] tracking-[-0.01em]">{fmt(m.feedAll, { n: jobs.length })}</h2>
-            <p className="mt-0.5 text-[0.8rem] text-muted">{fmt(m.summary, { listed: jobs.length + done.duplicates + dropped, dupes: done.duplicates, dropped, errors: errors || done.errors, s: elapsed })}</p>
-            {(dropped > 0 || skipped > 0 || !!done.closed) && (
+            <p className="mt-0.5 text-[0.8rem] text-muted">
+              {fmt(m.summary2, { listed: num(listed), dupes: num(done.duplicates), dropped: num(dropped), s: elapsed })}
+              {done.stopped && ` ${m.stoppedNote}`}
+            </p>
+            <p className="mt-0.5 text-[0.75rem] text-muted">{fmt(m.searchedFor, { v: done.searched ?? lookingFor })}</p>
+            {reasons.length > 0 && (
               <p className="mt-0.5 text-[0.75rem] text-muted">
-                {[
-                  ...Object.entries(droppedBy).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${t.sources2.radar.reasons[k as keyof typeof t.sources2.radar.reasons] ?? k} ${n}`),
-                  skipped ? fmt(m.sourcesSkipped, { n: skipped }) : "",
-                  done.closed ? fmt(m.closedRemoved, { n: done.closed }) : "",
-                ].filter(Boolean).join(" · ")}
+                {m.droppedBecause} {reasons.map(([k, n]) => `${t.sources2.radar.reasons[k as keyof typeof t.sources2.radar.reasons] ?? k} ${num(n)}`).join(" · ")}
               </p>
             )}
+            {notes.length > 0 && <p className="mt-0.5 text-[0.75rem] text-muted">{notes.join(" · ")}</p>}
+            {w && (w.type > 0 || w.age > 0) && (
+              <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={m.widenLabel}>
+                {w.type > 0 && (
+                  <button type="button" className="btn btn-outline btn-sm" disabled={widening} onClick={() => startWiden(async () => void (await onWiden("type")))}>
+                    <Plus size={13} aria-hidden="true" /> {fmt(m.widenType, { n: num(w.type), types: w.types.map((ty) => t.jobTypes[ty as JobType] ?? ty).join(", ") || m.otherTypes })}
+                  </button>
+                )}
+                {w.age > 0 && (
+                  <button type="button" className="btn btn-outline btn-sm" disabled={widening} onClick={() => startWiden(async () => void (await onWiden("age")))}>
+                    <Plus size={13} aria-hidden="true" /> {fmt(m.widenAge, { n: num(w.age) })}
+                  </button>
+                )}
+                {widening && <Loader2 size={14} className="animate-spin self-center text-muted" aria-label={t.common.loading} />}
+              </div>
+            )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {unscored.length > 0 && (
-              <button type="button" className="btn btn-outline !h-9" title={m.scoreHint} disabled={!!scoringAll} onClick={() => void scoreAll()}>
-                {scoringAll ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Sparkles size={14} aria-hidden="true" />}
-                {scoringAll ? fmt(m.scoreAllRunning, scoringAll) : fmt(m.scoreAll, { n: unscored.length })}
-              </button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {scoringAll ? (
+              <>
+                <span className="text-[0.78rem] text-muted" aria-live="polite">
+                  <Loader2 size={13} className="mr-1 inline animate-spin" aria-hidden="true" />
+                  {fmt(m.scoreAllRunning, scoringAll)} · {left}
+                </span>
+                <button type="button" className="btn btn-outline !h-9" onClick={() => (cancelAll.current = true)}>
+                  <Square size={13} aria-hidden="true" /> {m.scoreCancel}
+                </button>
+              </>
+            ) : (
+              unscored.length > 0 && (
+                <button type="button" className="btn btn-outline !h-9" title={m.scoreHint} onClick={() => void scoreAll()}>
+                  <Sparkles size={14} aria-hidden="true" /> {fmt(m.scoreAll, { n: unscored.length })}
+                </button>
+              )
             )}
             {strong.length > 0 && (
               <button type="button" className="btn btn-outline !h-9" onClick={() => void trackMany(strong.map((j) => j.id))}>
-                <Bookmark size={14} aria-hidden="true" /> {m.trackGood}
+                <Bookmark size={14} aria-hidden="true" /> {fmt(m.trackGood, { n: strong.length })}
               </button>
             )}
           </div>
@@ -582,16 +820,29 @@ function Feed({ jobs, scanning, done, dropped, droppedBy, skipped, errors, elaps
         </div>
       )}
       {jobs.length === 0 ? (
-        !done && <div className="grid flex-1 place-items-center p-10 text-center text-[0.9rem] text-muted">
-          <div>
-            <Inbox size={28} className="mx-auto mb-2 text-line-strong" aria-hidden="true" />
-            <p>{m.feedEmpty}</p>
+        !done && (
+          <div className="grid flex-1 place-items-center p-10 text-center text-[0.9rem] text-muted">
+            <div>
+              <Inbox size={28} className="mx-auto mb-2 text-line-strong" aria-hidden="true" />
+              <p>{m.feedEmpty}</p>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <ul className="flex flex-1 flex-col gap-1.5 p-2">
           {sorted.map((j) => (
-            <FeedRow key={j.id} job={j} now={now} local={local[j.id] ?? {}} patch={(p) => patch(j.id, p)} scoreOne={() => scoreOne(j)} trackOne={() => trackMany([j.id])} busyAll={!!scoringAll} />
+            <FeedRow
+              key={j.id}
+              job={j}
+              now={now}
+              row={rows[j.id] ?? {}}
+              scoring={pending.has(j.id)}
+              busyAll={!!scoringAll}
+              scoreOne={() => void scoreOne(j)}
+              trackOne={() => trackMany([j.id])}
+              skip={() => void skip(j)}
+              unskip={() => void unskip(j)}
+            />
           ))}
         </ul>
       )}
@@ -606,37 +857,61 @@ function Feed({ jobs, scanning, done, dropped, droppedBy, skipped, errors, elaps
   );
 }
 
-function FeedRow({ job: j, now, local, patch, scoreOne, trackOne, busyAll }: { job: FoundJob; now: number; local: Local; patch: (p: Local) => void; scoreOne: () => Promise<void>; trackOne: () => Promise<void>; busyAll: boolean }) {
+function FeedRow({
+  job: j,
+  now,
+  row,
+  scoring,
+  busyAll,
+  scoreOne,
+  trackOne,
+  skip,
+  unskip,
+}: {
+  job: FoundJob;
+  now: number;
+  row: RowState;
+  scoring: boolean;
+  busyAll: boolean;
+  scoreOne: () => void;
+  trackOne: () => Promise<void>;
+  skip: () => void;
+  unskip: () => void;
+}) {
   const { t, locale } = useT();
   const m = t.sources2.scan2;
   const r = t.offers2.results;
   const [, start] = useTransition();
   const [applying, startApply] = useTransition();
-  const [scoring, startScore] = useTransition();
-  const score = local.score ?? null;
-  const strong = score !== null && score >= STRONG;
+  const ev = row.ev ?? null;
+  const tracked = row.appId != null;
+  const skipped = !!row.archived;
+  // The evaluation's own verdict, not thresholds on its score: a heuristic or triaged "skip" reads as such.
+  const strong = ev?.verdict === "apply_now" || ev?.verdict === "apply";
+  const estimate = ev?.engine === "heuristic";
   const suspicious = j.trust < 60;
   const why = j.why.slice(0, 2);
   const d = j.deadline ? Math.ceil((new Date(j.deadline).getTime() - now) / 86_400_000) : null;
   const dfg = d === null ? "" : d <= 3 ? "var(--danger)" : d <= 7 ? "var(--saffron)" : "var(--ink-2)";
-  const border = local.tracked ? "var(--success)" : strong ? "color-mix(in oklab, var(--accent) 45%, var(--line))" : "var(--line)";
-  const bg = local.tracked ? "color-mix(in oklab, var(--success-soft) 45%, var(--surface))" : "var(--surface)";
+  const border = tracked ? "var(--success)" : strong ? "color-mix(in oklab, var(--accent) 45%, var(--line))" : "var(--line)";
+  const bg = tracked ? "color-mix(in oklab, var(--success-soft) 45%, var(--surface))" : "var(--surface)";
+  const scoreText = ev ? ev.global.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "";
 
   return (
     <li
       className="grid grid-cols-[auto_1fr] items-center gap-3 rounded-xl border px-3.5 py-3 sm:grid-cols-[auto_1fr_auto]"
-      style={{ borderColor: border, background: bg, opacity: local.dismissed ? 0.45 : 1, animation: "slide-in .4s cubic-bezier(.2,.7,.2,1) both", transition: "opacity .3s, border-color .3s, background .3s" }}
+      style={{ borderColor: border, background: bg, opacity: skipped ? 0.55 : 1, animation: "slide-in .4s cubic-bezier(.2,.7,.2,1) both", transition: "opacity .3s, border-color .3s, background .3s" }}
     >
       <CompanyAvatar name={j.company} size={40} />
       <div className="min-w-0">
         <p className="flex min-w-0 items-center gap-2">
           <Link href={`/app/jobs/${j.id}`} className="truncate text-[0.95rem] font-semibold text-ink hover:text-accent-text">{j.title}</Link>
-          {local.tracked && (
+          {tracked && (
             <span className="chip chip-success !py-px text-[0.68rem]" style={{ animation: "pop .3s ease both" }}>
               <Check size={10} aria-hidden="true" /> {m.tracked}
             </span>
           )}
-          {local.dismissed && <span className="chip !py-px text-[0.68rem] text-muted">{m.skipped}</span>}
+          {skipped && <span className="chip !py-px text-[0.68rem] text-muted">{m.skipped}</span>}
           {suspicious && (
             <span className="chip chip-danger !py-px text-[0.68rem]" title={j.trustFlags.map((f) => r.flags[f as keyof typeof r.flags] ?? f).join(", ")}>
               <AlertTriangle size={10} aria-hidden="true" /> {r.suspicious}
@@ -647,10 +922,10 @@ function FeedRow({ job: j, now, local, patch, scoreOne, trackOne, busyAll }: { j
           {j.company}
           {j.location && ` · ${j.location}`}
           {j.remote && ` · ${t.common.remote}`} · {t.jobTypes[j.type as JobType] ?? j.type} · {t.offers2.list2.via} {j.source}
-          {d !== null && d >= 0 && (
+          {d !== null && (
             <>
               {" · "}
-              <span className="font-semibold" style={{ color: dfg }}>{d === 0 ? r.urgentToday : fmt(r.urgent, { n: d })}</span>
+              <span className="font-semibold" style={{ color: d < 0 ? "var(--danger)" : dfg }}>{d < 0 ? m.expired : d === 0 ? r.urgentToday : fmt(r.urgent, { n: d })}</span>
             </>
           )}
         </p>
@@ -661,39 +936,52 @@ function FeedRow({ job: j, now, local, patch, scoreOne, trackOne, busyAll }: { j
             </span>
           ))}
           {j.appliedHere && <span className="chip chip-saffron !py-px text-[0.7rem]">{fmt(r.appliedHere, { c: j.company })}</span>}
-          {score !== null && (
-            <Link href={`/app/jobs/${j.id}?tab=fit`} title={fmt(m.seeWhy, { s: score.toFixed(1) })} className={`inline-flex items-center gap-1.5 rounded-full py-px pl-0.5 pr-2 text-[0.72rem] font-semibold hover:underline ${strong ? "bg-accent-soft text-accent-text" : "bg-saffron-soft text-saffron"}`} style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) both" }}>
-              <ScoreRing value={score} size={20} label={scoreLabel(t, score)} animate={false} />
-              {t.verdicts[score >= 4.5 ? "apply_now" : score >= 4 ? "apply" : score >= 3 ? "maybe" : "skip"]}
+          {ev && (
+            <Link
+              href={`/app/jobs/${j.id}?tab=fit`}
+              title={ev.triage?.skipped ? fmt(m.triaged, { reason: ev.triage.reason }) : fmt(m.seeWhy, { s: scoreText })}
+              className={`inline-flex items-center gap-1.5 rounded-full py-px pl-0.5 pr-2 text-[0.72rem] font-semibold hover:underline ${strong ? "bg-accent-soft text-accent-text" : "bg-saffron-soft text-saffron"}`}
+              style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) both" }}
+            >
+              <ScoreRing value={ev.global} size={20} label={scoreLabel(t, ev.global)} animate={false} />
+              {t.verdicts[ev.verdict]}
+              {estimate && <span className="font-normal opacity-80">· {m.picks.basis.estimate}</span>}
             </Link>
           )}
         </p>
       </div>
       <div className="relative col-start-2 flex flex-wrap items-center justify-end gap-2 sm:col-start-3 sm:flex-col sm:items-end">
-        <span title={m.matchTitle} className="inline-flex items-center gap-1.5 whitespace-nowrap text-[0.72rem] text-muted">
-          <span className="bar !w-11 !h-[5px]">
-            <span style={{ width: `${j.relevance}%` }} />
+        {/* The keyword bar only until there is a verdict: two numbers side by side can disagree. */}
+        {!ev && (
+          <span title={m.matchTitle} className="inline-flex items-center gap-1.5 whitespace-nowrap text-[0.72rem] text-muted">
+            <span className="bar !h-[5px] !w-11" aria-hidden="true">
+              <span style={{ width: `${j.relevance}%` }} />
+            </span>
+            <span className="mono font-semibold text-ink-2">{j.relevance}%</span> {m.match}
           </span>
-          <span className="mono font-semibold text-ink-2">{j.relevance}%</span> {m.match}
-        </span>
-        {!local.dismissed && (
+        )}
+        {skipped ? (
+          <button type="button" className="btn btn-outline btn-sm text-ink-2" onClick={unskip}>
+            <Undo2 size={13} aria-hidden="true" /> {m.undo}
+          </button>
+        ) : (
           <div className="flex items-center gap-1.5" style={{ animation: "fade .3s ease .4s both" }}>
             {/* One clear next step on every row: apply. Scoring is optional and stays secondary. */}
             <button type="button" className="btn btn-primary btn-sm" disabled={applying} aria-busy={applying} onClick={() => startApply(async () => await applyTo(j.id))}>
               {applying ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Send size={13} aria-hidden="true" />} {m.apply}
             </button>
-            {score === null && (
-              <button type="button" className="btn btn-outline btn-sm text-ink-2" disabled={scoring || busyAll} aria-busy={scoring} onClick={() => startScore(() => scoreOne())}>
+            {!ev && (
+              <button type="button" className="btn btn-outline btn-sm text-ink-2" disabled={scoring || busyAll} aria-busy={scoring} onClick={scoreOne}>
                 {scoring ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Sparkles size={13} aria-hidden="true" />} {scoring ? m.scoring : m.score}
               </button>
             )}
             <Menu label={m.more} trigger={<MoreHorizontal size={15} aria-hidden="true" />} triggerClassName="btn btn-outline btn-icon btn-sm text-ink-2">
               <MenuItem onClick={() => startApply(async () => await tailorCvFor(j.id))}><FileText size={14} aria-hidden="true" /> {m.tailor}</MenuItem>
-              {!local.tracked && <MenuItem onClick={() => start(() => trackOne())}><Bookmark size={14} aria-hidden="true" /> {m.track}</MenuItem>}
+              {!tracked && <MenuItem onClick={() => start(() => trackOne())}><Bookmark size={14} aria-hidden="true" /> {m.track}</MenuItem>}
               <MenuItem href={j.url}><ExternalLink size={14} aria-hidden="true" /> {m.openPosting}</MenuItem>
               <MenuItem href={contactSearchUrl(j.company)}><UserSearch size={14} aria-hidden="true" /> {m.contact}</MenuItem>
-              {!local.tracked && (
-                <MenuItem danger onClick={() => patch({ dismissed: true })}><Archive size={14} aria-hidden="true" /> {m.skip}</MenuItem>
+              {!tracked && (
+                <MenuItem danger onClick={skip}><Archive size={14} aria-hidden="true" /> {m.skip}</MenuItem>
               )}
             </Menu>
           </div>
@@ -703,7 +991,7 @@ function FeedRow({ job: j, now, local, patch, scoreOne, trackOne, busyAll }: { j
   );
 }
 
-function whyText(t: ReturnType<typeof useT>["t"], locale: string, code: string): string {
+function whyText(t: Dict, locale: string, code: string): string {
   const w = t.offers2.results.why;
   const i = code.indexOf(":");
   const k = i >= 0 ? code.slice(0, i) : code;

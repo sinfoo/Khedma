@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Check, ExternalLink, Loader2, Plus } from "lucide-react";
+import { Check, ExternalLink, KeyRound, Loader2, Plus } from "lucide-react";
 import { CompanyAvatar } from "@/components/kit";
 import { Dialog } from "@/components/kit/dialog";
 import { Switch } from "@/components/toggle-box";
@@ -11,20 +12,24 @@ import { CATALOG, type CatalogCountry, type CatalogEntry } from "@/lib/sources/c
 import { countryByCode } from "@/lib/geo";
 import { addProviderSource } from "@/app/actions/sources";
 
-const COUNTRY_ORDER: CatalogCountry[] = ["TN", "FR", "DE", "CH", "GB", "CA", "US", "JP", "INT"];
+// Display order; a catalog country missing here is appended rather than hidden.
+const COUNTRY_ORDER: CatalogCountry[] = [...new Set<CatalogCountry>([...(["TN", "FR", "DE", "CH", "GB", "NL", "AT", "ES", "PT", "SE", "NO", "DK", "FI", "IS", "PL", "CZ", "TR", "CA", "US", "JP"] as const), ...CATALOG.map((e) => e.country).filter((c) => c !== "INT"), "INT"])];
 
 /** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. `missingEnv` = kinds whose API key is not set. */
 export function Catalog({ existing, keywords = [], missingEnv = [], countries, onAdded }: { existing: string[]; keywords?: string[]; missingEnv?: string[]; /** Target countries: their boards and worldwide ones show first, the rest fold away. */ countries?: string[]; onAdded: (id: number, name: string) => void }) {
   const { t } = useT();
   const s2 = t.sources2;
   const [adding, setAdding] = useState<CatalogEntry | null>(null);
-  const groups = COUNTRY_ORDER.map((code) => {
-    const c = countryByCode(code);
-    return { code, title: `${c ? `${c.flag} ` : ""}${s2.country[code]}`, entries: CATALOG.filter((e) => e.country === code) };
-  }).filter((g) => g.entries.length);
+  // A board is the student's when any country it covers (its own, or `countries` for multi-country boards) is a target.
+  const mine = (e: CatalogEntry) => !countries || e.country === "INT" || [e.country, ...(e.countries ?? [])].some((c) => countries.includes(c));
+  const grouped = (pick: (e: CatalogEntry) => boolean) =>
+    COUNTRY_ORDER.map((code) => {
+      const c = countryByCode(code);
+      return { code, title: `${c ? `${c.flag} ` : ""}${s2.country[code] ?? code}`, entries: CATALOG.filter((e) => e.country === code && pick(e)) };
+    }).filter((g) => g.entries.length);
   const q = keywords.slice(0, 3).join(" ");
-  const mine = (code: string) => !countries || code === "INT" || countries.includes(code);
-  const others = groups.filter((g) => !mine(g.code));
+  const own = grouped(mine);
+  const others = grouped((e) => !mine(e));
   return (
     <section aria-labelledby="catalog-h" className="rise" style={{ ["--i" as string]: 6 }}>
       <div className="mb-4">
@@ -33,10 +38,14 @@ export function Catalog({ existing, keywords = [], missingEnv = [], countries, o
         </h2>
         <p className="mt-1 max-w-2xl text-sm text-muted">{s2.catalogLead}</p>
       </div>
-      {groups.filter((g) => mine(g.code)).map(renderGroup)}
+      {own.map(renderGroup)}
+      {/* Only the student's target countries (and worldwide boards) by default; the rest behind one toggle. */}
       {others.length > 0 && (
         <details className="group mb-6">
-          <summary className="mb-3 cursor-pointer text-sm font-semibold text-ink-2">{fmt(s2.scan2.manage.otherCountries, { n: others.reduce((a, g) => a + g.entries.length, 0) })}</summary>
+          <summary className="btn btn-outline btn-sm mb-3 cursor-pointer list-none">
+            <span className="group-open:hidden">{fmt(s2.scan2.manage.otherCountries, { n: others.reduce((a, g) => a + g.entries.length, 0) })}</span>
+            <span className="hidden group-open:inline">{s2.scan2.manage.myCountries}</span>
+          </summary>
           {others.map(renderGroup)}
         </details>
       )}
@@ -53,7 +62,7 @@ export function Catalog({ existing, keywords = [], missingEnv = [], countries, o
     </section>
   );
 
-  function renderGroup({ code, title, entries }: (typeof groups)[number]) {
+  function renderGroup({ code, title, entries }: (typeof own)[number]) {
     return (
         <div key={code} className="mb-6">
           <h3 className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-muted" style={{ fontFamily: "var(--font-sans)" }}>
@@ -92,7 +101,9 @@ export function Catalog({ existing, keywords = [], missingEnv = [], countries, o
                         <ExternalLink size={14} aria-hidden="true" /> {s2.openSearch}
                       </a>
                     ) : missingEnv.includes(c.kind) ? (
-                      <p className="max-w-[60%] text-right text-xs text-muted">{fmt(s2.keyNeeded, { vars: (c.needsEnv ?? []).join(", ") })}</p>
+                      <Link href="/app/settings#keys" className="btn btn-secondary btn-sm" aria-label={`${s2.keyNeeded} – ${c.name}`} title={s2.keyNeeded}>
+                        <KeyRound size={14} aria-hidden="true" /> {s2.addKey}
+                      </Link>
                     ) : already ? (
                       <span className="chip chip-success">
                         <Check size={12} aria-hidden="true" /> {s2.added}

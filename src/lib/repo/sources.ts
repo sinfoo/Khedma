@@ -1,17 +1,19 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
 import { getProfileExtra } from "../cv/profile-extra";
-import { db, getProfile, kvGet, kvSet, listJobs, migrate, autoArchive, upsertJob } from "../db";
-import type { JobType, Profile } from "../types";
+import { autoArchive, db, getProfile, kvGet, kvSet, latestEvaluation, listJobs, migrate, upsertJob, type NewJob } from "../db";
+import { JOB_TYPES, type JobType, type Profile } from "../types";
 import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit } from "../sources/http";
 import { trustScore, type HostClass } from "../sources/trust";
 import { checkJobs } from "../company/liveness";
 import { syncBoard } from "../company";
 import { planSearch, planSources, type PlanRun, type PlanSkipped, type Remote } from "../search/plan";
-import { buildFilter, compileKeyword, fold } from "../search/filter";
+import { buildFilter, compileKeyword, dropBucket, fold, type FilterOptions } from "../search/filter";
 import { companyKey, scoreJob, type RankContext } from "../search/rank";
-import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust } from "../search/store";
+import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust, type KnownIndex } from "../search/store";
+import type { SearchPrefs } from "../search/prefs";
+import { missingKeyKinds } from "../provider-keys";
 import { buildTiers, type Tier, type Tiers } from "../search/tiers";
 import { cvKeywords, EVERYDAY_TOOLS } from "../search/cv-keywords";
 import { sweep } from "../search/sweep";
@@ -194,6 +196,27 @@ export function autoScanDue(now = Date.now()): boolean {
   return !last || now - new Date(last).getTime() >= a.hours * 3_600_000;
 }
 
+// ---------- saved search options (Scan > Search options) ----------
+export interface ScanOptionsSaved {
+  types: JobType[];
+  /** Words that drop an offer for this search ("excluded words"). */
+  negatives: string[];
+}
+const OPTIONS_KEY = "settings:scan-options";
+
+export function getScanOptions(): ScanOptionsSaved {
+  const v = kvGet<Partial<ScanOptionsSaved>>(OPTIONS_KEY, {});
+  return {
+    types: [...new Set(Array.isArray(v.types) ? v.types : [])].filter((t): t is JobType => JOB_TYPES.includes(t as JobType)),
+    negatives: (Array.isArray(v.negatives) ? v.negatives : []).map((x) => String(x).trim().slice(0, 40)).filter(Boolean).slice(0, 12),
+  };
+}
+
+export function setScanOptions(v: ScanOptionsSaved): ScanOptionsSaved {
+  kvSet(OPTIONS_KEY, v);
+  return getScanOptions();
+}
+
 // ---------- runs ----------
 export interface RunSourceDetail {
   /** Saved source id, 0 for a catalog run. */
@@ -254,6 +277,46 @@ export function listRuns(limit = 10): ScanRun[] {
   return (db().prepare("SELECT * FROM scan_runs ORDER BY started_at DESC, id DESC LIMIT ?").all(limit) as Row[]).map(toRun);
 }
 
+/** Per saved source: how many of the last `n` scans read it without error, and the new offers it kept in them. */
+export function sourceYield(n = 5): Record<number, { runs: number; kept: number }> {
+  const out: Record<number, { runs: number; kept: number }> = {};
+  for (const r of listRuns(n)) {
+    for (const d of r.detail) {
+      if (!d.id || d.error) continue;
+      const y = (out[d.id] ??= { runs: 0, kept: 0 });
+      y.runs++;
+      y.kept += d.added;
+    }
+  }
+  return out;
+}
+
+/** What the scan feed shows per offer, read from the database so a restored feed is never stale. */
+export interface FeedRowState {
+  /** Latest evaluation: its own verdict, engine and triage outcome. */
+  ev: { global: number; verdict: "apply_now" | "apply" | "maybe" | "skip"; engine: string; triage?: { verdict: string; skipped: boolean; reason: string } } | null;
+  appId: number | null;
+  archived: boolean;
+}
+
+export function feedState(ids: number[]): Record<number, FeedRowState> {
+  if (!ids.length) return {};
+  const rows = db()
+    .prepare(`SELECT j.id, j.archived, a.id AS app_id FROM jobs j LEFT JOIN applications a ON a.job_id = j.id WHERE j.id IN (${ids.map(() => "?").join(",")})`)
+    .all(...ids) as Row[];
+  const out: Record<number, FeedRowState> = {};
+  for (const r of rows) {
+    const e = latestEvaluation(r.id as number);
+    const tr = e?.triage;
+    out[r.id as number] = {
+      ev: e ? { global: e.global, verdict: e.verdict, engine: e.engine, triage: tr ? { verdict: tr.verdict, skipped: tr.skipped, reason: tr.reason } : undefined } : null,
+      appId: (r.app_id as number) ?? null,
+      archived: !!r.archived,
+    };
+  }
+  return out;
+}
+
 export interface Discovered {
   id: number;
   title: string;
@@ -297,13 +360,22 @@ export interface FoundJob {
 }
 
 export type ScanEvent =
-  | { type: "plan"; run_id: number; runs: PlanRun[]; skipped: PlanSkipped[]; skipped_blacklist: number }
+  | { type: "plan"; run_id: number; runs: PlanRun[]; skipped: PlanSkipped[]; skipped_blacklist: number; retry: boolean }
   | { type: "source"; key: string; id?: number; status: "running" }
   | ({ type: "source"; status: "done" | "error" } & RunSourceDetail)
   | { type: "job"; job: FoundJob }
   | { type: "liveness"; checked: number; closed: number[] }
   | { type: "sweep"; urgent: number; merged: number; expired: number }
-  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[] };
+  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[]; widen: WidenCounts };
+
+/** Filter steps the user can loosen after a scan: accept every contract type, or postings up to 60 days old. */
+export type Widen = "type" | "age";
+/** Offers each widening would bring back, and the contract types that were refused. */
+export interface WidenCounts {
+  type: number;
+  types: string[];
+  age: number;
+}
 
 export interface ScanRequest {
   /** Explicit sources (Sources page): they all run, whatever the countries. */
@@ -316,18 +388,82 @@ export interface ScanRequest {
   types?: JobType[];
   negatives?: string[];
   includeSenior?: boolean;
+  /** Only these planned runs (Retry on failed sources). */
+  keys?: string[];
   /** Aborted when the client cancels: sources not started yet are skipped, the run is still recorded. */
   signal?: AbortSignal;
+}
+
+interface LastDrops {
+  runId: number;
+  /** Offers the filter refused, by URL, with the first reason. */
+  drops: Map<string, { job: NewJob; reason: string }>;
+  rank: RankContext;
+  applied: Set<string>;
+  filterFor: (w: Widen) => (j: NewJob) => { keep: boolean };
 }
 
 declare global {
   var __khedmaScanBusy: boolean | undefined;
   var __khedmaStuckRunsClosed: boolean | undefined;
+  // ponytail: the last scan's refused offers live in memory only (a few MB); a server restart forgets them and the
+  // widen buttons then ask for a new scan. Persist them if widening after a restart matters.
+  var __khedmaLastDrops: LastDrops | undefined;
 }
 
 export const scanBusy = () => !!globalThis.__khedmaScanBusy;
 
 const LIVENESS_TOP = 20;
+const WIDEN_HOURS = 60 * 24;
+
+/** Rank, store and describe one kept offer; null when the database already had it. */
+function insertFound(j: NewJob, tier: Tier, ctx: { rank: RankContext; known: KnownIndex; applied: Set<string> }): FoundJob | null {
+  const ranked = scoreJob(j, ctx.rank);
+  ranked.score = Math.min(100, ranked.score + (tier === 1 ? 6 : tier === 2 ? 3 : 0));
+  if (tier === 1) ranked.why.push("tier:1");
+  const trust = trustScore(j);
+  const { id, inserted } = upsertJob(j);
+  ctx.known.add(j);
+  ctx.known.seen.add(dedupeKey(j.company, j.title));
+  if (!inserted) return null;
+  setRelevance(id, ranked.score, ranked.why);
+  setTrust(id, trust.score, trust.flags);
+  return {
+    id, title: j.title, company: j.company, location: j.location, remote: j.remote, type: j.type, url: j.url, source: j.source, deadline: j.deadline,
+    relevance: ranked.score, why: ranked.why, trust: trust.score, trustFlags: trust.flags, host: trust.host, queryTier: tier,
+    appliedHere: ctx.applied.has(companyKey(j.company)),
+  };
+}
+
+/** Refused offers of the last scan that a widening `w` would keep. */
+function* widened(last: LastDrops, known: KnownIndex, w: Widen) {
+  const decide = last.filterFor(w);
+  for (const [url, d] of last.drops) if (dropBucket([d.reason]) === w && !known.has(d.job) && decide(d.job).keep) yield { url, ...d };
+}
+
+function widenCounts(last: LastDrops, known: KnownIndex): WidenCounts {
+  const byType = [...widened(last, known, "type")];  return { type: byType.length, types: [...new Set(byType.map((d) => d.reason.split(":")[1]).filter(Boolean))], age: [...widened(last, known, "age")].length };
+}
+
+/** Re-runs only the filter step of the last scan, loosened one way; stores and returns the offers it now keeps. */
+export function widenLastScan(w: Widen): FoundJob[] | null {
+  const last = globalThis.__khedmaLastDrops;
+  if (!last || scanBusy()) return null;
+  const known = knownIndex();
+  const ctx = { rank: { ...last.rank, seen: known.seen }, known, applied: last.applied };
+  const out: FoundJob[] = [];
+  for (const d of [...widened(last, known, w)]) {
+    last.drops.delete(d.url);
+    const fj = insertFound(d.job, 3, ctx);
+    if (fj) out.push(fj);
+  }
+  if (out.length) {
+    const run = db().prepare("SELECT new_job_ids FROM scan_runs WHERE id = ?").get(last.runId) as Row | undefined;
+    const ids = [...parse<number[]>(run?.new_job_ids, []), ...out.map((j) => j.id)];
+    db().prepare("UPDATE scan_runs SET added = added + ?, new_job_ids = ? WHERE id = ?").run(out.length, JSON.stringify(ids), last.runId);
+  }
+  return out;
+}
 const TIER_MIN: Record<Tier, number> = { 1: 10, 2: 3, 3: 0 };
 
 /** Query a keyword board tier by tier until it answers with enough listings; other boards run once. */
@@ -376,23 +512,34 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     const skills = cvSkills(profile, cvText);
     const countries = opts.countries?.length ? opts.countries : searchCountries(extra.places.countries, all);
     const places = { countries, cities: countries.includes("TN") ? extra.places.cities : [], remote: opts.remote ?? extra.places.remote };
-    const missingEnv = CATALOG.filter((c) => c.needsEnv?.some((n) => !process.env[n]?.trim())).map((c) => c.kind);
+    const missingEnv = missingKeyKinds();
     const plan = opts.ids?.length
       ? planSources(all.filter((s) => opts.ids!.includes(s.id)), keywords, defaultKeywords(profile, cvText))
       : planSearch({ keywords, countries: places.countries, cities: places.cities, remote: places.remote, enabledSources: all, missingEnv, defaultKeywords: defaultKeywords(profile, cvText) });
     // Blacklisted employers never run as tracked companies.
     const blocked = prefs.companyBlacklist.map((k) => compileKeyword(k));
-    const runs = plan.runs.filter((r) => !(r.company && blocked.some((m) => m(fold(r.label)))));
-    const skippedBlacklist = plan.runs.length - runs.length;
+    const wanted = opts.keys?.length ? plan.runs.filter((r) => opts.keys!.includes(r.key)) : plan.runs;
+    const runs = wanted.filter((r) => !(r.company && blocked.some((m) => m(fold(r.label)))));
+    const skippedBlacklist = wanted.length - runs.length;
 
     const started = new Date().toISOString();
     const runId = Number(db().prepare("INSERT INTO scan_runs (started_at, trigger, sources) VALUES (?,?,?)").run(started, opts.trigger ?? "manual", runs.length).lastInsertRowid);
-    emit({ type: "plan", run_id: runId, runs, skipped: plan.skipped, skipped_blacklist: skippedBlacklist });
+    // retry: a page that reattaches mid-run adds it to the scan it retries instead of replacing that scan.
+    emit({ type: "plan", run_id: runId, runs, skipped: plan.skipped, skipped_blacklist: skippedBlacklist, retry: !!opts.keys?.length });
 
     // Typed keywords are the whole intent: saved target roles only fill in when the user typed none,
     // otherwise an old "développeur" target keeps engineering postings through a "ui/ux designer" search.
     const roles = keywords.length ? [] : profile.target_roles;
-    const filter = buildFilter({ keywords, profile: { ...profile, target_roles: roles }, places, types: opts.types, extraNegatives: opts.negatives, includeSenior: opts.includeSenior, prefs });
+    const filterOpts: FilterOptions = { keywords, profile: { ...profile, target_roles: roles }, places, types: opts.types, extraNegatives: opts.negatives, includeSenior: opts.includeSenior, prefs };
+    const filter = buildFilter(filterOpts);
+    // Refused offers are kept for the widen buttons; a retry adds to the scan it retries.
+    const drops: LastDrops["drops"] = opts.keys?.length && globalThis.__khedmaLastDrops ? globalThis.__khedmaLastDrops.drops : new Map();
+    const decide = (j: NewJob) => {
+      const d = filter.decide(j);
+      if (d.keep) drops.delete(j.url);
+      else drops.set(j.url, { job: j, reason: d.reasons[0] ?? "other" });
+      return d;
+    };
     const tiers = buildTiers(keywords, roles);
     const known = knownIndex();
     const tracked = new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
@@ -410,7 +557,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       const t0 = Date.now();
       let res: Awaited<ReturnType<typeof scanTiered>>;
       try {
-        res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide: filter.decide });
+        res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide });
       } catch (e) {
         res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };
       }
@@ -421,27 +568,13 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
           duplicates++;
           continue;
         }
-        const ranked = scoreJob(j, rank);
-        const tier = res.tierOf.get(j.url) ?? 1;
-        ranked.score = Math.min(100, ranked.score + (tier === 1 ? 6 : tier === 2 ? 3 : 0));
-        if (tier === 1) ranked.why.push("tier:1");
-        const trust = trustScore(j);
-        const { id, inserted } = upsertJob(j);
-        known.add(j);
-        known.seen.add(dedupeKey(j.company, j.title));
-        if (!inserted) {
+        const fj = insertFound(j, res.tierOf.get(j.url) ?? 1, { rank, known, applied });
+        if (!fj) {
           duplicates++;
           continue;
         }
-        setRelevance(id, ranked.score, ranked.why);
-        setTrust(id, trust.score, trust.flags);
         added++;
-        newIds.push(id);
-        const fj: FoundJob = {
-          id, title: j.title, company: j.company, location: j.location, remote: j.remote, type: j.type, url: j.url, source: j.source, deadline: j.deadline,
-          relevance: ranked.score, why: ranked.why, trust: trust.score, trustFlags: trust.flags, host: trust.host, queryTier: tier,
-          appliedHere: applied.has(companyKey(j.company)),
-        };
+        newIds.push(fj.id);
         found.push(fj);
         emit({ type: "job", job: fj });
       }
@@ -449,7 +582,8 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       for (const [k, n] of Object.entries(res.dropped)) dropped[k] = (dropped[k] ?? 0) + n;
       // A complete board listing closes the offers it no longer has.
       if (res.listed) gone.push(...syncBoard(run.kind, res.listed));
-      const error = res.error && !res.jobs.length && !res.total ? res.error.slice(0, 300) : undefined;
+      // URLs shrink to their host: keyed APIs carry the key in the path or query string.
+      const error = res.error && !res.jobs.length && !res.total ? res.error.replace(/https?:\/\/([^/\s?#]+)\S*/g, "$1").slice(0, 300) : undefined;
       if (run.sourceId) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
       const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, ms: Date.now() - t0 };
       emit({ type: "source", status: error ? "error" : "done", ...d });
@@ -482,7 +616,11 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       .prepare("UPDATE scan_runs SET finished_at=?, listed=?, matched=?, added=?, duplicates=?, errors=?, new_job_ids=?, detail=? WHERE id=?")
       .run(new Date().toISOString(), sum("listed"), sum("matched"), sum("added"), duplicates, errors, JSON.stringify(newIds), JSON.stringify(detail), runId);
     const best = found.filter((j) => !closed.includes(j.id)).sort((a, b) => b.relevance - a.relevance).slice(0, 8).map((j) => ({ id: j.id, title: j.title, company: j.company }));
-    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, dropped, closed: closed.length, jobs: best });
+    const loosen = (w: Widen): FilterOptions =>
+      w === "type" ? { ...filterOpts, types: [...JOB_TYPES] } : { ...filterOpts, prefs: { ...prefs, hoursOld: (prefs.hoursOld && Math.max(prefs.hoursOld, WIDEN_HOURS)) as SearchPrefs["hoursOld"] } };
+    const last: LastDrops = { runId, drops, rank, applied, filterFor: (w) => buildFilter(loosen(w)).decide };
+    globalThis.__khedmaLastDrops = last;
+    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, dropped, closed: closed.length, jobs: best, widen: widenCounts(last, known) });
     return listRuns(1)[0];
   } finally {
     globalThis.__khedmaScanBusy = false;

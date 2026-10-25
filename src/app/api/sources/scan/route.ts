@@ -17,7 +17,7 @@ const NDJSON = { "content-type": "application/x-ndjson; charset=utf-8", "cache-c
 const enc = new TextEncoder();
 
 /**
- * POST { keywords?, countries?, remote?, types?, negatives?, includeSenior?, ids?, trigger? }
+ * POST { keywords?, countries?, remote?, types?, negatives?, includeSenior?, ids?, keys? (retry these runs), trigger? }
  * Streams NDJSON events: plan, source running/done/error, job (each kept offer), liveness, sweep, done.
  * 409 when a scan is already running; 204 when an auto scan is not due yet.
  * Leaving the page does not stop the scan: only DELETE does.
@@ -39,6 +39,7 @@ export async function POST(req: Request) {
   const types = strs(body.types, 5, 12).filter((t): t is JobType => (JOB_TYPES as string[]).includes(t));
   const negatives = strs(body.negatives, 12, 40);
   const includeSenior = body.includeSenior === true;
+  const keys = strs(body.keys, 60, 300);
   if (trigger === "auto" && !autoScanDue()) return new Response(null, { status: 204 });
   if (scanBusy() || g.__khedmaScanLive) return Response.json({ error: "A scan is already running" }, { status: 409 });
 
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
         types: types.length ? types : undefined,
         negatives: negatives.length ? negatives : undefined,
         includeSenior,
+        keys: keys.length ? keys : undefined,
         signal: live.stop.signal,
       });
       if (!run) send({ type: "error", error: "A scan is already running" });

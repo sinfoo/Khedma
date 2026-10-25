@@ -150,6 +150,12 @@ export function planSearch(input: {
   };
 }
 
+/** A run's label in the UI language: the per-country LinkedIn runs are named after their country. */
+export function runLabel(r: Pick<PlanRun, "kind" | "label" | "country" | "sourceId">, locale: "fr" | "en"): string {
+  if (r.kind !== "linkedin" || r.sourceId || r.country === "INT") return r.label;
+  return `LinkedIn · ${countryByCode(r.country)?.[locale] ?? r.country}`;
+}
+
 /** Explicit "scan these sources" (Sources page): every given source runs, whatever the countries. */
 export function planSources(sources: PlanSource[], keywords: string[], defaultKeywords: string[] = []): SearchPlan {
   const kw = uniq(keywords);

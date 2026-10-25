@@ -12,11 +12,26 @@ import { fmt } from "@/lib/i18n/dict";
 import { CATALOG } from "@/lib/sources/catalog";
 import { loadSuggestedSources, removeSource, setAutoScan, updateSourceSettings } from "@/app/actions/sources";
 import type { ScanRun, SourceRow } from "@/lib/repo/sources";
+import { errorReason } from "./error-reason";
 
 const HOURS = [1, 3, 6, 12, 24];
 
-/** "{n} new" with the locale's plural rule (FR: 0 and 1 are singular). */
-const plural = (locale: string, n: number, one: string, many: string) => fmt(new Intl.PluralRules(locale).select(n) === "one" ? one : many, { n });
+/** Per saved source id: scans that read it over the last 5, and the new offers it kept. */
+export type Yields = Record<number, { runs: number; kept: number }>;
+
+/** "3 kept over the last 5 scans", with a hint to remove a source that keeps nothing scan after scan. */
+export function YieldNote({ y }: { y?: Yields[number] }) {
+  const { t } = useT();
+  const m = t.sources2.scan2;
+  if (!y?.runs) return null;
+  const dead = y.kept === 0 && y.runs >= 3;
+  return (
+    <p className={`truncate text-[0.72rem] ${dead ? "font-semibold text-saffron" : "text-muted"}`}>
+      {y.kept ? fmt(m.yieldN, { n: y.kept, runs: y.runs }) : fmt(m.yieldNone, { runs: y.runs })}
+      {dead && ` · ${m.yieldDead}`}
+    </p>
+  );
+}
 
 // Relative times depend on the clock: elements showing them use suppressHydrationWarning.
 export function ago(iso: string | null, locale: string, never: string): string {
@@ -31,7 +46,7 @@ export function ago(iso: string | null, locale: string, never: string): string {
 }
 
 /** "Your sources": calm, secondary. Two columns, one switch per source, auto-scan in the header. */
-export function SourcesList({ sources, auto }: { sources: SourceRow[]; auto: { enabled: boolean; hours: number } }) {
+export function SourcesList({ sources, auto, yields }: { sources: SourceRow[]; auto: { enabled: boolean; hours: number }; yields: Yields }) {
   const { t, locale } = useT();
   const s2 = t.sources2;
   const m = s2.scan2;
@@ -90,7 +105,7 @@ export function SourcesList({ sources, auto }: { sources: SourceRow[]; auto: { e
             const state = !s.enabled ? "paused" : s.last_error ? "error" : "idle";
             const color = state === "error" ? "var(--danger)" : state === "paused" ? "var(--muted)" : "var(--success)";
             return (
-              <li key={s.id} className="flex items-center gap-3 border-b border-line px-[18px] py-3 md:[&:nth-child(odd)]:border-r" style={{ opacity: s.enabled ? 1 : 0.6 }}>
+              <li key={s.id} className="flex min-w-0 items-center gap-3 border-b border-line px-[18px] py-3 md:[&:nth-child(odd)]:border-r" style={{ opacity: s.enabled ? 1 : 0.6 }}>
                 <CompanyAvatar name={entry?.name ?? s.kind} size={32} />
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
@@ -98,11 +113,12 @@ export function SourcesList({ sources, auto }: { sources: SourceRow[]; auto: { e
                     {entry?.country === "TN" && <span className="rounded-[5px] bg-accent-soft px-1.5 text-[0.65rem] font-bold text-accent-text">TN</span>}
                     {s.keep_all && <span className="chip chip-saffron !py-0 text-[0.65rem]">{s2.keepAllOn}</span>}
                   </p>
-                  <p className="truncate text-[0.75rem] text-muted" suppressHydrationWarning title={s.last_error ?? undefined}>
+                  <p className="truncate text-[0.75rem] text-muted" suppressHydrationWarning>
                     {entry?.name ?? s.kind}
                     {handleText ? ` · ${handleText}` : ""} · {s.last_scan ? fmt(s2.lastScanAgo, { when: ago(s.last_scan, locale, s2.stats.never) }) : s2.neverScanned}
-                    {s.last_scan ? ` · ${plural(locale, s.last_count, s2.newCountOne, s2.newCount)}` : ""}
+                    {state === "error" && <span className="text-danger"> · {errorReason(t, s.last_error)}</span>}
                   </p>
+                  <YieldNote y={yields[s.id]} />
                 </div>
                 <span className="status hidden whitespace-nowrap text-[0.75rem] sm:inline-flex" style={{ color }}>{m.state[state]}</span>
                 <ToggleBox id={s.id} enabled={s.enabled} label={fmt(s2.enableX, { label: s.label })} />
@@ -138,8 +154,9 @@ export function History({ runs }: { runs: ScanRun[] }) {
   if (!runs.length) return null;
   return (
     <Section id="history" title={s2.history} i={5} className="!p-0 overflow-hidden [&>div]:px-[18px] [&>div]:pt-3.5">
+      <p id="history-cols" className="px-[18px] pb-3 text-[0.75rem] text-muted">{s2.historyCols}</p>
       <div className="overflow-x-auto border-t border-line">
-        <table className="table min-w-[560px]">
+        <table className="table min-w-[560px]" aria-describedby="history-cols">
           <thead>
             <tr>
               <th scope="col">{s2.col.when}</th>
@@ -154,7 +171,10 @@ export function History({ runs }: { runs: ScanRun[] }) {
           <tbody>
             {runs.map((r) => (
               <tr key={r.id}>
-                <td className="whitespace-nowrap" title={new Date(r.started_at).toLocaleString(locale)} suppressHydrationWarning>{ago(r.started_at, locale, "—")}</td>
+                <td className="whitespace-nowrap" suppressHydrationWarning>
+                  {new Date(r.started_at).toLocaleString(locale, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  <span className="ml-1.5 text-[0.75rem] text-muted">{ago(r.started_at, locale, "—")}</span>
+                </td>
                 <td>
                   <span className={`chip !py-0 text-[0.72rem] ${r.trigger === "auto" ? "chip-accent" : ""}`}>{s2.trigger[r.trigger]}</span>
                 </td>

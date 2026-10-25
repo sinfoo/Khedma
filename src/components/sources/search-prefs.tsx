@@ -9,22 +9,19 @@ import { fmt } from "@/lib/i18n/dict";
 import { HOURS_OLD, LEVELS, type SearchPrefs } from "@/lib/search/prefs";
 import { runSweep, saveSearchPrefs } from "@/app/actions/sources";
 
-/** Work preferences form (levels, freshness, blacklists). Same card on the Sources page and inside the search bar. */
-export function SearchPrefsForm({ prefs, compact = false, onSaved }: { prefs: SearchPrefs; compact?: boolean; onSaved?: (p: SearchPrefs) => void }) {
+/** Work preferences form (levels, freshness, blacklists, senior roles). Lives on the Preferences tab only. */
+export function SearchPrefsForm({ prefs }: { prefs: SearchPrefs }) {
   const { t } = useT();
   const p = t.sources2.prefs;
   const toast = useToast();
   const [v, setV] = useState(prefs);
   const [pending, start] = useTransition();
-  const [sweeping, startSweep] = useTransition();
   const parse = (s: string) => s.split(/[,;\n]+/).map((x) => x.trim()).filter(Boolean);
-  const id = compact ? "sp-c" : "sp";
+  const id = "sp";
 
   const save = () =>
     start(async () => {
-      const next = await saveSearchPrefs(v);
-      setV(next);
-      onSaved?.(next);
+      setV(await saveSearchPrefs(v));
       toast.success(p.saved);
     });
 
@@ -36,7 +33,6 @@ export function SearchPrefsForm({ prefs, compact = false, onSaved }: { prefs: Se
         save();
       }}
     >
-      {!compact && <p className="text-sm text-muted">{p.lead}</p>}
       <fieldset className="flex flex-wrap items-center gap-1.5">
         <legend className="mb-1 text-xs font-semibold text-muted">{p.levels}</legend>
         {LEVELS.map((l) => {
@@ -60,7 +56,7 @@ export function SearchPrefsForm({ prefs, compact = false, onSaved }: { prefs: Se
           ))}
         </select>
       </div>
-      <div className={`grid gap-3 ${compact ? "" : "sm:grid-cols-3"}`}>
+      <div className="grid gap-3 sm:grid-cols-3">
         {(
           [
             ["titleBlacklist", p.titleBlacklist, p.titleBlacklistPh],
@@ -89,28 +85,33 @@ export function SearchPrefsForm({ prefs, compact = false, onSaved }: { prefs: Se
           <label htmlFor={`${id}-once`}>{p.applyOnce}</label>
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={pending} aria-busy={pending}>
-          {pending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Save size={14} aria-hidden="true" />} {p.save}
-        </button>
-        {!compact && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={sweeping}
-            aria-busy={sweeping}
-            title={p.sweepHint}
-            onClick={() =>
-              startSweep(async () => {
-                const r = await runSweep();
-                toast.info(fmt(p.swept, { urgent: r.urgent, merged: r.merged, expired: r.expired }));
-              })
-            }
-          >
-            {sweeping ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Brush size={14} aria-hidden="true" />} {sweeping ? p.sweeping : p.sweep}
-          </button>
-        )}
-      </div>
+      <button type="submit" className="btn btn-primary btn-sm" disabled={pending} aria-busy={pending}>
+        {pending ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Save size={14} aria-hidden="true" />} {p.save}
+      </button>
     </form>
+  );
+}
+
+/** Deadline flags + mass-posting merge on demand, kept apart from Save so the two are never confused. */
+export function SweepButton() {
+  const { t } = useT();
+  const p = t.sources2.prefs;
+  const toast = useToast();
+  const [sweeping, startSweep] = useTransition();
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary btn-sm"
+      disabled={sweeping}
+      aria-busy={sweeping}
+      onClick={() =>
+        startSweep(async () => {
+          const r = await runSweep();
+          toast.info(fmt(p.swept, { urgent: r.urgent, merged: r.merged, expired: r.expired }));
+        })
+      }
+    >
+      {sweeping ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Brush size={14} aria-hidden="true" />} {sweeping ? p.sweeping : p.sweepRun}
+    </button>
   );
 }
