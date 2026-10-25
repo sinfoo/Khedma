@@ -84,3 +84,13 @@ test("Tunisian cities count as Tunisia when the board drops the country", () => 
   assert.ok(inTargetPlaces("Lac 2, Tunis", ["Tunisie"]));
   assert.ok(!inTargetPlaces("Paris", ["Tunisie"]));
 });
+
+test("a page that names a future closing date or a contact rule is not a closed posting", async () => {
+  const { CLOSED_MARKERS } = await import("../company/liveness");
+  const closed = (s: string) => CLOSED_MARKERS.some((re) => re.test(s));
+  assert.ok(!closed("les candidatures sont closes le 30 novembre"));
+  assert.ok(!closed("pas de candidatures acceptees par telephone"));
+  assert.ok(!closed("applications are closed on a rolling basis"));
+  assert.ok(closed("les candidatures sont closes."));
+  assert.ok(closed("applications are now closed"));
+});

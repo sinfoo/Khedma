@@ -23,15 +23,16 @@ export const CLOSED_MARKERS: RegExp[] = [
   /(posting|listing|job|offer) has expired/,
   /job you are looking for is no longer open/,
   /sorry, this (job|position) (is|has)/,
-  /applications? (are|is) (now )?closed/,
+  // Not "applications are closed on 30 November" or "… on a rolling basis": only a closing that already happened.
+  /applications? (are|is) (now )?closed(?! (on|from|after|at|until)\b)/,
   /\bthis (job|position) is not available\b/,
   /(cette|l') ?offre (d'emploi |de stage )?n'est plus (disponible|en ligne|active|valide|d'actualite)/,
   /(cette|l')? ?annonce n'est plus (disponible|en ligne|active)/,
   /(cette |l')?offre (a expire|est expiree|expiree|cloturee|est cloturee|est close)/,
   /(ce )?poste (a (deja )?ete|est( deja)?) pourvu/,
-  /candidatures? (sont|est) (closes?|fermees?|cloturees?)/,
+  /candidatures? (sont|est) (closes?|fermees?|cloturees?)\b(?! (le|au|a partir|des|apres|jusqu)\b)/,
   /offre que vous (recherchez|cherchez) n'(existe|est) plus/,
-  /(plus|pas) de candidatures? (acceptees?|possibles?)/,
+  /(plus|pas) de candidatures? (acceptees?|possibles?)\b(?! (par|by|via|sur)\b)/, // not "pas de candidatures par téléphone"
   // From freehire's liveness probe (MIT): German, "not found" pages, and applications-closed variants.
   /diese stelle (ist )?(nicht mehr|bereits) besetzt/,
   /job (listing )?not found/,

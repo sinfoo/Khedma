@@ -36,7 +36,7 @@ const ROLES: RoleDef[] = [
 ];
 
 /** Tools nearly every CV lists: as board queries they match any job. */
-const EVERYDAY_TOOLS = new Set(["git", "github", "gitlab", "jira", "trello", "notion", "slack", "office", "microsoft office", "word", "excel", "powerpoint", "windows", "linux", "vs code", "vscode", "google workspace"]);
+export const EVERYDAY_TOOLS: ReadonlySet<string> = new Set(["git", "github", "gitlab", "jira", "trello", "notion", "slack", "office", "microsoft office", "word", "excel", "powerpoint", "windows", "linux", "vs code", "vscode", "google workspace"]);
 
 export interface CvKeywords {
   /** Board queries, at most 6: roles first, then skills. */

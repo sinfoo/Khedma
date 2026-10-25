@@ -37,15 +37,14 @@ export async function escoRole(role: string, lang: "fr" | "en"): Promise<EscoRol
   let value: EscoRole | null = null;
   if (hit?.uri) {
     const { data: occ } = await getJson<OccupationPayload>(`${API}/resource/occupation?${new URLSearchParams({ uri: hit.uri, language: lang })}`);
-    if (occ) {
-      value = {
-        role,
-        occupation: firstForm(occ.title ?? hit.title ?? role),
-        uri: hit.uri,
-        essential: titles(occ._links?.hasEssentialSkill),
-        optional: titles(occ._links?.hasOptionalSkill),
-      };
-    }
+    if (!occ) return cached?.value ?? null; // a failed second call is not "no occupation": try again next time
+    value = {
+      role,
+      occupation: firstForm(occ.title ?? hit.title ?? role),
+      uri: hit.uri,
+      essential: titles(occ._links?.hasEssentialSkill),
+      optional: titles(occ._links?.hasOptionalSkill),
+    };
   }
   kvSet(key, { at: Date.now(), value });
   return value;

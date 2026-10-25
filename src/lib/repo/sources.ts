@@ -13,7 +13,7 @@ import { buildFilter, compileKeyword, fold } from "../search/filter";
 import { companyKey, scoreJob, type RankContext } from "../search/rank";
 import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust } from "../search/store";
 import { buildTiers, type Tier, type Tiers } from "../search/tiers";
-import { cvKeywords } from "../search/cv-keywords";
+import { cvKeywords, EVERYDAY_TOOLS } from "../search/cv-keywords";
 import { sweep } from "../search/sweep";
 import { extractSkills } from "../ai/heuristic";
 import { cvForMatching } from "./offers";
@@ -150,9 +150,11 @@ export function defaultKeywords(profile: Profile, cvText = profile.cv_md): strin
   const kinds = profile.target_types.filter((t) => t === "stage" || t === "pfe" || t === "alternance");
   // "Développeur full stack" -> "développeur", "Data analyst" -> "data".
   const roles = profile.target_roles.map((r) => r.trim().split(/\s+/)[0]).filter((w) => w && w.length >= 3);
-  // "c" or "r" as a board query matches everything.
-  const skills = cvSkills(profile, cvText).filter((k) => k.length >= 2).slice(0, 3);
-  return [...new Set([...roles, ...skills, ...kinds].map((k) => k.toLowerCase()))].slice(0, 6);
+  // "c" or "r" as a board query matches everything; "github" or "jira" finds every job that uses them.
+  const skills = cvSkills(profile, cvText).filter((k) => k.length >= 2 && !EVERYDAY_TOOLS.has(k.toLowerCase())).slice(0, 3);
+  // Internship words only fill in when the CV gives almost nothing else to search for.
+  const words = [...new Set([...roles, ...skills].map((k) => k.toLowerCase()))];
+  return [...new Set([...words, ...(words.length < 2 ? kinds : [])])].slice(0, 6);
 }
 
 /** Profile countries plus the country of every enabled saved board: a board the user switched on is never skipped. */

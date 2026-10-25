@@ -2,6 +2,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessTypeWithContract } from "./classify";
 import { htmlToText } from "./html";
+import { countryOf } from "../geo";
 import { getText, sleep } from "./http";
 
 // Emploitunisie.com keyword search (/recherche-jobs-tunisie/<keyword>). robots.txt asks
@@ -35,8 +36,9 @@ export function parseEmploitunisieList(html: string): NewJob[] {
     const region = li(/R[ée]gion/i);
     const level = li(/Niveau d.?[ée]tudes/i);
     const exp = li(/exp[ée]rience/i);
-    // "Stagiaire Assistant Chef de Projet - Tunis" -> title + city suffix.
-    const sep = /^(.*\S)\s+-\s+([^-]{2,60})$/.exec(rawTitle);
+    // "Stagiaire Assistant Chef de Projet - Tunis" -> title + city suffix; "Développeur - Java/Angular" keeps its title.
+    const tail = /^(.*\S)\s+-\s+([^-]{2,60})$/.exec(rawTitle);
+    const sep = tail && countryOf(tail[2]) ? tail : null;
     const title = sep ? sep[1] : rawTitle;
     const location = sep ? sep[2] : region;
     const description = [

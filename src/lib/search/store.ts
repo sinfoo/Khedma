@@ -21,6 +21,15 @@ export function ensureSearchSchema(): void {
   );
   // Every posting URL seen per role, so a role reposted under new URLs can be counted (the dedupe skips the copies).
   migrate("search:003-sightings", "CREATE TABLE IF NOT EXISTS job_sightings (key TEXT NOT NULL, url TEXT NOT NULL, PRIMARY KEY (key, url)) WITHOUT ROWID;");
+  // When an offer was dismissed, so a role dismissed yesterday stays out even if it was first stored long ago.
+  // Offers archived before this column existed count as archived now (they stay out for one recheck window).
+  migrate(
+    "search:004-archived-at",
+    `ALTER TABLE jobs ADD COLUMN archived_at TEXT;
+     UPDATE jobs SET archived_at = datetime('now') WHERE archived = 1;
+     CREATE TRIGGER IF NOT EXISTS jobs_archived_at AFTER UPDATE OF archived ON jobs WHEN NEW.archived = 1 AND OLD.archived = 0
+     BEGIN UPDATE jobs SET archived_at = datetime('now') WHERE id = NEW.id; END;`,
+  );
 }
 
 /** Distinct posting URLs per role (dedupeKey), from stored offers and copies the dedupe skipped. */
@@ -108,7 +117,7 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
   const hasChecks = !!d.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'job_checks'").get();
   const rows = d
     .prepare(
-      `SELECT j.url, j.company, j.title, j.location, j.archived, j.created_at${hasChecks ? ", c.status AS liveness" : ", NULL AS liveness"}
+      `SELECT j.url, j.company, j.title, j.location, j.archived, COALESCE(j.archived_at, j.created_at) AS created_at${hasChecks ? ", c.status AS liveness" : ", NULL AS liveness"}
        FROM jobs j${hasChecks ? " LEFT JOIN job_checks c ON c.job_id = j.id" : ""}`,
     )
     .all() as Row[];

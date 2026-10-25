@@ -25,7 +25,13 @@ export interface FillData {
 }
 
 /** "https://jobs.lever.co/acme/123/apply?x" and "https://jobs.lever.co/acme/123" are the same posting. */
-const key = (u: string) => canonicalPostingUrl(u.split(/[?#]/)[0]).replace(/\/$/, "").toLowerCase();
+const key = (u: string) => {
+  // Keep the query when it names the posting (Taleo, SuccessFactors: "job?id=1" and "job?id=2" are two offers).
+  const [base, query = ""] = u.split("#")[0].split("?");
+  const id = new URLSearchParams(query);
+  const named = ["id", "jobid", "job_id", "jobId", "requisitionId", "job"].map((k) => id.get(k)).find(Boolean);
+  return canonicalPostingUrl(base).replace(/\/$/, "").toLowerCase() + (named ? `?id=${named.toLowerCase()}` : "");
+};
 
 /** The application whose posting is this page (the page is the posting or one of its sub-pages). */
 export function applicationForPage(pageUrl: string) {
