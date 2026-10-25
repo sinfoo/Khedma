@@ -109,7 +109,7 @@ function PickRow({ pick: x, rank, now, onSkip }: { pick: Pick; rank: number; now
         </p>
         <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className={`inline-flex items-center gap-1.5 rounded-full bg-accent-soft py-px pr-2 text-[0.72rem] font-semibold text-accent-text ${x.basis === "keywords" ? "pl-2" : "pl-0.5"}`}>
-            {x.basis !== "keywords" && <ScoreRing value={x.fit} size={20} label={scoreLabel(t, x.fit)} animate={false} />}
+            {x.basis !== "keywords" && <ScoreRing dec={t.a11y.decimal} value={x.fit} size={20} label={scoreLabel(t, x.fit)} animate={false} />}
             {p.basis[x.basis]}
           </span>
           {reasons.map((r) => (

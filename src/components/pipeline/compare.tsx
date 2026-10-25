@@ -120,7 +120,7 @@ export function CompareTable({ rows, weights: initialWeights }: { rows: CompareR
               {rows.map((r, i) => (
                 <td key={r.id}>
                   <span className="flex items-center gap-2">
-                    <ScoreRing value={totals[i]} size={44} label={scoreLabel(t, totals[i])} animate={false} />
+                    <ScoreRing dec={t.a11y.decimal} value={totals[i]} size={44} label={scoreLabel(t, totals[i])} animate={false} />
                     {i === best && rows.length > 1 && (
                       <span className="chip chip-success"><Trophy size={11} aria-hidden="true" /> {c.best}</span>
                     )}

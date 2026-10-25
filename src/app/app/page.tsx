@@ -110,7 +110,7 @@ export default async function TodayPage() {
                     <span className="min-w-0 flex-1 truncate text-[0.78rem] text-muted">
                       {j.company} · {t.jobTypes[j.type]}
                     </span>
-                    <ScoreRing value={j.evaluation!.global} size={34} label={scoreLabel(t, j.evaluation!.global)} animate={false} />
+                    <ScoreRing dec={t.a11y.decimal} value={j.evaluation!.global} size={34} label={scoreLabel(t, j.evaluation!.global)} animate={false} />
                   </div>
                   <Link href={`/app/jobs/${j.id}`} className="line-clamp-2 text-[0.9rem] font-semibold leading-[1.3] text-ink hover:text-accent-text">
                     {j.title}
@@ -283,7 +283,7 @@ function FocusCard({ f, t, locale, today, i, online }: { f: FocusItem; t: T; loc
       title = <Link href={f.href} className="hover:text-accent-text">{f.title}</Link>;
       meta = (
         <span className="flex flex-wrap items-center gap-2.5">
-          {f.score !== null && <ScoreRing value={f.score} size={32} label={scoreLabel(t, f.score)} animate={false} />}
+          {f.score !== null && <ScoreRing dec={t.a11y.decimal} value={f.score} size={32} label={scoreLabel(t, f.score)} animate={false} />}
           <span>{f.sub}</span>
         </span>
       );
@@ -310,7 +310,7 @@ function FocusCard({ f, t, locale, today, i, online }: { f: FocusItem; t: T; loc
       meta = (
         <span className="flex flex-wrap items-center gap-2.5">
           <span className="inline-flex items-center gap-2">
-            <ScoreRing value={f.score} size={40} label={scoreLabel(t, f.score)} animate={false} />
+            <ScoreRing dec={t.a11y.decimal} value={f.score} size={40} label={scoreLabel(t, f.score)} animate={false} />
           </span>
           <span>{f.sub}</span>
         </span>

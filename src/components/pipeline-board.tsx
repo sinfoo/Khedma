@@ -167,7 +167,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
               {item.title}
             </Link>
           </div>
-          {item.score !== null && <ScoreRing value={item.score} size={28} label={scoreLabel(t, item.score)} animate={false} />}
+          {item.score !== null && <ScoreRing dec={t.a11y.decimal} value={item.score} size={28} label={scoreLabel(t, item.score)} animate={false} />}
         </div>
         {nextLine && (
           <p className="flex items-center gap-1.5 text-[0.75rem] font-semibold" style={{ color: nextLine.color }}>

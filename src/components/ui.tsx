@@ -16,11 +16,14 @@ export function ScoreRing({
   size = 56,
   label,
   animate = true,
+  dec = ".",
 }: {
   value: number;
   size?: number;
   label: string;
   animate?: boolean;
+  /** Decimal mark of the interface language ("," in French). */
+  dec?: string;
 }) {
   const r = (size - 8) / 2;
   const c = 2 * Math.PI * r;
@@ -52,7 +55,7 @@ export function ScoreRing({
         className="absolute mono font-semibold leading-none"
         style={{ fontSize: size * 0.3, color: "var(--ink)" }}
       >
-        {value.toFixed(1)}
+        {value.toFixed(1).replace(".", dec)}
       </span>
     </span>
   );
@@ -91,7 +94,7 @@ export function EngineChip({ engine, t }: { engine: string; t: Dict }) {
 }
 
 export function scoreLabel(t: Dict, v: number) {
-  return fmt(t.a11y.scoreOutOf, { v: v.toFixed(1) });
+  return fmt(t.a11y.scoreOutOf, { v: v.toFixed(1).replace(".", t.a11y.decimal) });
 }
 
 export function Empty({ title, hint, children }: { title: string; hint?: string; children?: React.ReactNode }) {

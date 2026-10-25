@@ -216,6 +216,7 @@ const en = {
   },
   a11y: {
     scoreOutOf: "{v} out of 5",
+    decimal: ".",
     statusOf: "Status of {company}: {status}",
     navMain: "Main navigation",
     themeToggle: "Switch theme",
@@ -461,6 +462,7 @@ const fr: CoreDict = {
   },
   a11y: {
     scoreOutOf: "{v} sur 5",
+    decimal: ",",
     statusOf: "Statut de {company} : {status}",
     navMain: "Navigation principale",
     themeToggle: "Changer de thème",

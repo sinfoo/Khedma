@@ -30,7 +30,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
   return (
     <li className="card grid grid-cols-[auto_1fr] items-center gap-3.5 px-4 py-3.5 sm:grid-cols-[auto_1fr_auto] rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
       {evaluation ? (
-        <ScoreRing value={evaluation.global} size={52} label={scoreLabel(t, evaluation.global)} animate={false} />
+        <ScoreRing dec={t.a11y.decimal} value={evaluation.global} size={52} label={scoreLabel(t, evaluation.global)} animate={false} />
       ) : (
         <span role="img" aria-label={fmt(m.fitLabel, { n: offer.score })} className="relative grid size-[52px] place-items-center">
           <svg viewBox="0 0 52 52" width="52" height="52" className="-rotate-90" aria-hidden="true">

@@ -104,7 +104,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               <EvergreenChip reasons={evergreenReasons(job.description, postingCounts().get(dedupeKey(job.company, job.title)) ?? 0, job)} t={t} full />
             </p>
           </div>
-          {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
+          {ev && <ScoreRing dec={t.a11y.decimal} value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}
         </div>
 
         {d !== null && d < 0 && !sent && (
@@ -166,7 +166,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
               {ev ? (
                 <>
                   <Link href={href("fit")} className="mt-3 flex items-center gap-3 rounded-lg hover:text-accent-text">
-                    <ScoreRing value={ev.global} size={52} label={scoreLabel(t, ev.global)} animate={false} />
+                    <ScoreRing dec={t.a11y.decimal} value={ev.global} size={52} label={scoreLabel(t, ev.global)} animate={false} />
                     <span className="space-y-1">
                       <VerdictChip verdict={ev.verdict} t={t} />
                       <span className="block text-xs text-muted">{fmtDate(ev.created_at, locale)}</span>
@@ -322,7 +322,7 @@ function FitTab({ jobId, ev, appId, sent, marginals, gates, match, t, locale }: 
         <section className="card p-6 rise" aria-labelledby="fit-h">
           <h2 id="fit-h" className="sr-only">{o.fitScore}</h2>
           <div className="flex flex-wrap items-center gap-6">
-            <ScoreRing value={ev.global} size={120} label={scoreLabel(t, ev.global)} />
+            <ScoreRing dec={t.a11y.decimal} value={ev.global} size={120} label={scoreLabel(t, ev.global)} />
             <div className="min-w-0 flex-1 basis-60">
               <div className="flex flex-wrap items-center gap-2">
                 <VerdictChip verdict={ev.verdict} t={t} />

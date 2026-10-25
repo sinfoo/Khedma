@@ -25,7 +25,7 @@ export async function CompanyCard({ slug }: { slug: string }) {
           {c.researched_at && <span className="chip chip-success !py-0 text-[0.7rem]"><Sparkles size={10} aria-hidden="true" /> {m.researched}</span>}
         </span>
       </span>
-      {c.avgFit !== null && <ScoreRing value={c.avgFit} size={36} label={`${m.fit}: ${scoreLabel(t, c.avgFit)}`} animate={false} />}
+      {c.avgFit !== null && <ScoreRing dec={t.a11y.decimal} value={c.avgFit} size={36} label={`${m.fit}: ${scoreLabel(t, c.avgFit)}`} animate={false} />}
     </Link>
   );
 }

@@ -103,7 +103,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                     <Link href={x.application_id ? `/app/pipeline/${x.application_id}` : `/app/jobs/${x.job_id}`} className="block truncate text-[0.9rem] font-semibold hover:text-accent-text">{x.title}</Link>
                     <p className="truncate text-xs text-muted">{x.company}{x.deadline ? ` · ${t.common.deadline} ${date(x.deadline)}` : ""}</p>
                   </div>
-                  <ScoreRing value={x.score} size={32} label={scoreLabel(t, x.score)} animate={false} />
+                  <ScoreRing dec={t.a11y.decimal} value={x.score} size={32} label={scoreLabel(t, x.score)} animate={false} />
                 </li>
               ))}
             </ul>

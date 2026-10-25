@@ -108,7 +108,7 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
                     </p>
                   </div>
                   {r.avgFit !== null ? (
-                    <ScoreRing value={r.avgFit} size={36} label={`${c.fit}: ${scoreLabel(t, r.avgFit)}`} animate={false} />
+                    <ScoreRing dec={t.a11y.decimal} value={r.avgFit} size={36} label={`${c.fit}: ${scoreLabel(t, r.avgFit)}`} animate={false} />
                   ) : (
                     <span className="grid size-9 place-items-center rounded-full border border-dashed border-line-strong text-[0.7rem] text-muted" aria-hidden="true">—</span>
                   )}

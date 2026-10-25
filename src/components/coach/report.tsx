@@ -52,7 +52,7 @@ export function Report({ session, answers, t, locale }: { session: CoachSession;
     if (!a || idx === undefined || a.overall === null) return null;
     return (
       <a href={`#answer-${idx}`} className="card card-hover flex items-start gap-3 p-4">
-        <ScoreRing value={a.overall} size={48} label={scoreLabel(t, a.overall)} />
+        <ScoreRing dec={t.a11y.decimal} value={a.overall} size={48} label={scoreLabel(t, a.overall)} />
         <span className="min-w-0">
           <span className={`text-xs font-semibold uppercase tracking-wide ${tone}`}>{label}</span>
           <span className="mt-0.5 block text-sm font-medium leading-snug">{session.questions[idx]?.text}</span>
@@ -85,7 +85,7 @@ export function Report({ session, answers, t, locale }: { session: CoachSession;
               <h2 id="rep-overall" className="text-sm font-semibold text-muted" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>
                 {r.overall}
               </h2>
-              <ScoreRing value={agg.overall} size={104} label={scoreLabel(t, agg.overall)} />
+              <ScoreRing dec={t.a11y.decimal} value={agg.overall} size={104} label={scoreLabel(t, agg.overall)} />
               <p className="text-xs text-muted">{fmt(r.stats, { a: agg.answered, s: agg.skipped })}</p>
             </div>
             <div>
@@ -136,7 +136,7 @@ export function Report({ session, answers, t, locale }: { session: CoachSession;
                     </p>
                     <h3 className="text-base font-semibold leading-snug" style={{ fontFamily: "var(--font-sans)", letterSpacing: 0 }}>{q.text}</h3>
                   </div>
-                  {a?.overall != null && <ScoreRing value={a.overall} size={44} label={scoreLabel(t, a.overall)} animate={false} />}
+                  {a?.overall != null && <ScoreRing dec={t.a11y.decimal} value={a.overall} size={44} label={scoreLabel(t, a.overall)} animate={false} />}
                 </div>
                 {!a || a.skipped ? (
                   <p className="mt-3 text-sm italic text-muted">{a?.skipped ? c.session.skipped : r.noAnswer}</p>

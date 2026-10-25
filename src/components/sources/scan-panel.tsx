@@ -987,7 +987,7 @@ function FeedRow({
               className={`inline-flex items-center gap-1.5 rounded-full py-px pl-0.5 pr-2 text-[0.72rem] font-semibold hover:underline ${strong ? "bg-accent-soft text-accent-text" : "bg-saffron-soft text-saffron"}`}
               style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) both" }}
             >
-              <ScoreRing value={ev.global} size={20} label={scoreLabel(t, ev.global)} animate={false} />
+              <ScoreRing dec={t.a11y.decimal} value={ev.global} size={20} label={scoreLabel(t, ev.global)} animate={false} />
               {t.verdicts[ev.verdict]}
               {estimate && <span className="font-normal opacity-80">· {m.picks.basis.estimate}</span>}
             </Link>

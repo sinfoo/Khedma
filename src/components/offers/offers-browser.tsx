@@ -500,7 +500,7 @@ function Score({ r, size }: { r: OfferRow; size: number }) {
   const { t } = useT();
   return r.score !== null ? (
     <span className="inline-flex items-center gap-2">
-      <ScoreRing value={r.score} size={size} label={scoreLabel(t, r.score)} animate={false} />
+      <ScoreRing dec={t.a11y.decimal} value={r.score} size={size} label={scoreLabel(t, r.score)} animate={false} />
       {r.verdict && <VerdictChip verdict={r.verdict} t={t} />}
     </span>
   ) : (

@@ -326,7 +326,7 @@ export function SessionRunner({
                     </h3>
                     <div className="flex items-center gap-2">
                       {a.engine && <EngineChip engine={a.engine} t={t} />}
-                      {a.overall !== null && <ScoreRing value={a.overall} size={44} label={scoreLabel(t, a.overall)} />}
+                      {a.overall !== null && <ScoreRing dec={t.a11y.decimal} value={a.overall} size={44} label={scoreLabel(t, a.overall)} />}
                     </div>
                   </div>
                   {a.scores ? <DimBars scores={a.scores} t={t} /> : <div className="skeleton h-16" />}

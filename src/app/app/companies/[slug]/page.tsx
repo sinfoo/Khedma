@@ -91,7 +91,7 @@ export default async function CompanyPage({ params, searchParams }: Props) {
           </div>
           {c.avgFit !== null && (
             <div className="hidden items-center gap-3 sm:flex">
-              <ScoreRing value={c.avgFit} size={64} label={`${m.fit}: ${scoreLabel(t, c.avgFit)}`} />
+              <ScoreRing dec={t.a11y.decimal} value={c.avgFit} size={64} label={`${m.fit}: ${scoreLabel(t, c.avgFit)}`} />
             </div>
           )}
         </div>
@@ -271,7 +271,7 @@ export default async function CompanyPage({ params, searchParams }: Props) {
                         <td>
                           {j.evaluation ? (
                             <span className="inline-flex items-center gap-2">
-                              <ScoreRing value={j.evaluation.global} size={36} label={scoreLabel(t, j.evaluation.global)} animate={false} />
+                              <ScoreRing dec={t.a11y.decimal} value={j.evaluation.global} size={36} label={scoreLabel(t, j.evaluation.global)} animate={false} />
                               <VerdictChip verdict={j.evaluation.verdict} t={t} />
                             </span>
                           ) : (
@@ -320,7 +320,7 @@ export default async function CompanyPage({ params, searchParams }: Props) {
                       </p>
                     </div>
                     <StateChip state={a.status} t={t} />
-                    {j.evaluation && <ScoreRing value={j.evaluation.global} size={36} label={scoreLabel(t, j.evaluation.global)} animate={false} />}
+                    {j.evaluation && <ScoreRing dec={t.a11y.decimal} value={j.evaluation.global} size={36} label={scoreLabel(t, j.evaluation.global)} animate={false} />}
                     <Link href={`/app/pipeline/${a.id}`} className="btn btn-secondary btn-sm">{m.apps.open}</Link>
                   </li>
                 );
