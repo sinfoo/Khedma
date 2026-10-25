@@ -149,7 +149,8 @@ export interface MovableItem {
  * Stage changes with side effects shared by the board and the workspace stepper:
  * toast with Undo, interview scheduling dialog, optional rejection reason.
  */
-export function useStageMove(onOptimistic?: (id: number, status: AppState) => void, announce?: (msg: string) => void) {
+// The toasts announce the move, its undo and errors (they sit in live regions): announcing here too read each move twice.
+export function useStageMove(onOptimistic?: (id: number, status: AppState) => void) {
   const { t } = useT();
   const toast = useToast();
   const [pending, start] = useTransition();
@@ -163,11 +164,9 @@ export function useStageMove(onOptimistic?: (id: number, status: AppState) => vo
       const r = await moveApplication(item.id, to, sent);
       if (!r.ok) {
         toast.error(t.common.error, r.error);
-        announce?.(r.error);
         return;
       }
       const msg = fmt(t.apps2.board.moved, { title: item.title, col: t.states[to] });
-      announce?.(msg);
       toast.success(msg, to === "applied" && r.snapshot.reminderId ? t.apps2.board.followupCreated : undefined, {
         label: t.apps2.board.undo,
         onClick: () =>
@@ -176,7 +175,6 @@ export function useStageMove(onOptimistic?: (id: number, status: AppState) => vo
             const u = await undoMove(item.id, r.snapshot);
             if (u.ok) {
               toast.info(t.apps2.board.undone);
-              announce?.(t.apps2.board.undone);
             } else toast.error(t.common.error, u.error);
           }),
       });

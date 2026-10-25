@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic, useState } from "react";
+import { useOptimistic } from "react";
 import { ArrowLeft, Check, ExternalLink, GraduationCap, MoreHorizontal, XCircle } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
@@ -38,8 +38,7 @@ export function WorkspaceHeader({
   const s = t.apps2.stage;
   const w = t.apps2.ws;
   const [cur, setCur] = useOptimistic(status);
-  const [live, setLive] = useState("");
-  const { move, node, pending } = useStageMove((_, st) => setCur(st), setLive);
+  const { move, node, pending } = useStageMove((_, st) => setCur(st));
   const idx = STEPS.indexOf(cur);
   const go = (to: AppState) => {
     const F = t.apps2.flow;
@@ -52,7 +51,6 @@ export function WorkspaceHeader({
 
   return (
     <header className="no-print mb-4">
-      <p className="sr-only" aria-live="polite">{live}</p>
       {node}
       <Link href="/app/pipeline" className="mb-2.5 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft size={14} aria-hidden="true" /> {w.back}

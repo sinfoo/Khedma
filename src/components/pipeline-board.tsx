@@ -60,7 +60,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
   const soon = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("sv");
   const [opt, setOpt] = useOptimistic(items, (state, m: { id: number; status: AppState }) => state.map((x) => (x.id === m.id ? { ...x, status: m.status } : x)));
   const [live, setLive] = useState("");
-  const { move, node } = useStageMove((id, status) => setOpt({ id, status }), setLive);
+  const { move, node } = useStageMove((id, status) => setOpt({ id, status }));
   const [view, setView] = useState(initialView);
   const [q, setQ] = useState("");
   const [showClosed, setShowClosed] = useState(false);

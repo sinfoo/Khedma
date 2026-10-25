@@ -892,7 +892,8 @@ function Feed({
       {done && jobs.length > 0 && (
         <div className="flex items-center gap-3 border-t border-line px-[18px] py-3 text-[0.82rem] text-muted">
           <span className="flex-1">{fmt(m.footer, { kept: jobs.length, tracked: nTracked, scored: nScored })}</span>
-          <Link href="/app/jobs" className="whitespace-nowrap font-semibold">{m.allOffers}</Link>
+          {/* Newest first: this scan's offers lead the list. */}
+          <Link href="/app/jobs?sort=newest" className="whitespace-nowrap font-semibold">{m.allOffers}</Link>
           <Link href="/app/pipeline" className="whitespace-nowrap font-semibold">{m.pipeline}</Link>
         </div>
       )}
