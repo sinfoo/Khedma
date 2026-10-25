@@ -4,7 +4,7 @@ import type { MatchBreakdown, MatchLine } from "@/lib/match";
 function lineText(l: MatchLine, t: Dict): { label: string; detail: string } {
   const m = t.offers2.match;
   if (l.kind === "skills")
-    return { label: m.skillsLabel, detail: `${fmt(m.skills, { f: l.found.length, n: l.found.length + l.missing.length })}${l.missing.length ? ` ${fmt(m.missing, { list: l.missing.slice(0, 6).join(", ") })}` : ""}` };
+    return { label: m.skillsLabel, detail: `${fmt(m.skills, { f: l.found.length, n: l.found.length + l.missing.length })}${l.missing.length ? ` ${fmt(m.missing, { list: l.missing.slice(0, 6).join(", ") })}` : ""}${l.optional.length ? ` ${fmt(m.optional, { list: l.optional.slice(0, 6).join(", ") })}` : ""}` };
   if (l.kind === "title") return { label: m.titleLabel, detail: fmt(l.ratio === 0 ? m.title0 : l.ratio < 1 ? m.titlePart : m.titleFull, { role: l.role }) };
   return { label: m.levelLabel, detail: `${m.level[l.level]} · ${l.ratio === 1 ? m.levelFit : l.ratio > 0 ? m.levelPart : m.levelMiss}` };
 }

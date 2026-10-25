@@ -25,6 +25,26 @@ test("CV match explains each check and leaves out the ones it cannot compare", (
   assert.equal(senior.pct, 0);
 });
 
+test("skills named only as nice to have do not lower the CV match", () => {
+  const en = matchBreakdown(
+    job("Backend Intern", "Requirements:\n- Python and SQL\n\nNice to have\n- Docker, Kubernetes\n\nWhat we offer\n- Mentoring"),
+    { target_roles: [] }, "Python, SQL", ["intern"],
+  );
+  const s = en.lines[0];
+  assert.ok(s.kind === "skills");
+  assert.equal(s.ratio, 1);
+  assert.deepEqual(s.missing, []);
+  assert.deepEqual(s.optional.sort(), ["Docker", "Kubernetes"]);
+
+  // Inline French phrasing; "Profil souhaité" heads the required profile and stays counted.
+  const fr = matchBreakdown(job("Stage Data", "Profil souhaité : Python et SQL. Une connaissance de Docker serait un plus."), { target_roles: [] }, "Python", ["intern"]);
+  const f = fr.lines[0];
+  assert.ok(f.kind === "skills");
+  assert.deepEqual(f.missing, ["SQL"]);
+  assert.deepEqual(f.optional, ["Docker"]);
+  assert.equal(f.ratio, 0.5);
+});
+
 test("evergreen hint needs a curated phrase or repeated postings", () => {
   assert.deepEqual(evergreenReasons("Rejoignez notre vivier de talents : candidature spontanée bienvenue.", 1).map((r) => r.kind === "phrase" && r.phrase), ["candidature spontanee", "vivier"]);
   assert.deepEqual(evergreenReasons("We are always hiring great engineers", 3), [{ kind: "phrase", phrase: "always hiring" }, { kind: "reposts", n: 3 }]);
