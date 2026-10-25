@@ -57,7 +57,7 @@ export function WorkspaceHeader({
       <Link href="/app/pipeline" className="mb-2.5 inline-flex items-center gap-1 text-sm text-muted hover:text-ink">
         <ArrowLeft size={14} aria-hidden="true" /> {w.back}
       </Link>
-      <div className="grid items-center gap-3.5 lg:grid-cols-[auto_1fr_auto]">
+      <div className="grid grid-cols-1 items-center gap-3.5 lg:grid-cols-[auto_1fr_auto]">
         <CompanyAvatar name={company} size={48} />
         <div className="min-w-0">
           <h1 className="line-clamp-2 text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{title}</h1>
@@ -65,8 +65,8 @@ export function WorkspaceHeader({
             {company} · {meta}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 lg:col-start-3">
-          <ol aria-label={s.stepperLabel} className="seg seg-sm overflow-x-auto">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:col-start-3">
+          <ol aria-label={s.stepperLabel} className="seg seg-sm max-w-full overflow-x-auto">
             {STEPS.map((st, i) => {
               const done = !closed && i < idx;
               const here = st === cur;

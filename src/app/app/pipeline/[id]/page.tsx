@@ -239,7 +239,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               )}
               <ul className="flex flex-col gap-2">
                 {([["cv", app.cv_md, F.packCv], ["letter", app.cover_letter_md, F.packLetter]] as const).map(([k, text, label]) => (
-                  <li key={k} className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl border border-line bg-bg-elev px-3 py-2.5">
+                  <li key={k} className="grid grid-cols-[auto_minmax(0,1fr)] items-center sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-xl border border-line bg-bg-elev px-3 py-2.5">
                     <span className={`tile tile-sm ${text?.trim() ? "tone-success" : "tone-muted"}`}>{k === "cv" ? <FileText size={16} aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}</span>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">{label}</p>
@@ -248,7 +248,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                         {text?.trim() && words(text) > (k === "cv" ? 900 : 320) && ` · ${fmt(a.docs.tooLongShort, { p: k === "cv" ? 2 : 1 })}`}
                       </p>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="col-span-2 flex flex-wrap gap-1 sm:col-span-1">
                       <Link href={`/app/pipeline/${app.id}?tab=documents&doc=${k}`} className="btn btn-outline btn-sm !h-7 text-ink-2">{k === "letter" && letterSkipped ? F.writeLetter : F.edit}</Link>
                       {text?.trim() && (
                         <>

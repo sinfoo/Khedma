@@ -148,7 +148,7 @@ export default defineMessages({
     },
     cta: {
       title: "The door is open.",
-      text: "Two commands to install, one CV to paste, and your first offer is scored in under ten minutes.",
+      text: "Install it, add your CV, and the first scan brings offers for the roles your CV shows. Plan about half an hour the first time, Node.js install included.",
       primary: "Open Khedma",
       secondary: "Read the guide",
     },
@@ -404,7 +404,7 @@ export default defineMessages({
     },
     cta: {
       title: "La porte est ouverte.",
-      text: "Deux commandes pour installer, un CV à coller, et ta première offre est notée en moins de dix minutes.",
+      text: "Installe-le, ajoute ton CV, et le premier scan ramène des offres pour les postes que montre ton CV. Compte une demi-heure la première fois, installation de Node.js comprise.",
       primary: "Ouvrir Khedma",
       secondary: "Lire le guide",
     },

@@ -100,7 +100,7 @@ export default defineMessages({
       sortNote: "Sorted by relevance; suspicious postings last.",
     },
     verdict: "Verdict",
-    notEvaluated: "Not evaluated",
+    notEvaluated: "Not scored",
     minScore: "Minimum score",
     any: "Any",
     remoteOnly: "Remote",
@@ -190,7 +190,7 @@ export default defineMessages({
       skippedWhy: { skills: "skills (none recognised in the posting, or no CV)", title: "title (no target role in your profile)", seniority: "level (the posting does not say)" },
     },
     evergreen: {
-      chip: "Possibly evergreen",
+      chip: "Maybe a standing call for CVs",
       phrase: "says “{p}”",
       reposts: "posted {n} times",
       hint: "A hint, not a verdict: it may be a standing call for CVs rather than an open role",
@@ -579,7 +579,7 @@ export default defineMessages({
       skippedWhy: { skills: "compétences (aucune reconnue dans l'offre, ou pas de CV)", title: "intitulé (aucun poste visé dans votre profil)", seniority: "niveau (l'offre ne le précise pas)" },
     },
     evergreen: {
-      chip: "Peut-être permanente",
+      chip: "Peut-être un appel à CV permanent",
       phrase: "mentionne « {p} »",
       reposts: "publiée {n} fois",
       hint: "Un indice, pas un verdict : il peut s'agir d'un appel à CV permanent plutôt que d'un poste ouvert",

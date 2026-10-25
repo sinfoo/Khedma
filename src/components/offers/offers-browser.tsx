@@ -372,7 +372,7 @@ export function OffersBrowser({
             </div>
           </div>
         ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {page.map((r, i) => (
               <OfferCard key={r.id} {...rowProps(r, i)} i={i} />
             ))}
