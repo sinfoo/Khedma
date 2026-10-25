@@ -7,6 +7,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { CompanyAvatar, EmptyState, LinkTabs } from "@/components/kit";
 import { EngineChip, ScoreRing, StateChip, VerdictChip, fmtDate, scoreLabel } from "@/components/ui";
 import { BlacklistToggle, RatingStars, ResearchButton } from "@/components/company/company-actions";
+import { applyTo } from "@/app/actions/jobs";
 import { CheckOffersButton, LivenessButton } from "@/components/company/liveness-button";
 import { DetailsForm } from "@/components/company/details-form";
 import { AskCompany } from "@/components/company/ask-company";
@@ -95,7 +96,8 @@ export default async function CompanyPage({ params, searchParams }: Props) {
           )}
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-2 no-print">
-          <ResearchButton slug={c.slug} researched={!!summary} className={summary ? "btn btn-secondary" : "btn btn-primary"} />
+          {/* The AI research is a side tool, not the page's main action. */}
+          <ResearchButton slug={c.slug} researched={!!summary} className="btn btn-secondary" />
           <span className="inline-flex items-center gap-2 rounded-lg border border-line px-2.5 py-1">
             <span className="text-xs font-medium text-muted">{m.rating}</span>
             <RatingStars slug={c.slug} rating={c.rating} />
@@ -276,7 +278,17 @@ export default async function CompanyPage({ params, searchParams }: Props) {
                             <span className="text-xs text-muted">{t.offers2.notEvaluated}</span>
                           )}
                         </td>
-                        <td>{j.application ? <StateChip state={j.application.status} t={t} /> : <span className="text-xs text-muted">—</span>}</td>
+                        <td>
+                          {j.application ? (
+                            <Link href={`/app/pipeline/${j.application.id}`}><StateChip state={j.application.status} t={t} /></Link>
+                          ) : j.archived ? (
+                            <span className="text-xs text-muted">—</span>
+                          ) : (
+                            <form action={applyTo.bind(null, j.id)}>
+                              <button type="submit" className="btn btn-primary btn-sm" aria-label={`${t.offers2.apply}: ${j.title}`}>{t.offers2.apply}</button>
+                            </form>
+                          )}
+                        </td>
                         <td>{/^https?:\/\//.test(j.url) ? <LivenessButton jobId={j.id} initial={ck ?? null} /> : <span className="text-xs text-muted">{m.offers.unknown}</span>}</td>
                       </tr>
                     );

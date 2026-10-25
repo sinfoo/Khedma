@@ -9,7 +9,11 @@ export function ScoreBreakdown({ ev, t }: { ev: Evaluation; t: Dict }) {
     <dl className="space-y-2.5">
       {DIMS.map((k, i) => (
         <div key={k} className="grid grid-cols-[8rem_1fr_2.5rem] items-center gap-3 text-sm rise" style={{ ["--i" as string]: i + 1 }}>
-          <dt className="text-ink-2">{t.dims[k]}</dt>
+          <dt className="text-ink-2">
+            {t.dims[k]}
+            {/* High is good here (few red flags): say so, or a full green bar reads as "lots of danger". */}
+            {k === "red_flags" && <span className="block text-[0.7rem] text-muted">{t.offers2.redFlagsScale}</span>}
+          </dt>
           <dd className="h-2 rounded-full bg-surface-2 overflow-hidden m-0">
             <span
               className="block h-full rounded-full"

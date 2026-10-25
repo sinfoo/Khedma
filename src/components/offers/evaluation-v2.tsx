@@ -8,7 +8,7 @@ import { fmt } from "@/lib/i18n/dict";
 import type { Evaluation, Requirement } from "@/lib/types";
 import type { Gate } from "@/lib/ai/gates";
 import { ActionButton } from "@/components/action-button";
-import { runEvaluation, setTriageMarginals } from "@/app/actions/jobs";
+import { runEvaluation, setTriageMarginals, tailorCvFor } from "@/app/actions/jobs";
 
 const IMP_CLS: Record<Requirement["importance"], string> = { critical: "chip-danger", high: "chip-saffron", meaningful: "chip-accent", preferred: "", low_signal: "" };
 const MET_ICON = { yes: Check, partial: Minus, no: X } as const;
@@ -157,7 +157,7 @@ export function EvaluationV2({ ev, jobId, appId, marginals, gates }: { ev: Evalu
               {docsHref ? (
                 <Link href={docsHref} className="btn btn-secondary btn-sm"><FileText size={14} aria-hidden="true" /> {v.applyToCv}</Link>
               ) : (
-                <span className="text-xs text-muted">{v.trackFirst}</span>
+                <ActionButton action={tailorCvFor.bind(null, jobId)} className="btn btn-secondary btn-sm"><FileText size={14} aria-hidden="true" /> {v.trackFirst}</ActionButton>
               )}
             </div>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-ink-2">{ev.cv_changes.map((c) => <li key={c}>{c}</li>)}</ol>

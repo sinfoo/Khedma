@@ -89,7 +89,7 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
                 <li key={s.id} className="border-t border-line">
                   <Link href={`/app/coach/${s.id}`} className="group flex items-center gap-2.5 px-1 py-2.5 text-ink">
                     {s.status === "done" && s.score !== null ? (
-                      <ScoreRing value={s.score} size={34} label={scoreLabel(t, s.score)} animate={false} />
+                      <ScoreRing value={s.score} size={34} label={`${c.answerScore}: ${scoreLabel(t, s.score)}`} animate={false} />
                     ) : (
                       <span className="mono grid size-[34px] shrink-0 place-items-center rounded-full border border-dashed border-saffron text-[0.68rem] text-saffron" aria-hidden="true">
                         {s.answered}/{s.questions.length}

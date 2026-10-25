@@ -49,7 +49,8 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
     </header>
   );
 
-  if (d.totals.jobs === 0 && d.totals.apps === 0 && rk === "all") {
+  // A new user sees the empty state on the default range too, not fourteen "no data" cards.
+  if (d.totals.jobs === 0 && d.totals.apps === 0) {
     return (
       <>
         {header}
@@ -63,7 +64,9 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
 
   const tk = d.takeaways.map((x) => {
     const vars = x.key === "typeRate" ? { ...x.vars, a: typeName(String(x.vars.a)), b: typeName(String(x.vars.b)) } : x.vars;
-    return { key: x.key, text: fmt(m.tk[x.key], vars) };
+    // Each takeaway opens what it talks about.
+    const href = { untracked: "/app/jobs?verdict=apply_now,apply&tracked=no", missingSkill: "/app/upskill", typeRate: "/app/jobs", scoreConverts: "/app/jobs?sort=score", scoreFlat: "/app/jobs?sort=score", medianReply: "/app/pipeline", momentum: "/app/jobs", needData: "/app/sources" }[x.key];
+    return { key: x.key, text: fmt(m.tk[x.key], vars), href };
   });
   const funnelMax = Math.max(1, d.funnel[0].count);
   const perWeekTotal = d.perWeek.reduce((s, x) => s + x, 0);
@@ -77,7 +80,10 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
           {tk.slice(0, 4).map((x, i) => (
             <div key={x.key} className="card flex gap-2.5 px-4 py-3.5 rise" style={{ ["--i" as string]: i }}>
               <Lightbulb size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-saffron" />
-              <p className="text-[0.85rem] leading-[1.45] text-ink-2">{x.text}</p>
+              <p className="text-[0.85rem] leading-[1.45] text-ink-2">
+                {x.text}{" "}
+                <Link href={x.href} className="whitespace-nowrap font-semibold text-accent-text hover:underline">{m.tkGo} →</Link>
+              </p>
             </div>
           ))}
         </div>

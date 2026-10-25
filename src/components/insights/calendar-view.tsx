@@ -190,6 +190,8 @@ export function CalendarView({
                           aria-label={`${longDay(g.key)}${list.length ? `, ${list.length === 1 ? m.oneItem : fmt(m.nItems, { n: list.length })}` : ""}`}
                           onClick={() => {
                             setSelected(g.key);
+                            // Below the grid on a phone: bring the day into view so the tap visibly does something.
+                            if (window.matchMedia("(max-width: 1023px)").matches) document.getElementById("day-h")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
                             setFocused(g.key);
                           }}
                           onKeyDown={(e) => onKey(e, idx)}
@@ -337,7 +339,8 @@ export function CalendarView({
             </ol>
           )}
         </section>
-        <section className="card p-4" aria-labelledby="day-h">
+        {/* On a phone the chosen day comes right under the grid, not below "Coming up". */}
+        <section className="card order-first p-4 lg:order-none" aria-labelledby="day-h">
           <p className="eyebrow text-[0.7rem]">{m.selectedDay}</p>
           <h2 id="day-h" className="card-title mt-0.5 capitalize text-[0.9rem]" aria-live="polite">{longDay(selected)}</h2>
           {dayItems.length === 0 ? <p className="mt-2 text-sm text-muted">{m.noItems}</p> : <ul className="mt-3 space-y-2">{dayItems.map(itemRow)}</ul>}

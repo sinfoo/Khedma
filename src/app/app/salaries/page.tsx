@@ -21,6 +21,8 @@ export default async function SalariesPage() {
     <>
       <header className="mb-[18px] rise">
         <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{m.title}</h1>
+        {/* The scope (Tunisia only) is said up front. */}
+        <p className="mt-1.5 text-ink-2">{m.lead}</p>
         <p className="mt-1.5 flex items-start gap-2 text-muted">
           <TriangleAlert size={14} aria-hidden="true" className="mt-1 shrink-0 text-saffron" />
           {m.disclaimer}

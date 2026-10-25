@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { BadgeCheck, BookOpen, Check, Sparkles } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
@@ -145,6 +146,8 @@ export function UpskillBoard({ matrix, plan }: { matrix: Matrix; plan: PlanView 
                       className={`btn btn-sm ml-auto ${complete ? "btn-primary" : "btn-outline"}`}
                       disabled={pending}
                       onClick={() => {
+                        // It goes into the profile and raises CV-based scores: ask first.
+                        if (!window.confirm(fmt(m.acquireConfirm, { skill: p.skill }))) return;
                         setAcquiredNow((a) => ({ ...a, [p.skill]: true }));
                         start(async () => {
                           await markSkillAcquired(p.skill);
@@ -182,7 +185,7 @@ export function UpskillBoard({ matrix, plan }: { matrix: Matrix; plan: PlanView 
             <ul className="flex flex-col gap-[7px]">
               {rows.slice(0, 14).map((r) => (
                 <li key={r.skill} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-2.5 text-[0.8rem]">
-                  <span className="truncate text-ink-2" title={r.skill}>{r.skill}</span>
+                  <Link href={`/app/jobs?q=${encodeURIComponent(r.skill)}`} className="truncate text-ink-2 hover:text-accent-text hover:underline" title={fmt(m.skillOffers, { skill: r.skill })}>{r.skill}</Link>
                   <span className="block h-2.5 overflow-hidden rounded-[5px] bg-surface-2">
                     <span className="block h-full rounded-[5px]" style={{ width: `${(val(r) / demandMax) * 100}%`, background: r.have ? "var(--accent)" : "var(--saffron)", transition: "width .9s cubic-bezier(.2,.7,.2,1)" }} />
                   </span>

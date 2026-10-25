@@ -20,7 +20,7 @@ export function CalibrationCard({ t, bands, verdict, n, i }: { t: Dict; bands: C
       <h2 id="calib-h" className={h2} style={h2s}>{m.title}</h2>
       <p className="mt-0.5 text-xs text-muted">{m.desc}</p>
       <p className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-        <span className={`chip ${tone}`}>{verdict}</span>
+        <span className={`chip ${tone}`}>{m.verdictNames[verdict]}</span>
         <span className="text-ink-2">{fmt(m.verdicts[verdict], { min: CALIBRATION_MIN_N })}</span>
         <span className="mono ml-auto text-xs text-muted tabular">{fmt(m.basedOn, { n })}</span>
       </p>

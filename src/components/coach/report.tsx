@@ -65,7 +65,10 @@ export function Report({ session, answers, t, locale }: { session: CoachSession;
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2 no-print">
-        <Link href="/app/coach" className="btn btn-primary">
+        {session.application_id && (
+          <Link href={`/app/pipeline/${session.application_id}?tab=interviews`} className="btn btn-primary">{r.backToApp}</Link>
+        )}
+        <Link href="/app/coach" className={`btn ${session.application_id ? "btn-outline" : "btn-primary"}`}>
           <Plus size={16} aria-hidden="true" /> {r.again}
         </Link>
         <ReportActions sessionId={session.id} markdown={reportMarkdown(session, answers, t, locale)} filename={`khedma-interview-${session.id}.md`} />

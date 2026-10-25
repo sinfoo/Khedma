@@ -62,7 +62,10 @@ export default async function UpskillPage() {
   const { t, locale } = await getDict();
   const m = t.insights2.skills;
   const profile = getProfile();
-  const jobs = listJobs().filter((j) => !j.evaluation || j.evaluation.verdict !== "skip");
+  // Demand comes from offers that matter: tracked or scored (not "skip"); unscored noise only while little is scored.
+  const open = listJobs().filter((j) => !j.evaluation || j.evaluation.verdict !== "skip");
+  const relevant = open.filter((j) => j.application || j.evaluation);
+  const jobs = relevant.length >= 5 ? relevant : open;
   const matrix = skillMatrix(jobs);
   const stored = kvGet<UpskillPlan | null>("upskill_plan", null);
   const progress = getUpskillProgress();

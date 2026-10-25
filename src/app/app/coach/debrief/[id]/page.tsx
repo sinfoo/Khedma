@@ -31,8 +31,10 @@ export default async function DebriefPage({ params }: { params: Promise<{ id: st
         back={{ href: "/app/coach/debrief", label: d.back }}
         actions={
           <>
+            {/* Right after an interview, the thank-you note comes first; the drill can wait. */}
+            {r.application_id && <Link href={`/app/pipeline/${r.application_id}?tab=messages&draft=thankyou`} className="btn btn-saffron btn-sm">{d.thankYou}</Link>}
             {r.application_id && <Link href={`/app/pipeline/${r.application_id}?tab=interviews`} className="btn btn-secondary btn-sm">{d.application}</Link>}
-            <Link href="/app/coach/drill" className="btn btn-saffron btn-sm"><Zap size={14} aria-hidden="true" /> {d.openDrill}</Link>
+            <Link href="/app/coach/drill" className="btn btn-outline btn-sm"><Zap size={14} aria-hidden="true" /> {d.openDrill}</Link>
             <DeleteDebrief id={r.id} />
           </>
         }
