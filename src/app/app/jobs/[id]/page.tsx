@@ -101,7 +101,7 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
                   <Copy size={12} aria-hidden="true" /> {fmt(o.dupOf, { title: dup.title })}
                 </Link>
               )}
-              <EvergreenChip reasons={evergreenReasons(job.description, postingCounts().get(dedupeKey(job.company, job.title)) ?? 0)} t={t} full />
+              <EvergreenChip reasons={evergreenReasons(job.description, postingCounts().get(dedupeKey(job.company, job.title)) ?? 0, job)} t={t} full />
             </p>
           </div>
           {ev && <ScoreRing value={ev.global} size={56} label={scoreLabel(t, ev.global)} />}

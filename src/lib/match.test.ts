@@ -50,3 +50,9 @@ test("evergreen hint needs a curated phrase or repeated postings", () => {
   assert.deepEqual(evergreenReasons("We are always hiring great engineers", 3), [{ kind: "phrase", phrase: "always hiring" }, { kind: "reposts", n: 3 }]);
   assert.deepEqual(evergreenReasons("Stage PFE de 6 mois", 2), []);
 });
+
+test("an ad re-dated well after Khedma first saw it is flagged", async () => {
+  const { evergreenReasons } = await import("./evergreen");
+  assert.deepEqual(evergreenReasons("Stage", 1, { posted_at: "2026-10-20", created_at: "2026-09-20 10:00:00" }), [{ kind: "restamped", days: 29 }]);
+  assert.deepEqual(evergreenReasons("Stage", 1, { posted_at: "2026-09-25", created_at: "2026-09-20 10:00:00" }), []);
+});

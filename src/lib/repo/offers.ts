@@ -34,7 +34,7 @@ const toRow = (j: JobWithMeta, dup: OfferRow["dup"], postings = 0): OfferRow => 
   appId: j.application?.id ?? null,
   status: j.application?.status ?? null,
   dup,
-  evergreen: evergreenReasons(j.description, postings),
+  evergreen: evergreenReasons(j.description, postings, j),
 });
 
 /** All offers in the archived/active bucket, with duplicate flags. Filtering is done in memory. */

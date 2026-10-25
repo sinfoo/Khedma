@@ -2,7 +2,8 @@ import { Hourglass } from "lucide-react";
 import { fmt, type Dict } from "@/lib/i18n/dict";
 import type { EvergreenReason } from "@/lib/evergreen";
 
-const reasonText = (r: EvergreenReason, t: Dict) => (r.kind === "phrase" ? fmt(t.offers2.evergreen.phrase, { p: r.phrase }) : fmt(t.offers2.evergreen.reposts, { n: r.n }));
+const reasonText = (r: EvergreenReason, t: Dict) =>
+  r.kind === "phrase" ? fmt(t.offers2.evergreen.phrase, { p: r.phrase }) : r.kind === "reposts" ? fmt(t.offers2.evergreen.reposts, { n: r.n }) : fmt(t.offers2.evergreen.restamped, { n: r.days });
 
 /** Muted hint, never a verdict: the reasons ride in the tooltip (rows) or next to the chip (offer page). */
 export function EvergreenChip({ reasons, t, full = false }: { reasons: EvergreenReason[]; t: Dict; full?: boolean }) {
