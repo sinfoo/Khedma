@@ -103,3 +103,10 @@ test("offers abroad that charge the candidate or recruit by chat app are flagged
   assert.ok(t("Envoyez votre CV sur WhatsApp au +216 22 333 444.").includes("chat_contact"));
   assert.ok(!t("We sponsor your visa and pay relocation.").includes("fees"));
 });
+
+test("a city repeated as its region is shown once", async () => {
+  const { tidyLocation } = await import("../db");
+  assert.equal(tidyLocation("Paris, Paris, France"), "Paris, France");
+  assert.equal(tidyLocation("Berlin, Berlin, Germany"), "Berlin, Germany");
+  assert.equal(tidyLocation("Tunis"), "Tunis");
+});

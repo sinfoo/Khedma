@@ -227,11 +227,23 @@ const j = <T>(s: unknown, fallback: T): T => {
   }
 };
 
+/** "Paris, Paris, France" -> "Paris, France": boards often repeat the city as the region. Display only. */
+export const tidyLocation = (loc: string) => {
+  const seen = new Set<string>();
+  return loc
+    .split(/\s*,\s*/)
+    .filter((p) => {
+      const k = fold(p);
+      return p && !seen.has(k) && !!seen.add(k);
+    })
+    .join(", ");
+};
+
 const rowToJob = (r: Row): Job => ({
   id: r.id as number,
   title: r.title as string,
   company: r.company as string,
-  location: r.location as string,
+  location: tidyLocation((r.location as string) ?? ""),
   remote: !!r.remote,
   url: r.url as string,
   source: r.source as Job["source"],

@@ -132,8 +132,8 @@ export function Sidebar({ data }: { data: ShellData }) {
         </button>
       </div>
 
-      {/* This week, at a glance */}
-      <Link
+      {/* This week, at a glance (Today shows the same goal in full, so not there). */}
+      {path !== "/app" && <Link
         href="/app"
         aria-label={s.thisWeek}
         className="rail-hide mx-3 mb-2.5 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5 text-ink transition-colors hover:border-line-strong"
@@ -161,7 +161,7 @@ export function Sidebar({ data }: { data: ShellData }) {
           <span className="block whitespace-nowrap text-[0.8rem] font-semibold">{s.thisWeek}</span>
           <span className="block truncate text-[0.7rem] text-muted">{weekLine}</span>
         </span>
-      </Link>
+      </Link>}
 
       <nav aria-label={t.a11y.navMain} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2.5">
         <NavList badges={data.badges} rail={rail} />
