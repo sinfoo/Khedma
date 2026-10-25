@@ -52,7 +52,7 @@ export function CompaniesBrowser({ rows }: { rows: CompanyRow[] }) {
           <label htmlFor="co-q" className="sr-only">{c.search}</label>
           <input id="co-q" type="search" className="input !h-[38px] !border-line !py-0 !pl-9 text-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder={c.searchPh} />
         </div>
-        <div role="radiogroup" aria-label={t.common.filter} className="seg">
+        <div role="radiogroup" aria-label={t.common.filter} className="seg max-w-full overflow-x-auto">
           {(["", "researched", "notResearched", "blacklisted"] as const).map((k) => (
             <button key={k || "all"} type="button" role="radio" aria-checked={flag === k} className={`seg-btn ${flag === k ? "on" : ""}`} onClick={() => setFlag(k)}>
               {k === "" ? t.common.all : c.filters[k]}

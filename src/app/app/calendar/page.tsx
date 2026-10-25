@@ -34,11 +34,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <h1 className="text-[1.75rem] capitalize leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{monthLabel}</h1>
           <p className="mt-1.5 text-muted">{lead}</p>
         </div>
-        <nav aria-label={m.title} className="flex items-center gap-1.5">
+        <nav aria-label={m.title} className="flex flex-wrap items-center gap-1.5">
           <Link href={prev} className={iconBtn} aria-label={m.prev}><ChevronLeft size={16} aria-hidden="true" /></Link>
           <Link href="/app/calendar" className="btn btn-outline !h-9" aria-current={isThisMonth ? "date" : undefined}>{m.today}</Link>
           <Link href={next} className={iconBtn} aria-label={m.next}><ChevronRight size={16} aria-hidden="true" /></Link>
-          <a href="/api/ics/all" className="btn btn-outline ml-2 !h-9" download><CalendarPlus size={14} aria-hidden="true" /> {m.export}</a>
+          <a href="/api/ics/all" className="btn btn-outline !h-9 sm:ml-2" download><CalendarPlus size={14} aria-hidden="true" /> {m.export}</a>
         </nav>
       </header>
       <CalendarView

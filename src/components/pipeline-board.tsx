@@ -297,7 +297,8 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           <button type="button" className="btn btn-outline btn-sm mt-4" onClick={() => setQ("")}>{b.clearFilters}</button>
         </div>
       ) : view === "board" ? (
-        <div className="-mx-4 flex snap-x items-start gap-3 overflow-x-auto px-4 pb-3 sm:-mx-8 sm:px-8" aria-label={t.pipeline.board} role="region" tabIndex={0}>
+        <div className="relative -mx-4 flex snap-x items-start gap-3 overflow-x-auto px-4 pb-3 sm:-mx-8 sm:px-8" aria-label={t.pipeline.board} role="region" tabIndex={0}>
+          {/* relative: absolute bits (screen-reader text, rings) stay inside the scroller instead of widening the page. */}
           {ACTIVE.map((s) => column(s))}
           <section className={`flex min-h-[360px] shrink-0 flex-col gap-2 rounded-[14px] border border-line bg-surface p-2 ${showClosed ? "w-[252px]" : "w-[160px]"}`}>
             <header className="flex items-center justify-between px-1.5 pb-0.5 pt-1.5">
@@ -321,7 +322,7 @@ export function PipelineBoard({ items, initialView }: { items: BoardItem[]; init
           </section>
         </div>
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="card relative overflow-x-auto">
           <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 text-sm" aria-live="polite">
             <span className="text-muted">{fmt(t.apps2.compare.selected, { n: sel.length })}</span>
             {sel.length > 4 && <span className="text-xs text-danger">{t.apps2.compare.tooMany}</span>}

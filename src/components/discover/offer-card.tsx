@@ -52,7 +52,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
         {reasons.length > 0 && (
           <p className="mt-1.5 flex flex-wrap gap-1.5">
             {reasons.slice(0, 2).map((x) => (
-              <span key={x} className="chip chip-success !py-px text-[0.72rem]">
+              <span key={x} className="chip chip-success max-w-full !whitespace-normal !py-px text-[0.72rem]">
                 <Check size={10} aria-hidden="true" /> {x}
               </span>
             ))}
