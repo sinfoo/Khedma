@@ -1109,7 +1109,7 @@ export default defineMessages({
       latency: "Cette entreprise répond en général sous {n} jours.",
       silent: "{n} jours de silence depuis ton dernier entretien. Beaucoup de processus sont lents ; limite le temps investi ici si rien ne bouge.",
       nextDue: "Prochaine : {date}",
-      sent: "{n} envoyée(s)",
+      sent: "{n} {n:envoyée|envoyées}",
       variants: { first: "Première relance", second: "Deuxième relance (nouvel angle)", thankyou: "Remerciement après entretien", reply: "Réponse à l'entreprise", noshow: "Appel non honoré" },
       variantHints: {
         first: "La valeur d'abord, 3 à 4 phrases, moins de 150 mots",

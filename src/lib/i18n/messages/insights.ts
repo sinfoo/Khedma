@@ -95,7 +95,7 @@ export default defineMessages({
     cal: {
       title: "Calendar",
       lead: "Interviews, reminders, deadlines and the days you applied.",
-      monthLead: "{i} interviews · {r} reminders · {d} deadlines this month",
+      monthLead: "{i} {i:interview|interviews} · {r} {r:reminder|reminders} · {d} {d:deadline|deadlines} this month",
       comingUp: "Coming up",
       reminder: "Reminder",
       cadenceTitle: "Cadence rules",
@@ -433,7 +433,7 @@ export default defineMessages({
     cal: {
       title: "Calendrier",
       lead: "Entretiens, rappels, dates limites et jours de candidature.",
-      monthLead: "{i} entretiens · {r} rappels · {d} échéances ce mois",
+      monthLead: "{i} {i:entretien|entretiens} · {r} {r:rappel|rappels} · {d} {d:échéance|échéances} ce mois",
       comingUp: "À venir",
       reminder: "Rappel",
       cadenceTitle: "Règles de relance",

@@ -475,9 +475,11 @@ const pick = (l: Locale) =>
 
 export const dicts: Record<Locale, Dict> = { en: { ...en, ...pick("en") }, fr: { ...fr, ...pick("fr") } };
 
-/** Tiny interpolation: fmt("{n} offers", { n: 3 }) */
+/** Tiny interpolation: fmt("{n} offers", { n: 3 }); plurals as {n:one|other}: fmt("{n} {n:offer|offers}", { n: 1 }). */
 export function fmt(s: string, vars: Record<string, string | number>): string {
-  return s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+  return s
+    .replace(/\{(\w+):([^|}]*)\|([^}]*)\}/g, (_, k, one, other) => (Number(vars[k]) === 1 ? one : other))
+    .replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 }
 
 /** A job source's display name ("englishjobs_de" -> "EnglishJobs.de"); unknown kinds show as they are. */

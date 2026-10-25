@@ -156,9 +156,9 @@ export default defineMessages({
       focusKeys: {
         evaluateBacklog: "{n} open offers have no score yet: score the 20 best matches from Today or Offers (optional).",
         applyTop: "Apply to {first} (score {score}) and {n} top offers before their deadline.",
-        followUp: "Follow up on {n} applications with no answer for a week.",
+        followUp: "Follow up on {n} {n:application|applications} with no answer for a week.",
         deadlines: "{n} deadlines next week — start with {first}.",
-        prepInterviews: "Prepare the {n} interviews coming in the next two weeks.",
+        prepInterviews: "Prepare the {n} {n:interview|interviews} coming in the next two weeks.",
         findOffers: "Scan your sources or add offers: the pipeline needs new input.",
         keepGoing: "Steady week ({n} applications). Keep the rhythm and refresh your sources.",
       },
@@ -344,9 +344,9 @@ export default defineMessages({
       focusKeys: {
         evaluateBacklog: "{n} offres ouvertes n'ont pas encore de score : évalue les 20 meilleures depuis Aujourd'hui ou Offres (facultatif).",
         applyTop: "Postule à {first} (score {score}) et aux {n} meilleures offres avant leur date limite.",
-        followUp: "Relance {n} candidatures sans réponse depuis une semaine.",
+        followUp: "Relance {n} {n:candidature|candidatures} sans réponse depuis une semaine.",
         deadlines: "{n} dates limites la semaine prochaine — commence par {first}.",
-        prepInterviews: "Prépare les {n} entretiens des deux prochaines semaines.",
+        prepInterviews: "Prépare {n} {n:entretien|entretiens} des deux prochaines semaines.",
         findOffers: "Scanne tes sources ou ajoute des offres : le pipeline a besoin de nouvelles entrées.",
         keepGoing: "Semaine régulière ({n} candidatures). Garde le rythme et rafraîchis tes sources.",
       },

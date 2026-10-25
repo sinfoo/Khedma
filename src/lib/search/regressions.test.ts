@@ -110,3 +110,10 @@ test("a city repeated as its region is shown once", async () => {
   assert.equal(tidyLocation("Berlin, Berlin, Germany"), "Berlin, Germany");
   assert.equal(tidyLocation("Tunis"), "Tunis");
 });
+
+test("messages pick the singular for one and the plural otherwise", async () => {
+  const { fmt } = await import("../i18n/dict");
+  assert.equal(fmt("{n} {n:envoyée|envoyées}", { n: 1 }), "1 envoyée");
+  assert.equal(fmt("{n} {n:envoyée|envoyées}", { n: 3 }), "3 envoyées");
+  assert.equal(fmt("Relance {n} {n:candidature|candidatures}.", { n: 1 }), "Relance 1 candidature.");
+});
