@@ -94,3 +94,12 @@ test("a page that names a future closing date or a contact rule is not a closed 
   assert.ok(closed("les candidatures sont closes."));
   assert.ok(closed("applications are now closed"));
 });
+
+test("offers abroad that charge the candidate or recruit by chat app are flagged", async () => {
+  const { trustScore } = await import("../sources/trust");
+  const t = (description: string) => trustScore({ url: "https://example.com/job/1", company: "Example", description: description.padEnd(400, "."), posted_at: null }).flags;
+  assert.ok(t("Visa sponsorship: pay the visa fee of 300 € before departure.").includes("fees"));
+  assert.ok(t("Frais de placement : 500 DT à régler à l'agence.").includes("fees"));
+  assert.ok(t("Envoyez votre CV sur WhatsApp au +216 22 333 444.").includes("chat_contact"));
+  assert.ok(!t("We sponsor your visa and pay relocation.").includes("fees"));
+});

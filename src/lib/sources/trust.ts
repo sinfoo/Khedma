@@ -14,7 +14,10 @@ const ATS_HOSTS = /(greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|sma
 const PORTAL_HOSTS = /(linkedin\.com|indeed\.com|keejob\.com|tanitjobs\.com|emploitunisie\.com|farojob\.net|jobs\.ch|jobup\.ch|job-room\.ch|jobbank\.gc\.ca|arbeitnow\.\w+|arbeitsagentur\.de|europa\.eu|englishjobs\.(de|fr)|englishjobsearch\.ch|daijob\.com|wantedly\.com|remoteok\.com|jobicy\.com|himalayas\.app|remotive\.com|artificialintelligencejobs\.co|adzuna\.\w+|jooble\.org|reed\.co\.uk|findwork\.dev|glassdoor\.\w+|welcometothejungle\.com|hellowork\.com|apec\.fr|francetravail\.fr|stepstone\.\w+|xing\.com|python\.org|weworkremotely\.com|bayt\.com|thehub\.io|landing\.jobs|ycombinator\.com)$/i;
 const SUSPICIOUS = /(^|\.)(bit\.ly|tinyurl\.com|t\.co|goo\.gl|shorturl\.at|forms\.gle|docs\.google\.com|t\.me|telegram\.(me|org)|wa\.me|whatsapp\.com|cutt\.ly|rb\.gy|is\.gd|linktr\.ee)$/i;
 const WEBMAIL = /\b[\w.+-]+@(gmail|yahoo|hotmail|outlook|live|aol|protonmail|icloud|mail)\.(com|fr|tn)\b/i;
-const FEES = /\b(frais (de )?(dossier|formation|inscription)|payer (pour|avant)|paiement (requis|obligatoire)|registration fee|processing fee|pay (a |an )?(fee|deposit)|training fee|send money|western union|moneygram|carte bancaire pour postuler)\b/i;
+// Offers abroad add their own: the candidate pays for the visa, the "placement" or the agency. Employers never charge.
+const FEES = /\b(frais (de )?(dossier|formation|inscription|visa|placement|agence|traitement)|payer (pour|avant|le visa|votre visa)|paiement (requis|obligatoire)|registration fee|processing fee|pay (a |an |the |for (the |your )?)?(fee|deposit|visa|work permit)|(visa|placement|agency|recruitment) fees?|training fee|send money|western union|moneygram|carte bancaire pour postuler)\b/i;
+// "Contact us on WhatsApp +216 …": recruiting only through a chat app is a common scam pattern.
+const CHAT_ONLY = /\b(whatsapp|telegram|viber)\b[^.\n]{0,40}\+?\d[\d\s.-]{7,}|\b(contact(ez|er)?|envoyez|send|write|ecrivez)\b[^.\n]{0,30}\b(sur|on|via|par) (whatsapp|telegram|viber)\b/i;
 
 const STOP = new Set(["sarl", "suarl", "sa", "sas", "ltd", "llc", "inc", "gmbh", "group", "groupe", "the", "tunisie", "tunisia", "international", "corp", "co"]);
 
@@ -107,6 +110,10 @@ export function trustScore(job: Pick<NewJob, "url" | "company" | "description" |
   if (WEBMAIL.test(desc)) {
     score -= 15;
     flags.push("webmail_contact");
+  }
+  if (CHAT_ONLY.test(desc)) {
+    score -= 20;
+    flags.push("chat_contact");
   }
   if (FEES.test(desc)) {
     score -= 40;
