@@ -34,7 +34,8 @@ export type NavKey =
   | "sources"
   | "settings";
 
-export type NavGroupKey = "find" | "apply" | "prepare" | "review";
+/** The loop, with the same four names on the landing page, the nav, Get started and onboarding. */
+export type NavGroupKey = "find" | "choose" | "apply" | "follow";
 /** Live counts the sidebar can show as a badge next to an item. */
 export type NavBadgeKey = "offers" | "pipeline" | "calendar" | "coach" | "sources";
 
@@ -48,37 +49,40 @@ export interface NavItem {
   badge?: NavBadgeKey;
 }
 
-/** Four plain-language groups. Profile and Settings live in the sidebar footer. */
+/**
+ * The loop's four steps: find → choose → apply → follow up, Today first. Profile and Settings live in the sidebar
+ * footer. Routes and shortcuts are unchanged.
+ */
 export const NAV_GROUPS: { key: NavGroupKey; items: NavItem[] }[] = [
   {
     key: "find",
     items: [
       { key: "today", href: "/app", Icon: Sun, exact: true, g: "t" },
-      { key: "discover", href: "/app/discover", Icon: Compass, g: "d" },
-      { key: "offers", href: "/app/jobs", Icon: Briefcase, g: "o", badge: "offers" },
       { key: "sources", href: "/app/sources", Icon: Radar, badge: "sources" },
+      { key: "offers", href: "/app/jobs", Icon: Briefcase, g: "o", badge: "offers" },
+    ],
+  },
+  {
+    key: "choose",
+    items: [
+      { key: "discover", href: "/app/discover", Icon: Compass, g: "d" },
+      { key: "companies", href: "/app/companies", Icon: Building2 },
+      { key: "salaries", href: "/app/salaries", Icon: Coins },
+      { key: "upskill", href: "/app/upskill", Icon: Sparkles, g: "k" },
     ],
   },
   {
     key: "apply",
     items: [
       { key: "pipeline", href: "/app/pipeline", Icon: KanbanSquare, g: "p", badge: "pipeline" },
-      { key: "companies", href: "/app/companies", Icon: Building2 },
       { key: "contacts", href: "/app/contacts", Icon: Users },
-      { key: "calendar", href: "/app/calendar", Icon: CalendarDays, g: "c", badge: "calendar" },
-    ],
-  },
-  {
-    key: "prepare",
-    items: [
       { key: "coach", href: "/app/coach", Icon: MessagesSquare, g: "i", badge: "coach" },
-      { key: "upskill", href: "/app/upskill", Icon: Sparkles, g: "k" },
-      { key: "salaries", href: "/app/salaries", Icon: Coins },
     ],
   },
   {
-    key: "review",
+    key: "follow",
     items: [
+      { key: "calendar", href: "/app/calendar", Icon: CalendarDays, g: "c", badge: "calendar" },
       { key: "insights", href: "/app/insights", Icon: BarChart3, g: "s" },
       { key: "reports", href: "/app/reports", Icon: FileBarChart },
     ],

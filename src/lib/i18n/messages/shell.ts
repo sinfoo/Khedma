@@ -4,7 +4,8 @@ import { defineMessages } from "../define";
 export default defineMessages({
   en: {
     kit: { close: "Close", dismiss: "Dismiss notification", loading: "Loading…" },
-    groups: { find: "Find", apply: "Apply", prepare: "Prepare", review: "Look back" },
+    groups: { find: "Find", choose: "Choose", apply: "Apply", follow: "Follow up" },
+    badges: { offers: "{n} good matches not tracked yet", pipeline: "{n} tracked, still to send", calendar: "{n} due this week", coach: "{n} cards to review", sources: "{n}" },
     nav: {
       today: "Today",
       discover: "For you",
@@ -26,7 +27,7 @@ export default defineMessages({
     brandLabel: "Khedma — Today",
     thisWeek: "This week",
     weekGoal: "Weekly goal {done} of {n}",
-    weekLine: "{apps} applied · {due} due",
+    weekLine: "{apps} sent · {due} due this week",
     weekLineEmpty: "Nothing due · apply to {n}",
     profileStrength: "Profile {pct}%",
     settingsHint: "AI · data · theme",
@@ -81,7 +82,7 @@ export default defineMessages({
       goToday: "Go to today",
       help: "Show this help",
     },
-    footer: "Local-first · your data stays on this computer",
+    footer: "Local-first · your data is stored on this computer",
     error: {
       title: "Something went wrong.",
       lead: "Nothing was lost — your last change is saved. Try again, or go back to Today.",
@@ -92,7 +93,8 @@ export default defineMessages({
   },
   fr: {
     kit: { close: "Fermer", dismiss: "Fermer la notification", loading: "Chargement…" },
-    groups: { find: "Trouver", apply: "Postuler", prepare: "Se préparer", review: "Faire le point" },
+    groups: { find: "Trouver", choose: "Choisir", apply: "Postuler", follow: "Relancer" },
+    badges: { offers: "{n} bonnes offres pas encore suivies", pipeline: "{n} suivies, encore à envoyer", calendar: "{n} échéances cette semaine", coach: "{n} cartes à revoir", sources: "{n}" },
     nav: {
       today: "Aujourd'hui",
       discover: "Pour toi",
@@ -114,7 +116,7 @@ export default defineMessages({
     brandLabel: "Khedma — Aujourd'hui",
     thisWeek: "Cette semaine",
     weekGoal: "Objectif hebdo {done} sur {n}",
-    weekLine: "{apps} envoyées · {due} à faire",
+    weekLine: "{apps} envoyées · {due} échéances cette semaine",
     weekLineEmpty: "Rien d'échu · postule à {n}",
     profileStrength: "Profil {pct} %",
     settingsHint: "IA · données · thème",
@@ -169,7 +171,7 @@ export default defineMessages({
       goToday: "Aller à aujourd'hui",
       help: "Afficher cette aide",
     },
-    footer: "Local d'abord · vos données restent sur cet ordinateur",
+    footer: "Local d'abord · tes données sont stockées sur cet ordinateur",
     error: {
       title: "Quelque chose a cassé.",
       lead: "Rien n'est perdu — votre dernière modification est enregistrée. Réessayez, ou revenez à Aujourd'hui.",

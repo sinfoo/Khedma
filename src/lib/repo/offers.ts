@@ -6,7 +6,7 @@ import { extractTags, guessType } from "@/lib/sources";
 import { fold, guessRemote } from "@/lib/sources/classify";
 import { getCvSource } from "@/lib/cv/source";
 import { dedupeKey } from "@/lib/sources/classify";
-import { postingCounts } from "@/lib/search/store";
+import { ensureSearchSchema, postingCounts } from "@/lib/search/store";
 import { evergreenReasons } from "@/lib/evergreen";
 
 // ---------- filters (pure, client-safe) ----------
@@ -50,9 +50,14 @@ export function listOffers(f: OfferFilters): OfferRow[] {
   return applyFilters(listOfferRows(f.archived), f);
 }
 
+/** Open offers waiting for a score, best keyword match first ("score the 20 best matches"). Expired ones are left out. */
 export function unevaluated(): { id: number; title: string }[] {
+  ensureSearchSchema();
   const rows = db()
-    .prepare("SELECT id, title FROM jobs WHERE archived = 0 AND id NOT IN (SELECT job_id FROM evaluations) ORDER BY created_at DESC, id DESC")
+    .prepare(
+      `SELECT id, title FROM jobs WHERE archived = 0 AND id NOT IN (SELECT job_id FROM evaluations)
+       AND (deadline IS NULL OR substr(deadline, 1, 10) >= date('now', 'localtime')) ORDER BY relevance DESC, created_at DESC, id DESC`,
+    )
     .all() as { id: number; title: string }[];
   return rows.map((r) => ({ id: r.id, title: r.title })); // sqlite rows have a null prototype; clients need plain objects
 }

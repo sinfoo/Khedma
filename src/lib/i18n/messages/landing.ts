@@ -19,10 +19,10 @@ export default defineMessages({
       word: "khedma",
       title2: "starts here.",
       gloss: "Tunisian for “work”",
-      lede: "Khedma gathers internship, PFE and junior offers, scores each one against your CV with a local AI, tailors your application and coaches you for the interview. All on your laptop — no account, no cloud.",
+      lede: "Khedma gathers internship, PFE and junior offers, scores each one against your CV, tailors your application and coaches you for the interview. It runs on your laptop with no account; with your own AI key, the posting and the parts of your CV a task needs are sent to the AI.",
       ctaPrimary: "Open Khedma",
       ctaSecondary: "See how it works",
-      proof: ["100% local", "No account", "Works offline", "French · English"],
+      proof: ["Data on your laptop", "No account", "Offline mode", "French · English"],
       previewLabel:
         "Preview of Khedma: a PFE offer from Medina Labs scored 4.6 out of 5, its five scoring dimensions, its pipeline stage, and an interview coach tip.",
     },
@@ -43,10 +43,10 @@ export default defineMessages({
       title: "From a posting to a signed offer, in four moves.",
       lede: "No spreadsheets, no twenty open tabs. One place that remembers everything and tells you where to put your energy.",
       steps: [
-        { t: "Collect", d: "Paste an offer, import a public URL, or plug in sources: RSS feeds, Greenhouse, Lever, Ashby.", meta: "12 new offers" },
-        { t: "Score", d: "Every offer gets a score out of 5 against your CV and targets — with the reasons, not just a number.", meta: "4.6 / 5" },
-        { t: "Tailor", d: "A CV and a cover letter rewritten for that offer, in its language. Your real experience, nothing invented.", meta: "CV + letter" },
-        { t: "Land", d: "Track each application, prepare interviews out loud, get reminded when to follow up.", meta: "Offer received" },
+        { t: "Find", d: "Scan job boards for the roles your CV shows, paste an offer, or import a public URL.", meta: "12 new offers" },
+        { t: "Choose", d: "The best matches get a score out of 5 against your CV and targets — with the reasons, not just a number.", meta: "4.6 / 5" },
+        { t: "Apply", d: "A CV and a cover letter rewritten for that offer, in its language, then the portal or e-mail. Your real experience, nothing invented.", meta: "CV + letter" },
+        { t: "Follow up", d: "Get reminded when to follow up, prepare interviews out loud, and see what works.", meta: "Offer received" },
       ],
     },
     features: {
@@ -120,7 +120,7 @@ export default defineMessages({
     },
     privacy: {
       kicker: "Local-first",
-      title: "Your data stays on your laptop.",
+      title: "Your data is stored on your laptop.",
       lede: "No server, no account, no tracker. Khedma runs on your machine; the AI is optional and only used with your own key.",
       staysTitle: "What stays with you",
       stays: ["Your CV and profile", "Offers, scores and notes", "Tailored CVs and letters", "Applications, interviews, reminders"],
@@ -140,7 +140,7 @@ export default defineMessages({
       items: [
         { q: "Is it free?", a: "Yes. No subscription, no account, no ads. The source code is on GitHub." },
         { q: "Do I need a powerful computer?", a: "No. Khedma runs on any recent laptop. The online AI runs on its provider's servers, and offline mode needs nothing extra." },
-        { q: "Where does my data go?", a: "Nowhere. Everything lives in data/khedma.db on your disk. You can back it up or export it from Settings at any time." },
+        { q: "Where does my data go?", a: "It is stored in data/khedma.db on your disk, and you can back it up or export it from Settings at any time. Without an AI key nothing leaves your computer except the job pages you fetch; with a key, the posting and the parts of your CV a task needs are sent to the AI." },
         { q: "Does it work offline?", a: "Yes, everything except fetching new offers from the web. Scoring, tailoring and the coach fall back to heuristics when the model is unavailable." },
         { q: "Which offers can I add?", a: "Paste any posting, import a public URL, or connect sources: RSS feeds, Greenhouse, Lever and Ashby boards. A demo set is included to try it out." },
         { q: "Does Khedma apply for me?", a: "No, on purpose. Khedma prepares, you review, you send. An application should stay yours." },
@@ -275,10 +275,10 @@ export default defineMessages({
       word: "khedma",
       title2: "commence ici.",
       gloss: "« le travail », en tunisien",
-      lede: "Khedma rassemble les offres de stage, de PFE et de premier emploi, les note face à ton CV avec une IA locale, adapte ta candidature et te coache pour l'entretien. Le tout sur ton laptop, sans compte ni cloud.",
+      lede: "Khedma rassemble les offres de stage, de PFE et de premier emploi, les note face à ton CV, adapte ta candidature et te coache pour l'entretien. Il tourne sur ton laptop, sans compte ; avec ta propre clé d'IA, l'offre et les parties de ton CV dont une tâche a besoin sont envoyées à l'IA.",
       ctaPrimary: "Ouvrir Khedma",
       ctaSecondary: "Voir comment",
-      proof: ["100 % local", "Sans compte", "Marche hors ligne", "Français · English"],
+      proof: ["Données sur ton laptop", "Sans compte", "Mode hors ligne", "Français · English"],
       previewLabel:
         "Aperçu de Khedma : une offre de PFE chez Medina Labs notée 4,6 sur 5, ses cinq axes d'évaluation, son étape dans le pipeline et un conseil du coach d'entretien.",
     },
@@ -299,10 +299,10 @@ export default defineMessages({
       title: "De l'annonce à l'offre signée, en quatre gestes.",
       lede: "Pas de tableur, pas de vingt onglets ouverts. Un seul endroit qui se souvient de tout et te dit où mettre ton énergie.",
       steps: [
-        { t: "Collecter", d: "Colle une annonce, importe une URL publique ou branche des sources : flux RSS, Greenhouse, Lever, Ashby.", meta: "12 nouvelles offres" },
-        { t: "Noter", d: "Chaque offre reçoit une note sur 5 face à ton CV et tes objectifs — avec les raisons, pas juste un chiffre.", meta: "4,6 / 5" },
-        { t: "Adapter", d: "Un CV et une lettre réécrits pour cette offre, dans sa langue. Ton vrai parcours, rien d'inventé.", meta: "CV + lettre" },
-        { t: "Décrocher", d: "Suis chaque candidature, prépare tes entretiens à voix haute, reçois un rappel quand il faut relancer.", meta: "Offre reçue" },
+        { t: "Trouver", d: "Scanne les sites d'emploi pour les postes que montre ton CV, colle une annonce ou importe une URL publique.", meta: "12 nouvelles offres" },
+        { t: "Choisir", d: "Les meilleures offres reçoivent une note sur 5 face à ton CV et tes objectifs — avec les raisons, pas juste un chiffre.", meta: "4,6 / 5" },
+        { t: "Postuler", d: "Un CV et une lettre réécrits pour cette offre, dans sa langue, puis le portail ou l'e-mail. Ton vrai parcours, rien d'inventé.", meta: "CV + lettre" },
+        { t: "Relancer", d: "Reçois un rappel quand il faut relancer, prépare tes entretiens à voix haute et vois ce qui marche.", meta: "Offre reçue" },
       ],
     },
     features: {
@@ -376,7 +376,7 @@ export default defineMessages({
     },
     privacy: {
       kicker: "Local d'abord",
-      title: "Tes données restent sur ton laptop.",
+      title: "Tes données sont stockées sur ton laptop.",
       lede: "Pas de serveur, pas de compte, pas de pisteur. Khedma tourne sur ta machine ; l'IA est facultative et n'est utilisée qu'avec ta propre clé.",
       staysTitle: "Ce qui reste chez toi",
       stays: ["Ton CV et ton profil", "Les offres, notes et remarques", "Les CV et lettres adaptés", "Candidatures, entretiens, rappels"],
@@ -396,7 +396,7 @@ export default defineMessages({
       items: [
         { q: "C'est gratuit ?", a: "Oui. Pas d'abonnement, pas de compte, pas de publicité. Le code source est sur GitHub." },
         { q: "Il me faut un ordinateur puissant ?", a: "Non. Khedma tourne sur n'importe quel laptop récent. L'IA en ligne tourne sur les serveurs de son fournisseur, et le mode hors ligne ne demande rien de plus." },
-        { q: "Où vont mes données ?", a: "Nulle part. Tout est dans data/khedma.db, sur ton disque. Tu peux sauvegarder ou tout exporter depuis les Paramètres, à tout moment." },
+        { q: "Où vont mes données ?", a: "Elles sont stockées dans data/khedma.db, sur ton disque, et tu peux les sauvegarder ou tout exporter depuis les Réglages, à tout moment. Sans clé d'IA, rien ne quitte ton ordinateur à part les pages d'offres que tu récupères ; avec une clé, l'offre et les parties de ton CV dont une tâche a besoin sont envoyées à l'IA." },
         { q: "Ça marche hors connexion ?", a: "Oui, tout sauf la récupération de nouvelles offres sur le web. La notation, l'adaptation et le coach basculent sur les heuristiques si le modèle est indisponible." },
         { q: "Quelles offres puis-je ajouter ?", a: "Colle n'importe quelle annonce, importe une URL publique ou branche des sources : flux RSS, Greenhouse, Lever et Ashby. Un jeu de démonstration est inclus pour essayer." },
         { q: "Khedma postule à ma place ?", a: "Non, et c'est voulu. Khedma prépare, tu relis, tu envoies. Une candidature doit rester la tienne." },

@@ -50,11 +50,14 @@ export function NavList({ onNavigate, badges, rail = false }: { onNavigate?: () 
                     <span className="rail-hide flex-1 whitespace-nowrap">{t.shell2.nav[item.key]}</span>
                     {b && b.n > 0 && tone && (
                       <>
+                        {/* The count says what it counts: "3 tracked, still to send". */}
                         <span
                           className="rail-hide inline-flex h-5 items-center whitespace-nowrap rounded-full px-[7px] font-mono text-[0.68rem] font-bold"
                           style={{ background: tone.bg, color: tone.fg }}
+                          title={fmt(t.shell2.badges[item.badge!], { n: b.n })}
                         >
-                          {b.n}
+                          <span aria-hidden="true">{b.n}</span>
+                          <span className="sr-only">{fmt(t.shell2.badges[item.badge!], { n: b.n })}</span>
                         </span>
                         {rail && (
                           <span aria-hidden="true" className="absolute right-2 top-2 size-[7px] rounded-full ring-2 ring-bg-elev" style={{ background: tone.fg }} />

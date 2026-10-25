@@ -10,7 +10,9 @@ import { CompanyAvatar, Sparkline } from "@/components/kit";
 import { ScoreRing, VerdictChip, scoreLabel } from "@/components/ui";
 import { RunButton } from "@/components/insights/run-button";
 import { WeeklyGoal } from "@/components/insights/weekly-goal";
-import { evaluatePending, logFollowup, setReminderDoneAction } from "@/app/actions/insights";
+import { logFollowup, setReminderDoneAction } from "@/app/actions/insights";
+import { getEngine } from "@/lib/ai";
+import { BEST_BATCH, scoreTime } from "@/lib/offers-filter";
 import { applyTo } from "@/app/actions/jobs";
 import type { AppState } from "@/lib/types";
 
@@ -37,11 +39,13 @@ export default async function TodayPage() {
   const m = t.insights2.today;
   const now = new Date();
   const d = getToday(now);
+  const engine = await getEngine(profile.settings);
   const hour = now.getHours();
   const hello = hour < 12 ? m.morning : hour < 18 ? m.afternoon : m.evening;
   const first = d.name.trim().split(/\s+/)[0];
-  const urgent = d.focus.length;
-  const fresh = !(d.setup.profile && d.setup.offers && d.setup.evaluated && d.setup.tracked);
+  // The scoring backlog is optional work, not something that "needs you".
+  const urgent = d.focus.filter((f) => f.kind !== "unevaluated").length;
+  const fresh = !(d.setup.profile && d.setup.offers && d.setup.evaluated && d.setup.applied);
   const W = 7;
   const kpis = [
     { label: m.kpis.offers, value: d.kpis.offers[W], trend: d.kpis.offers },
@@ -51,7 +55,8 @@ export default async function TodayPage() {
     { label: m.kpis.fit, value: d.kpis.avgFit ? d.kpis.avgFit.toLocaleString(locale === "fr" ? "fr-FR" : "en-GB", { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : "—", trend: d.kpis.fit },
   ];
   const pipeTotal = d.pipeline.reduce((s, p) => s + p.n, 0);
-  const untracked = d.topMatches.slice(0, 3);
+  const untracked = d.topMatches.slice(0, 4);
+  const week = d.upcoming.slice(0, 6);
 
   return (
     <>
@@ -82,7 +87,7 @@ export default async function TodayPage() {
           ) : (
             <ol className="flex flex-col gap-3">
               {d.focus.map((f, i) => (
-                <FocusCard key={focusKey(f)} f={f} t={t} locale={locale} today={d.today} i={i} />
+                <FocusCard key={focusKey(f)} f={f} t={t} locale={locale} today={d.today} i={i} online={engine.online} />
               ))}
             </ol>
           )}
@@ -91,10 +96,11 @@ export default async function TodayPage() {
             <h2 className="text-[1.25rem] tracking-[-0.015em]">{m.bestMatches}</h2>
             <Link href="/app/jobs" className="text-[0.8rem] font-semibold">{m.allOffers}</Link>
           </div>
+          {untracked.length > 0 && <p className="-mt-2 mb-3 text-[0.78rem] text-muted">{m.rankedByFit}</p>}
           {untracked.length === 0 ? (
             <p className="card p-5 text-sm text-muted">{d.setup.evaluated ? m.allTracked : m.topEmpty}</p>
           ) : (
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {untracked.map((j, i) => (
                 <li key={j.id} className="card lift flex flex-col gap-2.5 p-3.5 rise" style={{ ["--i" as string]: i + 2 }}>
                   <div className="flex items-center gap-2.5">
@@ -124,13 +130,16 @@ export default async function TodayPage() {
         {/* Right rail: the week at a glance */}
         <aside className="flex min-w-0 flex-col gap-4">
           <section className="card p-[18px] rise" style={{ ["--i" as string]: 2 }} aria-labelledby="week-h">
-            <h2 id="week-h" className="card-title mb-3">{m.thisWeek}</h2>
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <h2 id="week-h" className="card-title">{m.thisWeek}</h2>
+              {d.upcoming.length > 0 && <span className="text-[0.78rem] text-muted tabular">{fmt(m.dueCount, { n: d.upcoming.length })}</span>}
+            </div>
             {d.upcoming.length === 0 ? (
               <p className="text-sm text-muted">{m.upcomingEmpty}</p>
             ) : (
               <ol className="relative flex flex-col gap-3.5">
                 <span aria-hidden="true" className="absolute bottom-2.5 left-[19px] top-2.5 w-px bg-line" />
-                {d.upcoming.map((u) => (
+                {week.map((u) => (
                   <li key={u.key} className="relative grid grid-cols-[40px_1fr] items-center gap-3">
                     <span className="relative z-[1] grid size-10 place-items-center rounded-[10px] border border-line bg-surface-2 text-center leading-none">
                       <span className="display text-base">{Number(u.day.slice(8))}</span>
@@ -138,8 +147,8 @@ export default async function TodayPage() {
                     </span>
                     <Link href={u.href} className="min-w-0 text-ink">
                       <span className="block truncate text-sm font-medium">{u.title}</span>
-                      <span className="block truncate text-xs text-muted">
-                        {t.insights2.cal.kinds[u.kind]}
+                      <span className={`block truncate text-xs ${u.overdue ? "font-semibold text-danger" : "text-muted"}`}>
+                        {u.overdue ? m.overdue : t.insights2.cal.kinds[u.kind]}
                         {u.time && ` · ${u.time}`}
                         {u.sub && ` · ${u.sub}`}
                       </span>
@@ -147,6 +156,9 @@ export default async function TodayPage() {
                   </li>
                 ))}
               </ol>
+            )}
+            {d.upcoming.length > week.length && (
+              <Link href="/app/calendar" className="mt-3 inline-block text-[0.78rem] font-semibold">{fmt(m.more, { n: d.upcoming.length - week.length })}</Link>
             )}
           </section>
 
@@ -202,9 +214,9 @@ export default async function TodayPage() {
 type T = Awaited<ReturnType<typeof getDict>>["t"];
 
 const focusKey = (f: FocusItem) =>
-  f.kind === "reminder" || f.kind === "interview" ? `${f.kind}${f.id}` : f.kind === "deadline" ? `d${f.jobId}` : f.kind === "waiting" ? `w${f.appId}` : f.kind === "cadence" ? `c${f.appId}` : "u";
+  f.kind === "reminder" || f.kind === "interview" ? `${f.kind}${f.id}` : f.kind === "deadline" ? `d${f.jobId}` : f.kind === "waiting" ? `w${f.appId}` : f.kind === "cadence" ? `c${f.appId}` : f.kind === "toApply" ? `a${f.appId}` : "u";
 
-function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: string; today: string; i: number }) {
+function FocusCard({ f, t, locale, today, i, online }: { f: FocusItem; t: T; locale: string; today: string; i: number; online: boolean }) {
   const m = t.insights2.today;
   const icon = {
     reminder: <BellRing size={20} aria-hidden="true" />,
@@ -213,6 +225,7 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
     waiting: <Hourglass size={20} aria-hidden="true" />,
     cadence: f.kind === "cadence" && f.urgency === "cold" ? <Snowflake size={20} aria-hidden="true" /> : f.kind === "cadence" && f.urgency === "urgent" ? <Zap size={20} aria-hidden="true" /> : <MessageSquareReply size={20} aria-hidden="true" />,
     unevaluated: <Sparkles size={20} aria-hidden="true" />,
+    toApply: <Send size={20} aria-hidden="true" />,
   }[f.kind];
   const tone =
     (f.kind === "reminder" && f.overdue) || (f.kind === "cadence" && f.urgency === "urgent") || f.kind === "deadline"
@@ -230,12 +243,33 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
       eyebrow = f.overdue ? `${m.overdue} · ${fmtDay(f.day, locale, { day: "numeric", month: "short" })}` : m.dueToday;
       title = f.href ? <Link href={f.href} className="hover:text-accent-text">{f.title}</Link> : f.title;
       meta = f.sub;
-      action = (
+      // A follow-up reminder's main button writes the follow-up on the Messages tab; ticking it is the second choice.
+      action = f.draft && f.href ? (
+        <>
+          <Link href={f.href} className="btn btn-saffron !h-9">{m.draftFollowup}</Link>
+          <RunButton action={setReminderDoneAction.bind(null, f.id, true)} success={t.insights2.cal.doneToast} className="btn btn-outline btn-sm !h-[34px]">
+            <Check size={14} aria-hidden="true" /> {m.markDone}
+          </RunButton>
+        </>
+      ) : (
         <RunButton action={setReminderDoneAction.bind(null, f.id, true)} success={t.insights2.cal.doneToast} className="btn btn-primary btn-sm !h-9">
           <Check size={14} aria-hidden="true" /> {m.markDone}
         </RunButton>
       );
       break;
+    case "toApply": {
+      const n = f.day ? daysBetween(today, f.day) : null;
+      eyebrow = n !== null && n <= 14 ? fmt(m.toApplyDeadline, { n }) : m.toApply;
+      title = <Link href={f.href} className="hover:text-accent-text">{f.title}</Link>;
+      meta = (
+        <span className="flex flex-wrap items-center gap-2.5">
+          {f.score !== null && <ScoreRing value={f.score} size={32} label={scoreLabel(t, f.score)} animate={false} />}
+          <span>{f.sub}</span>
+        </span>
+      );
+      action = <Link href={f.href} className="btn btn-primary !h-9"><Send size={14} aria-hidden="true" /> {m.applyNow}</Link>;
+      break;
+    }
     case "interview":
       eyebrow = `${f.day === today ? m.interviewToday : m.interviewTomorrow} · ${f.time}`;
       title = <Link href={f.href} className="hover:text-accent-text">{f.title}</Link>;
@@ -298,12 +332,16 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
     case "unevaluated":
       eyebrow = "";
       title = fmt(m.unevaluated, { n: f.count });
-      meta = m.aboutSeconds;
-      action = (
-        <RunButton action={evaluatePending} success={m.evaluated.replace("{n}", "{r}")} pendingLabel={m.evaluating} className="btn btn-outline !h-9">
-          <Sparkles size={14} aria-hidden="true" /> {fmt(m.evaluateN, { n: Math.min(5, f.count) })}
-        </RunButton>
-      );
+      {
+        // One honest estimate from the active engine, with the total; the default is the 20 best, with progress on Offers.
+        const k = Math.min(BEST_BATCH, f.count);
+        meta = fmt(m.scoreCost, { engine: online ? t.offers2.list2.engineOnline : t.offers2.list2.engineOffline, each: online ? "≈ 10 s" : "< 1 s", best: scoreTime(k, online), k, all: scoreTime(f.count, online), n: f.count });
+        action = (
+          <Link href="/app/jobs?evaluate=1" className="btn btn-outline !h-9">
+            <Sparkles size={14} aria-hidden="true" /> {fmt(m.scoreBest, { n: k })}
+          </Link>
+        );
+      }
       break;
   }
 
@@ -324,13 +362,14 @@ function FocusCard({ f, t, locale, today, i }: { f: FocusItem; t: T; locale: str
   );
 }
 
-function GetStarted({ t, setup }: { t: T; setup: Record<"profile" | "offers" | "evaluated" | "tracked", boolean> }) {
+function GetStarted({ t, setup }: { t: T; setup: Record<"profile" | "offers" | "evaluated" | "applied", boolean> }) {
   const m = t.insights2.today;
+  // The loop ends with sending, not tracking: the last step is "Apply".
   const steps = [
     { k: "profile" as const, href: "/app/profile" },
     { k: "offers" as const, href: "/app/sources" },
-    { k: "evaluated" as const, href: "/app/jobs" },
-    { k: "tracked" as const, href: "/app/pipeline" },
+    { k: "evaluated" as const, href: "/app/jobs?evaluate=1" },
+    { k: "applied" as const, href: "/app/jobs" },
   ];
   const next = steps.find((s) => !setup[s.k])?.k;
   return (

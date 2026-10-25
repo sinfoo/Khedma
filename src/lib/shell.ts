@@ -1,6 +1,6 @@
 import { db, getProfile, stats } from "./db";
 import { getEngine } from "./ai";
-import { getWeeklyGoal, weeklyCounts } from "./repo/insights";
+import { getWeeklyGoal, weekAgenda, weeklyCounts } from "./repo/insights";
 import { drillStates } from "./repo/coach";
 import type { NavBadgeKey } from "@/components/shell/nav-items";
 
@@ -33,25 +33,25 @@ export async function getShellData(): Promise<ShellData> {
   const profile = getProfile();
   const d = db();
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
-  const in7 = new Date(now.getTime() + 7 * 86400_000).toISOString().slice(0, 10);
+  const today = now.toLocaleDateString("sv");
   const count = (sql: string, ...args: string[]) => (d.prepare(sql).get(...args) as { n: number }).n;
 
   const [engine, s] = await Promise.all([getEngine(profile.settings), Promise.resolve(stats())]);
   const applied = (d.prepare("SELECT applied_at FROM applications WHERE applied_at IS NOT NULL").all() as { applied_at: string }[]).map((r) => r.applied_at);
   const done = weeklyCounts(applied, 1, now)[0];
 
-  const unscored = count("SELECT COUNT(*) AS n FROM jobs WHERE archived = 0 AND id NOT IN (SELECT job_id FROM evaluations)");
-  const active = ["applied", "responded", "interview", "offer"].reduce((acc, k) => acc + (s.byStatus[k as keyof typeof s.byStatus] ?? 0), 0);
-  const overdue = count("SELECT COUNT(*) AS n FROM reminders WHERE done = 0 AND substr(due_at,1,10) < ?", today);
-  const dueSoon =
-    count("SELECT COUNT(*) AS n FROM reminders WHERE done = 0 AND substr(due_at,1,10) BETWEEN ? AND ?", today, in7) +
-    count("SELECT COUNT(*) AS n FROM interviews WHERE substr(starts_at,1,10) BETWEEN ? AND ?", today, in7) +
-    count(
-      "SELECT COUNT(*) AS n FROM jobs j LEFT JOIN applications a ON a.job_id = j.id WHERE j.archived = 0 AND j.deadline BETWEEN ? AND ? AND (a.id IS NULL OR a.status = 'evaluated')",
-      today,
-      in7,
-    );
+  // Offers: good matches nobody acted on yet (not the scoring backlog, which is optional work).
+  const matches = count(
+    `SELECT COUNT(*) AS n FROM jobs j WHERE j.archived = 0 AND NOT EXISTS (SELECT 1 FROM applications a WHERE a.job_id = j.id)
+     AND (j.deadline IS NULL OR substr(j.deadline, 1, 10) >= ?)
+     AND (SELECT e.verdict FROM evaluations e WHERE e.job_id = j.id ORDER BY e.created_at DESC, e.id DESC LIMIT 1) IN ('apply_now', 'apply')`,
+    today,
+  );
+  // Pipeline: tracked offers still to send, the step that needs the student.
+  const toSend = s.byStatus.evaluated ?? 0;
+  // The same list as Today's "This week" card, so the two always agree.
+  const agenda = weekAgenda(now);
+  const overdue = agenda.some((x) => x.overdue);
   let drills = 0;
   for (const st of drillStates().values()) if (st.due_at <= now.toISOString()) drills++;
 
@@ -62,11 +62,11 @@ export async function getShellData(): Promise<ShellData> {
     strength: profileStrength(profile),
     engine: { online: engine.online, label, short: engine.online ? label.split(/[\s·]/)[0] : "offline" },
     goal: { done, target: getWeeklyGoal() },
-    week: { due: dueSoon + overdue },
+    week: { due: agenda.length },
     badges: {
-      offers: { n: unscored, tone: "saffron" },
-      pipeline: { n: active, tone: "accent" },
-      calendar: { n: dueSoon + overdue, tone: overdue ? "danger" : "accent" },
+      offers: { n: matches, tone: "accent" },
+      pipeline: { n: toSend, tone: "saffron" },
+      calendar: { n: agenda.length, tone: overdue ? "danger" : "accent" },
       coach: { n: drills, tone: "muted" },
     },
   };

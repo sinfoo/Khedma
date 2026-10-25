@@ -227,23 +227,22 @@ export function OffersBrowser({
     [o, router, toast],
   );
 
-  // Command palette sends ?evaluate=1: evaluate every unevaluated offer once, then drop the flag.
+  // Today and the command palette send ?evaluate=1: score the best unscored matches once, then drop the flag.
   const autoRan = useRef(false);
   useEffect(() => {
     if (!autoEvaluate || autoRan.current) return;
     autoRan.current = true;
     router.replace(query ? `/app/jobs?${query}` : "/app/jobs", { scroll: false });
-    void evaluate(pending);
+    void evaluate(pending.slice(0, BEST_BATCH));
   }, [autoEvaluate, evaluate, pending, query, router]);
 
   // Header "Score N new" button (server-rendered) asks through a window event.
   useEffect(() => {
-    // "Score the 20 best matches": unscored rows in best-first order of the current list, then the rest, 20 at most.
-    const order = new Map(shown.map((r, i) => [r.id, i]));
-    const on = () => void evaluate([...pending].sort((a, b) => (order.get(a.id) ?? 1e9) - (order.get(b.id) ?? 1e9)).slice(0, BEST_BATCH));
+    // "Score the 20 best matches": pending comes best keyword match first; rows of the current list go first.
+    const on = () => void evaluate([...pending.filter((p) => visibleIds.has(p.id)), ...pending.filter((p) => !visibleIds.has(p.id))].slice(0, BEST_BATCH));
     window.addEventListener("khedma:score-pending", on);
     return () => window.removeEventListener("khedma:score-pending", on);
-  }, [evaluate, pending, shown]);
+  }, [evaluate, pending, visibleIds]);
 
   // ---------- keyboard: j/k move, x select, s star (Enter is native on the focused link) ----------
   useEffect(() => {

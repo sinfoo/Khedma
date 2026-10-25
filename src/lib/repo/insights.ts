@@ -232,7 +232,7 @@ export function interviewToOfferDays(apps: AppHistory[]): number | null {
 type Row = Record<string, unknown>;
 
 export interface InterviewItem { id: number; application_id: number; starts_at: string; kind: string; location: string; title: string; company: string }
-export interface ReminderItem { id: number; application_id: number | null; job_id: number | null; title: string; due_at: string; done: boolean; job_title: string | null; company: string | null }
+export interface ReminderItem { id: number; application_id: number | null; job_id: number | null; title: string; due_at: string; done: boolean; job_title: string | null; company: string | null; kind: string }
 
 function statusEvents(): Map<number, { status: string; at: string }[]> {
   const rows = db().prepare("SELECT application_id, payload, created_at FROM events WHERE kind = 'status' ORDER BY created_at, id").all() as Row[];
@@ -272,7 +272,42 @@ export function listReminders(): ReminderItem[] {
     done: !!r.done,
     job_title: (r.job_title as string) ?? null,
     company: (r.company as string) ?? null,
+    kind: (r.kind as string) ?? "custom",
   }));
+}
+
+/** One item of the week ahead: a reminder (overdue ones included), an interview, or the deadline of a tracked offer not sent yet. */
+export interface AgendaItem { key: string; kind: "interview" | "reminder" | "deadline"; day: string; time: string; title: string; sub: string; href: string; overdue: boolean }
+
+/**
+ * What is due in the next 7 days. The sidebar's count and Today's "This week" card both read this, so they always
+ * agree; offers the student does not track are left out (their deadlines are Today's "deadline" cards when strong).
+ */
+export function weekAgenda(now = new Date()): AgendaItem[] {
+  const today = dayKey(now);
+  const end = addDays(today, 7);
+  const d = db();
+  const out: AgendaItem[] = [];
+  for (const r of d
+    .prepare(
+      `SELECT r.id, r.application_id, r.job_id, r.title, r.due_at, j.title AS job_title, j.company FROM reminders r
+       LEFT JOIN applications a ON a.id = r.application_id LEFT JOIN jobs j ON j.id = COALESCE(r.job_id, a.job_id)
+       WHERE r.done = 0 AND substr(r.due_at, 1, 10) <= ?`,
+    )
+    .all(end) as Row[]) {
+    const day = toDay(r.due_at as string) ?? today;
+    const due = String(r.due_at);
+    out.push({ key: `r${r.id}`, kind: "reminder", day, time: due.length > 10 ? due.slice(11, 16) : "", title: r.title as string, sub: [r.job_title, r.company].filter(Boolean).join(" · "), href: r.application_id ? `/app/pipeline/${r.application_id}` : `/app/calendar?month=${day.slice(0, 7)}`, overdue: day < today });
+  }
+  for (const i of d
+    .prepare("SELECT i.id, i.application_id, i.starts_at, j.title, j.company FROM interviews i JOIN applications a ON a.id = i.application_id JOIN jobs j ON j.id = a.job_id WHERE substr(i.starts_at, 1, 10) BETWEEN ? AND ?")
+    .all(today, end) as Row[])
+    out.push({ key: `i${i.id}`, kind: "interview", day: String(i.starts_at).slice(0, 10), time: String(i.starts_at).slice(11, 16), title: i.title as string, sub: i.company as string, href: `/app/pipeline/${i.application_id}?tab=interviews`, overdue: false });
+  for (const a of d
+    .prepare("SELECT a.id, j.title, j.company, j.deadline FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'evaluated' AND a.applied_at IS NULL AND j.deadline BETWEEN ? AND ?")
+    .all(today, end) as Row[])
+    out.push({ key: `d${a.id}`, kind: "deadline", day: String(a.deadline).slice(0, 10), time: "", title: a.title as string, sub: a.company as string, href: `/app/pipeline/${a.id}?tab=overview`, overdue: false });
+  return out.sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
 }
 
 const history = (a: ApplicationWithJob, ev: Map<number, { status: string; at: string }[]>): AppHistory => ({
@@ -299,7 +334,8 @@ export const setWeeklyGoal = (n: number) => kvSet(GOAL_KEY, n);
 
 // ---------- Today ----------
 export type FocusItem =
-  | { kind: "reminder"; id: number; title: string; sub: string; day: string; overdue: boolean; href: string | null }
+  | { kind: "reminder"; id: number; title: string; sub: string; day: string; overdue: boolean; href: string | null; draft: boolean }
+  | { kind: "toApply"; appId: number; title: string; sub: string; day: string | null; score: number | null; href: string }
   | { kind: "interview"; id: number; title: string; sub: string; day: string; time: string; href: string }
   | { kind: "deadline"; jobId: number; title: string; sub: string; day: string; score: number; href: string }
   | { kind: "waiting"; appId: number; title: string; sub: string; days: number; href: string }
@@ -316,18 +352,26 @@ export function getToday(now = new Date()) {
   const reminders = listReminders().filter((r) => !r.done);
 
   const focus: FocusItem[] = [];
+  // Follow-up cadence: urgent replies, overdue follow-ups, cold applications. Computed first so the automatic
+  // follow-up reminder of the same application is not listed a second time.
+  const cad = cadenceFor(apps.map((a) => ({ id: a.id, status: a.status, applied_at: a.applied_at, company: a.job.company })), now);
+  const cadenced = new Set(apps.filter((a) => { const u = cad.get(a.id)?.urgency; return u && u !== "waiting" && u !== "none"; }).map((a) => a.id));
   for (const r of reminders) {
     const day = toDay(r.due_at);
-    if (day && day <= today)
-      focus.push({
-        kind: "reminder",
-        id: r.id,
-        title: r.title,
-        sub: [r.job_title, r.company].filter(Boolean).join(" · "),
-        day,
-        overdue: day < today,
-        href: r.application_id ? `/app/pipeline/${r.application_id}` : r.job_id ? `/app/jobs/${r.job_id}` : null,
-      });
+    if (!day || day > today) continue;
+    const followup = r.kind === "followup" && !!r.application_id;
+    if (followup && cadenced.has(r.application_id!)) continue;
+    focus.push({
+      kind: "reminder",
+      id: r.id,
+      title: r.title,
+      sub: [r.job_title, r.company].filter(Boolean).join(" · "),
+      day,
+      overdue: day < today,
+      // The follow-up reminder's button writes the follow-up; other reminders just get ticked.
+      href: followup ? `/app/pipeline/${r.application_id}?tab=messages&draft=first` : r.application_id ? `/app/pipeline/${r.application_id}` : r.job_id ? `/app/jobs/${r.job_id}` : null,
+      draft: followup,
+    });
   }
   for (const i of interviews) {
     const day = toDay(i.starts_at);
@@ -339,8 +383,6 @@ export function getToday(now = new Date()) {
     if (!j.application && day && day >= today && daysBetween(today, day) <= 3 && isStrong(j.evaluation))
       focus.push({ kind: "deadline", jobId: j.id, title: j.title, sub: j.company, day, score: j.evaluation!.global, href: `/app/jobs/${j.id}` });
   }
-  // Follow-up cadence replaces the plain "waiting" rule: urgent replies, overdue follow-ups, cold applications.
-  const cad = cadenceFor(apps.map((a) => ({ id: a.id, status: a.status, applied_at: a.applied_at, company: a.job.company })), now);
   for (const a of apps) {
     const c = cad.get(a.id);
     if (!c || c.urgency === "waiting" || c.urgency === "none") continue;
@@ -348,7 +390,16 @@ export function getToday(now = new Date()) {
     focus.push({ kind: "cadence", appId: a.id, title: a.job.title, company: a.job.company, urgency: c.urgency, angle: c.angle, days: c.daysSince, followups: c.followupCount, href: `/app/pipeline/${a.id}?tab=messages${draft}` });
   }
   focus.sort((x, y) => (x.kind === "cadence" && y.kind === "cadence" ? URGENCY_ORDER[x.urgency] - URGENCY_ORDER[y.urgency] : 0));
-  const unevaluated = jobs.filter((j) => !j.evaluation).length;
+  // Tracked but not sent yet: saved offers stay in view until they go out (soonest deadline, then best score).
+  const open = (j: { deadline: string | null }) => !j.deadline || j.deadline.slice(0, 10) >= today;
+  apps
+    .filter((a) => a.status === "evaluated" && !a.applied_at && open(a.job))
+    .map((a) => ({ a, score: jobs.find((j) => j.id === a.job_id)?.evaluation?.global ?? null }))
+    .sort((x, y) => (x.a.job.deadline ?? "9").localeCompare(y.a.job.deadline ?? "9") || (y.score ?? 0) - (x.score ?? 0))
+    .slice(0, 3)
+    .forEach(({ a, score }) => focus.push({ kind: "toApply", appId: a.id, title: a.job.title, sub: a.job.company, day: a.job.deadline?.slice(0, 10) ?? null, score, href: `/app/pipeline/${a.id}?tab=overview` }));
+  // The scoring backlog counts open offers only: expired ones are not "new".
+  const unevaluated = jobs.filter((j) => !j.evaluation && open(j)).length;
   if (unevaluated) focus.push({ kind: "unevaluated", count: unevaluated });
 
   // KPIs over the last 8 weeks
@@ -364,7 +415,7 @@ export function getToday(now = new Date()) {
   };
 
   const topMatches = jobs
-    .filter((j) => j.evaluation && !j.application)
+    .filter((j) => j.evaluation && !j.application && j.evaluation.verdict !== "skip" && open(j))
     .sort((a, b) => b.evaluation!.global - a.evaluation!.global)
     .slice(0, 4);
 
@@ -372,16 +423,8 @@ export function getToday(now = new Date()) {
   const pipeline = FORWARD.map((stage) => ({ stage, n: apps.filter((a) => a.status === stage).length }));
   const closed = apps.filter((a) => a.status === "rejected" || a.status === "discarded").length;
 
-  const upcoming = [
-    ...interviews
-      .filter((i) => (toDay(i.starts_at) ?? "") >= today)
-      .map((i) => ({ key: `i${i.id}`, kind: "interview" as const, day: toDay(i.starts_at)!, time: i.starts_at.slice(11, 16), title: i.title, sub: i.company, href: `/app/pipeline/${i.application_id}` })),
-    ...reminders
-      .filter((r) => (toDay(r.due_at) ?? "") > today)
-      .map((r) => ({ key: `r${r.id}`, kind: "reminder" as const, day: toDay(r.due_at)!, time: r.due_at.length > 10 ? r.due_at.slice(11, 16) : "", title: r.title, sub: [r.job_title, r.company].filter(Boolean).join(" · "), href: "/app/calendar?month=" + toDay(r.due_at)!.slice(0, 7) })),
-  ]
-    .sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time))
-    .slice(0, 5);
+  // Same list as the sidebar's "N due this week".
+  const upcoming = weekAgenda(now);
 
   // Weekly goal + streak of consecutive weeks meeting it (this week counts once reached)
   const goal = getWeeklyGoal();
@@ -405,7 +448,7 @@ export function getToday(now = new Date()) {
       profile: profile.cv_md.trim().length >= 50 && profile.skills.length > 0,
       offers: jobs.length > 0,
       evaluated: evals.length > 0,
-      tracked: apps.length > 0,
+      applied: apps.some((a) => !!a.applied_at),
     },
     name: profile.name,
   };
