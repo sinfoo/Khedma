@@ -134,8 +134,10 @@ export function planSearch(input: {
 
   for (const code of targets.slice(0, MAX_LINKEDIN)) {
     const c = countryByCode(code);
-    const location = code === "TN" && input.cities?.length ? `${input.cities[0]}, Tunisia` : (c?.search ?? code);
-    add({ key: `linkedin:${location}`, kind: "linkedin", handle: location, label: `LinkedIn · ${c?.fr ?? code}`, country: code, keywords: kw() });
+    // Tunisian cities each get their own search (two at most: LinkedIn's guest search is rate-limited).
+    const cities = code === "TN" ? (input.cities ?? []).slice(0, 2) : [];
+    if (cities.length) for (const city of cities) add({ key: `linkedin:${city}, Tunisia`, kind: "linkedin", handle: `${city}, Tunisia`, label: `LinkedIn · ${city}`, country: code, keywords: kw() });
+    else add({ key: `linkedin:${c?.search ?? code}`, kind: "linkedin", handle: c?.search ?? code, label: `LinkedIn · ${c?.fr ?? code}`, country: code, keywords: kw() });
   }
 
   // EURES covers every chosen EU/EEA country in one request.
@@ -153,6 +155,7 @@ export function planSearch(input: {
 /** A run's label in the UI language: the per-country LinkedIn runs are named after their country. */
 export function runLabel(r: Pick<PlanRun, "kind" | "label" | "country" | "sourceId">, locale: "fr" | "en"): string {
   if (r.kind !== "linkedin" || r.sourceId || r.country === "INT") return r.label;
+  if (r.label !== `LinkedIn · ${countryByCode(r.country)?.fr ?? r.country}`) return r.label; // a city run keeps its city
   return `LinkedIn · ${countryByCode(r.country)?.[locale] ?? r.country}`;
 }
 

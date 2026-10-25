@@ -3,7 +3,7 @@
 import type { NewJob } from "../db";
 import { decodeEntities, htmlToText } from "./html";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const SEARCH = "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search";
 // A browser-like UA: the guest endpoint answers 4xx to unknown clients.
@@ -68,9 +68,10 @@ export async function scan(_handle: string, keywords: string[]): Promise<{ jobs:
       continue;
     }
     jobs.push(...parseLinkedinSearch(text));
-    await new Promise((r) => setTimeout(r, 1200)); // be gentle
+    await sleep(1200); // be gentle
   }
-  return { jobs, error: jobs.length ? undefined : error };
+  // A failed keyword is reported even when others worked, so the scan shows the source as partly read.
+  return { jobs, error };
 }
 
 export async function detail(job: NewJob): Promise<Partial<NewJob> | null> {

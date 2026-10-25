@@ -561,12 +561,13 @@ function SourceList({ blips, summary, open = false }: { blips: Blip[]; summary: 
           const state = b.st?.state;
           const cls = state === "done" ? "border-transparent bg-success-soft text-success" : state === "running" ? "border-transparent bg-accent-soft text-accent-text" : state === "error" ? "border-transparent bg-danger-soft text-danger" : "border-line bg-surface text-ink-2";
           const dot = state === "done" ? "var(--success)" : state === "running" ? "var(--accent)" : state === "error" ? "var(--danger)" : "var(--line-strong)";
-          const sr = state === "done" ? fmt(s.srKept, { n: b.st?.added ?? 0 }) : state === "error" ? `${s.srError}: ${errorReason(t, b.st?.error)}` : state === "running" ? s.srRunning : s.srQueued;
+          const partial = state === "done" && b.st?.warning ? `${s.srPartial}: ${errorReason(t, b.st.warning)}` : undefined;
+          const sr = state === "done" ? `${fmt(s.srKept, { n: b.st?.added ?? 0 })}${partial ? ` (${partial})` : ""}` : state === "error" ? `${s.srError}: ${errorReason(t, b.st?.error)}` : state === "running" ? s.srRunning : s.srQueued;
           return (
-            <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls}`} title={state === "error" ? errorReason(t, b.st?.error) : undefined}>
+            <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls}`} title={state === "error" ? errorReason(t, b.st?.error) : partial}>
               <span className="size-1.5 rounded-full" style={{ background: dot }} aria-hidden="true" />
               {b.label}
-              {state === "done" && <span className="mono opacity-80" aria-hidden="true">+{b.st?.added ?? 0}</span>}
+              {state === "done" && <span className="mono opacity-80" aria-hidden="true">+{b.st?.added ?? 0}{partial ? " !" : ""}</span>}
               <span className="sr-only">: {sr}</span>
             </li>
           );

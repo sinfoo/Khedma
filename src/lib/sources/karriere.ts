@@ -5,7 +5,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
 import { decodeEntities } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const slug = (s: string) => s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const karriereUrl = (keywords: string, city = "") => `https://www.karriere.at/jobs/${slug(keywords) || "praktikum"}${slug(city) ? `/${slug(city)}` : ""}`;
@@ -56,7 +56,7 @@ export async function scan(handle: string, keywords: string[] = []): Promise<{ j
     const { text, error: e } = await getText(karriereUrl(kw, handle), "text/html", { timeoutMs: 20_000 });
     if (e) error = e;
     else for (const j of parseKarriere(text)) if (!seen.has(j.url)) seen.set(j.url, j);
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
   }
   return { jobs: [...seen.values()], error: seen.size ? undefined : error };
 }

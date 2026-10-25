@@ -6,7 +6,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
 import { decodeEntities } from "./html";
-import { getJson } from "./http";
+import { getJson, sleep } from "./http";
 
 export const studysmarterUrl = (keywords: string, page = 1) =>
   `https://talents.studysmarter.de/jm-ajax/get_listings/?${new URLSearchParams({ search_keywords: keywords, per_page: "50", page: String(page) })}`;
@@ -56,7 +56,7 @@ export async function scan(_handle: string, keywords: string[] = []): Promise<{ 
     const { data, error: e } = await getJson<StudySmarterPayload>(studysmarterUrl(kw));
     if (e) error = e;
     for (const j of parseStudySmarter(data?.html ?? "")) if (!seen.has(j.url)) seen.set(j.url, j);
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
   }
   return { jobs: [...seen.values()], error: seen.size ? undefined : error };
 }

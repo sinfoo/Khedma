@@ -5,7 +5,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, matchesKeywords } from "./classify";
 import { decodeEntities, pickJsonLdJobPosting } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 import { fromJsonLd } from "./url";
 
 const BASE = "https://builtin.com";
@@ -68,7 +68,7 @@ export async function scan(handle: string, keywords: string[] = []): Promise<{ j
     const got = parseBuiltinList(text);
     jobs.push(...got);
     if (got.length < 20) break;
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
   }
   const words = keywords.flatMap((k) => k.split(/\s+/)).filter((w) => w.length >= 4);
   return { jobs: jobs.filter((j) => matchesKeywords(`${j.title} ${j.description}`, words)), error: jobs.length ? undefined : error };

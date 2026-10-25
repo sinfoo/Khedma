@@ -5,7 +5,7 @@
 import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const BASE = "https://www.get-in-it.de";
 
@@ -75,7 +75,7 @@ export async function scan(handle: string, keywords: string[] = []): Promise<{ j
     const { text, error: e } = await getText(getinitUrl(t), "text/html", { timeoutMs: 20_000 });
     if (e) error = e;
     else for (const j of parseGetinit(text)) if (!seen.has(j.url)) seen.set(j.url, j);
-    await new Promise((r) => setTimeout(r, 1000));
+    await sleep(1000);
   }
   return { jobs: [...seen.values()], error: seen.size ? undefined : error };
 }

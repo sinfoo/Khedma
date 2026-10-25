@@ -3,7 +3,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const BASE = "https://www.daijob.com";
 
@@ -53,7 +53,7 @@ export async function scan(_handle: string, keywords: string[] = []): Promise<{ 
       continue;
     }
     jobs.push(...parseDaijobList(text));
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(800);
   }
   return { jobs, error: jobs.length ? undefined : error };
 }

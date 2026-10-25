@@ -6,7 +6,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
 import { decodeEntities } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 import { parseLongDate } from "./jobbank";
 
 const SITES = {
@@ -64,7 +64,7 @@ export async function scan(handle: string): Promise<{ jobs: NewJob[]; error?: st
     for (const [category, pages] of [[CATEGORIES[0], 2], [CATEGORIES[1], 1]] as const) {
       for (let page = 1; page <= pages; page++) {
         const { text, error: e } = await getText(iamexpatUrl(site, category, page), "text/html", { timeoutMs: 20_000 });
-        await new Promise((r) => setTimeout(r, 1000)); // robots.txt Crawl-delay: 1
+        await sleep(1000); // robots.txt Crawl-delay: 1
         if (e) {
           error = e;
           break;

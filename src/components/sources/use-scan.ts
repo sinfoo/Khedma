@@ -17,6 +17,8 @@ export interface SourceStatus {
   known?: number;
   dropped?: Record<string, number>;
   error?: string;
+  /** Done, but part of the source failed (one keyword rate-limited, a page timed out). */
+  warning?: string;
 }
 
 export interface ScanPlan {
@@ -121,7 +123,7 @@ export function useScan() {
               setStatus(init);
             }
           } else if (e.type === "source") {
-            const next: SourceStatus = e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, kept: e.kept, known: e.known, dropped: e.dropped, error: e.error };
+            const next: SourceStatus = e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, kept: e.kept, known: e.known, dropped: e.dropped, error: e.error, warning: e.warning };
             setStatus((st) => {
               const out = { ...st };
               for (const k of keysOf(e)) out[k] = next;

@@ -5,7 +5,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const BASE = "https://www.jobbank.gc.ca";
 
@@ -96,7 +96,7 @@ export function parseJobbankFeed(xml: string): NewJob[] {
   return out;
 }
 
-const pause = () => new Promise((r) => setTimeout(r, 5000)); // robots.txt Crawl-delay: 5
+const pause = () => sleep(5000); // robots.txt Crawl-delay: 5
 
 export async function scan(handle: string, keywords: string[] = []): Promise<{ jobs: NewJob[]; error?: string }> {
   const terms = keywords.length ? keywords.slice(0, 2) : ["intern"];

@@ -1,5 +1,9 @@
 // Shared fetch wrapper: 10s timeout, app User-Agent, never throws.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { lookup } from "node:dns/promises";
+
+/** The running scan's Stop signal. Every fetch and pause made inside `scanSignal.run(signal, …)` honours it. */
+export const scanSignal = new AsyncLocalStorage<AbortSignal | undefined>();
 
 export const USER_AGENT = "Khedma/0.2 (+https://github.com/sinfoo/Khedma)";
 
@@ -10,11 +14,13 @@ export async function getText(
 ): Promise<{ text: string; error?: string }> {
   try {
     const timeout = AbortSignal.timeout(opts.timeoutMs ?? 10_000);
+    const stop = opts.signal ?? scanSignal.getStore();
+    if (stop?.aborted) return { text: "", error: `Stopped for ${url}` };
     const { res } = await publicFetch(url, {
       method: opts.body === undefined ? "GET" : "POST",
       headers: { "User-Agent": opts.ua ?? USER_AGENT, Accept: accept, ...(opts.body !== undefined && { "Content-Type": "application/json" }), ...opts.headers },
       body: opts.body,
-      signal: opts.signal ? AbortSignal.any([timeout, opts.signal]) : timeout,
+      signal: stop ? AbortSignal.any([timeout, stop]) : timeout,
     });
     if (!res.ok) return { text: "", error: `HTTP ${res.status} for ${url}` };
     return { text: await decodeBody(res) };
@@ -109,7 +115,14 @@ export function prettySlug(slug: string): string {
     .join(" ");
 }
 
-export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+/** Pause between polite requests; a stopped scan ends the pause at once. */
+export const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    const stop = scanSignal.getStore();
+    if (stop?.aborted) return resolve();
+    const t = setTimeout(resolve, ms);
+    stop?.addEventListener("abort", () => (clearTimeout(t), resolve()), { once: true });
+  });
 
 /** Run `fn` over items with at most `limit` in flight, waiting `gapMs` before each start. Order is kept. */
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>, gapMs = 0): Promise<R[]> {

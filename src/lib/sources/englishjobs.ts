@@ -5,7 +5,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType } from "./classify";
 import { decodeEntities, htmlToText } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const SITES = {
   englishjobs_de: { base: "https://www.englishjobs.de", country: "Germany" },
@@ -79,7 +79,7 @@ export function make(site: EnglishJobsSite) {
         continue;
       }
       jobs.push(...parseEnglishjobsList(text, site));
-      await new Promise((r) => setTimeout(r, 800));
+      await sleep(800);
     }
     return { jobs, error: jobs.length ? undefined : error };
   };

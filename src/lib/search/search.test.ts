@@ -4,7 +4,7 @@ import type { NewJob } from "../db";
 import { dedupeKey } from "../sources/classify";
 import { detectAtsInHtml, detectAtsUrl, collectJobLinks } from "../sources/ats";
 import { hostClass, trustScore } from "../sources/trust";
-import { planSearch, planSources } from "./plan";
+import { planSearch, planSources, runLabel } from "./plan";
 import { buildFilter, compileKeyword, compilePositives, compileLocation, locationRules, titleMatch } from "./filter";
 import { companyKey, scoreJob } from "./rank";
 import { buildTiers } from "./tiers";
@@ -54,6 +54,10 @@ test("plan: TN runs the Tunisian boards and LinkedIn Tunis; saved sources from o
   assert.equal(p.runs.find((r) => r.kind === "linkedin")!.handle, "Sfax, Tunisia");
   assert.equal(p.runs.find((r) => r.kind === "tanitjobs")!.keywords[0], "développeur");
   assert.ok(p.runs.find((r) => r.kind === "greenhouse")!.company);
+  // Two cities: two LinkedIn searches, each named after its city.
+  const two = planSearch({ keywords: ["dev"], countries: ["TN"], cities: ["Sfax", "Sousse", "Tunis"], remote: "no" });
+  assert.deepEqual(two.runs.filter((r) => r.kind === "linkedin").map((r) => r.handle), ["Sfax, Tunisia", "Sousse, Tunisia"]);
+  assert.equal(runLabel(two.runs.find((r) => r.handle === "Sousse, Tunisia")!, "en"), "LinkedIn · Sousse");
 });
 
 test("plan: no country = home market; remote only = no country boards; explicit ids run regardless", () => {

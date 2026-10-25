@@ -4,7 +4,7 @@ import type { NewJob } from "../db";
 import type { SourceKind } from "../types";
 import { extractTags, guessRemote, guessType, normalizeDate } from "./classify";
 import { htmlToText, pickJsonLdJobPosting } from "./html";
-import { getText } from "./http";
+import { getText, sleep } from "./http";
 
 const SITES = {
   jobsch: { base: "https://www.jobs.ch", path: "/en/vacancies/" },
@@ -99,7 +99,7 @@ export function make(site: JobCloudSite) {
           continue;
         }
         jobs.push(...parseJobcloudSearch(text, site));
-        await new Promise((r) => setTimeout(r, 800));
+        await sleep(800);
       }
       return { jobs, error: jobs.length ? undefined : error };
     },

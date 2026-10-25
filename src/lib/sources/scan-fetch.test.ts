@@ -85,3 +85,17 @@ test("a redirect to a private address is refused, and non-UTF-8 pages decode by 
   assert.ok(!isSameOrigin(req({ host: "localhost:3000", origin: "https://evil.example" })), "CSRF: foreign Origin");
   assert.ok(!isSameOrigin(req({ host: "localhost:3000", "sec-fetch-site": "cross-site" })));
 });
+
+test("Stop reaches every fetch and pause inside a scan", async () => {
+  const { getText, scanSignal, sleep } = await import("./http");
+  const ctl = new AbortController();
+  route = () => new Response("ok");
+  const t0 = Date.now();
+  const r = await scanSignal.run(ctl.signal, async () => {
+    setTimeout(() => ctl.abort(), 50);
+    await sleep(5_000); // a polite 5 s pause ends as soon as Stop is pressed
+    return getText("https://example.com/next");
+  });
+  assert.ok(Date.now() - t0 < 2_000, "the pause did not wait 5 s");
+  assert.match(r.error ?? "", /^Stopped/);
+});

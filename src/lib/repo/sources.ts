@@ -4,7 +4,7 @@ import { getProfileExtra } from "../cv/profile-extra";
 import { autoArchive, db, getProfile, kvGet, kvSet, latestEvaluation, listJobs, migrate, upsertJob, type NewJob } from "../db";
 import { JOB_TYPES, type JobType, type Profile } from "../types";
 import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
-import { mapLimit } from "../sources/http";
+import { mapLimit, scanSignal } from "../sources/http";
 import { trustScore, type HostClass } from "../sources/trust";
 import { checkJobs } from "../company/liveness";
 import { syncBoard } from "../company";
@@ -231,6 +231,8 @@ export interface RunSourceDetail {
   known: number;
   dropped?: Record<string, number>;
   error?: string;
+  /** Some offers came back but part of the source failed. */
+  warning?: string;
   ms: number;
 }
 
@@ -557,7 +559,8 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       const t0 = Date.now();
       let res: Awaited<ReturnType<typeof scanTiered>>;
       try {
-        res = await scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide });
+        // Every fetch and pause this source makes honours Stop, whichever provider makes it.
+        res = await scanSignal.run(opts.signal, () => scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide }));
       } catch (e) {
         res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };
       }
@@ -583,9 +586,12 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       // A complete board listing closes the offers it no longer has.
       if (res.listed) gone.push(...syncBoard(run.kind, res.listed));
       // URLs shrink to their host: keyed APIs carry the key in the path or query string.
-      const error = res.error && !res.jobs.length && !res.total ? res.error.replace(/https?:\/\/([^/\s?#]+)\S*/g, "$1").slice(0, 300) : undefined;
+      const clean = res.error?.replace(/https?:\/\/([^/\s?#]+)\S*/g, "$1").slice(0, 300);
+      const error = clean && !res.jobs.length && !res.total ? clean : undefined;
+      // Some offers came back but part of the source failed (one keyword rate-limited): done, with a warning.
+      const warning = !error ? clean : undefined;
       if (run.sourceId) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
-      const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, ms: Date.now() - t0 };
+      const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, warning, ms: Date.now() - t0 };
       emit({ type: "source", status: error ? "error" : "done", ...d });
       return d;
     });
