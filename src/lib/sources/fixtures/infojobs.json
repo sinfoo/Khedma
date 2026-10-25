@@ -1,0 +1,33 @@
+{
+ "totalResults": 2,
+ "currentResults": 2,
+ "offers": [
+  {
+   "id": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5",
+   "title": "Prácticas Desarrollador/a Backend Java",
+   "province": { "id": 33, "value": "Madrid" },
+   "city": "Madrid",
+   "link": "https://www.infojobs.net/madrid/practicas-desarrollador-backend-java/of-ia1b2c3d4e5f6a7b8c9d0e1f2a3b4c5",
+   "category": { "id": 70, "value": "Informática y telecomunicaciones" },
+   "contractType": { "id": 6, "value": "Otros contratos" },
+   "workDay": { "id": 1, "value": "Jornada completa" },
+   "experienceMin": { "id": 1, "value": "No Requerida" },
+   "teleworking": { "id": 2, "value": "Híbrido" },
+   "published": "2026-10-22T07:41:00.000Z",
+   "author": { "id": "x1", "name": "Iberia Software SL", "uri": "https://www.infojobs.net/iberia-software/em-ix1" },
+   "requirementMin": "Estudiante de último curso de Ingeniería Informática. Conocimientos de Java y Spring Boot."
+  },
+  {
+   "id": "ffeeddccbbaa99887766554433221100",
+   "title": "Junior Frontend Developer",
+   "province": { "id": 9, "value": "Barcelona" },
+   "city": "Sant Cugat del Vallès",
+   "link": "https://www.infojobs.net/sant-cugat-del-valles/junior-frontend-developer/of-iffeeddccbbaa99887766554433221100",
+   "contractType": { "id": 1, "value": "Indefinido" },
+   "teleworking": { "id": 3, "value": "Solo teletrabajo" },
+   "published": "2026-10-20T10:00:00.000Z",
+   "author": { "id": "x2", "name": "Mediterránea Apps" },
+   "requirementMin": "React, TypeScript."
+  }
+ ]
+}
