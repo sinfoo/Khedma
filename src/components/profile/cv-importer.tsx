@@ -22,6 +22,7 @@ export function CvImporter({
   onSaveMarkdown,
   startInReview = false,
   showUpload = true,
+  adapt = true,
 }: {
   upload: UploadMeta | null;
   uploadText: string;
@@ -32,6 +33,7 @@ export function CvImporter({
   onSaveMarkdown: (md: string) => Promise<void> | void;
   startInReview?: boolean;
   showUpload?: boolean;
+  adapt?: boolean;
 }) {
   const { t } = useT();
   const c = t.profile2.cv;
@@ -49,6 +51,7 @@ export function CvImporter({
       {showUpload && (
         <CvUpload
           upload={upload}
+          adapt={adapt}
           onUploaded={(m, text, markdown, skills) => {
             setSource(text);
             setReview(null);

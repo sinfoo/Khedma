@@ -7,7 +7,8 @@ import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { setLocale, setTheme } from "@/app/actions/prefs";
-import { aiStatus, finishOnboarding, saveProfileDraft, setOnboardingStep } from "@/app/actions/profile";
+import { adaptToCv, aiStatus, finishOnboarding, saveProfileDraft, setOnboardingStep } from "@/app/actions/profile";
+import { useScan } from "@/components/sources/use-scan";
 import { ROLE_SUGGESTIONS, mergeSkills, suggestHeadline } from "@/lib/cv/model";
 import { ChipInput } from "./chip-input";
 import { CountryPicker } from "@/components/country-picker";
@@ -21,15 +22,10 @@ const LEVELS = {
   fr: ["Cycle préparatoire", "1re année ingénieur", "2e année ingénieur", "3e année ingénieur (PFE)", "Mastère"],
   en: ["Preparatory cycle", "1st year engineering", "2nd year engineering", "3rd year engineering (PFE)", "Master's"],
 };
-const SPECIALTIES = [
-  "Génie informatique",
-  "Génie électrique",
-  "Génie industriel",
-  "Génie mécanique",
-  "Génie civil",
-  "Génie hydraulique et environnement",
-  "Télécommunications (TIC)",
-];
+const SPECIALTIES = {
+  fr: ["Génie informatique", "Génie électrique", "Génie industriel", "Génie mécanique", "Génie civil", "Génie hydraulique et environnement", "Télécommunications (TIC)"],
+  en: ["Computer engineering", "Electrical engineering", "Industrial engineering", "Mechanical engineering", "Civil engineering", "Water and environmental engineering", "Telecommunications (ICT)"],
+};
 
 type Theme = "system" | "light" | "dark";
 
@@ -59,6 +55,9 @@ export function OnboardingWizard({
   const [pending, start] = useTransition();
   const heading = useRef<HTMLHeadingElement>(null);
   const firstRender = useRef(true);
+  const scan = useScan();
+  // Roles and keywords read from the CV uploaded in this wizard. The scan waits for "Finish", once countries are chosen.
+  const [adapted, setAdapted] = useState<{ roles: string[]; keywords: string[]; skillsAdded: number } | null>(null);
 
   useEffect(() => {
     if (firstRender.current) {
@@ -79,12 +78,16 @@ export function OnboardingWizard({
       setStep(n);
     });
 
-  const finish = (persist: boolean) =>
+  /** "Finish" saves and starts the first scan with the chosen countries; "Skip setup" keeps what was typed, without a scan. */
+  const finish = (scanNow: boolean) =>
     start(async () => {
-      if (persist) await saveProfileDraft(d);
+      await saveProfileDraft(d);
       await finishOnboarding();
-      if (persist) toast.success(o.toast, o.toastBody);
-      router.push("/app");
+      if (!scanNow) return router.push("/app");
+      // The scan runs on the server: the radar on Sources follows it.
+      void scan.start(adapted ? { keywords: adapted.keywords } : {});
+      toast.success(o.toast, o.toastBody);
+      router.push("/app/sources");
     });
 
   const suggestion = suggestHeadline(locale, d.extra, d.target_types.includes("pfe"));
@@ -112,13 +115,16 @@ export function OnboardingWizard({
                   <span
                     aria-hidden="true"
                     className={`mono grid size-[26px] shrink-0 place-items-center rounded-full text-[0.72rem] font-semibold transition-colors ${
-                      state === "done" ? "bg-success text-white" : state === "current" ? "bg-accent text-accent-ink" : "bg-surface-3 text-ink-2"
+                      state === "done" ? "bg-success text-[var(--surface)]" : state === "current" ? "bg-accent text-accent-ink" : "bg-surface-3 text-ink-2"
                     }`}
                   >
                     {state === "done" ? <Check size={13} /> : n}
                   </span>
                   <span className="min-w-0">
-                    <span className={`block text-sm ${state === "current" ? "font-semibold text-ink" : state === "done" ? "font-medium text-ink-2" : "font-medium text-muted"}`}>{o.steps[s]}</span>
+                    <span className={`block text-sm ${state === "current" ? "font-semibold text-ink" : state === "done" ? "font-medium text-ink-2" : "font-medium text-muted"}`}>
+                      {o.steps[s]}
+                      {state === "done" && <span className="sr-only"> ({p2.onb.stepDone})</span>}
+                    </span>
                     <span className="block truncate text-[0.72rem] text-muted">{STEP_HINTS[s]}</span>
                   </span>
                 </button>
@@ -129,7 +135,7 @@ export function OnboardingWizard({
         <div className="bar mt-[18px] !h-1" role="progressbar" aria-label={o.progress} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step}>
           <span style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }} />
         </div>
-        <button type="button" className="mt-3.5 text-[0.8rem] text-muted hover:text-ink" disabled={pending} onClick={() => finish(false)}>
+        <button type="button" className="mt-3.5 text-[0.8rem] text-muted hover:text-ink" disabled={pending} onClick={() => finish(false)} title={o.skipAllHint}>
           {o.skipAll}
         </button>
       </aside>
@@ -224,7 +230,7 @@ export function OnboardingWizard({
               <F id="w-spec" label={p2.f.specialty}>
                 <input id="w-spec" list="w-spec-list" className="input" placeholder={p2.f.specialtyPh} value={d.extra.specialty} onChange={(e) => updateExtra({ specialty: e.target.value })} />
                 <datalist id="w-spec-list">
-                  {SPECIALTIES.map((l) => (
+                  {SPECIALTIES[locale].map((l) => (
                     <option key={l} value={l} />
                   ))}
                 </datalist>
@@ -251,14 +257,22 @@ export function OnboardingWizard({
         )}
 
         {key === "cv" && (
+          <>
           <CvImporter
             upload={upload}
             uploadText={uploadText}
+            adapt={false}
             onUploaded={(m, text, markdown, skills) => {
               setUpload(m);
               setUploadText(text);
               // The server already saved the converted CV and skills; keep them in the draft so "Continue" does not overwrite them.
               if (markdown && markdown.trim().length > 40) update({ cv_md: markdown, ...(skills ? { skills } : {}) });
+              // Roles and skills follow the CV, and go back into the draft so "Continue" keeps them. No scan yet.
+              start(async () => {
+                const a = await adaptToCv();
+                setAdapted(a);
+                update({ skills: a.skills, ...(a.roles.length ? { target_roles: a.roles } : {}) });
+              });
             }}
             skills={d.skills}
             onAddSkills={(found) => {
@@ -276,6 +290,12 @@ export function OnboardingWizard({
               toast.success(p2.cv.savedMd);
             }}
           />
+          {adapted && (
+            <p className="mt-3 rounded-lg bg-surface-2 p-3 text-sm text-ink-2" role="status">
+              {adapted.roles.length ? fmt(p2.cv.adaptProfile, { roles: adapted.roles.join(", "), n: adapted.skillsAdded }) : fmt(p2.cv.adaptProfileNone, { n: adapted.skillsAdded })} · {o.cv.scanLater}
+            </p>
+          )}
+          </>
         )}
 
         {key === "targets" && (

@@ -25,7 +25,7 @@ const size = (n: number, locale: string) =>
     : new Intl.NumberFormat(locale, { style: "unit", unit: "kilobyte", maximumFractionDigits: 0 }).format(Math.max(1, n / 1024));
 
 /** Drag & drop / file picker for the profile CV. Posts to /api/cv/upload with progress. */
-export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void }) {
+export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadMeta | null; onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void; /** Run the adapt phase after an upload; the onboarding wizard does its own, without a scan. */ adapt?: boolean }) {
   const { t, locale } = useT();
   const c = t.profile2.cv;
   const toast = useToast();
@@ -34,7 +34,12 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
   const [over, setOver] = useState(false);
   const hintId = useId();
 
-  const fail = (code: ErrCode) => toast.error(t.common.error, c.errors[code] ?? c.errors.bad_request);
+  // The error stays in the drop zone until the next try, not only in a toast that fades.
+  const [err, setErr] = useState<string | null>(null);
+  const fail = (code: ErrCode) => {
+    setErr(c.errors[code] ?? c.errors.bad_request);
+    toast.error(t.common.error, c.errors[code] ?? c.errors.bad_request);
+  };
   // A PDF with no text layer (a scan, a flattened Canva export) can be read with OCR in this browser.
   const [scanned, setScanned] = useState<File | null>(null);
   // Bumped on each successful upload: a new CV starts its adapt phase (profile, ranking, scan).
@@ -59,6 +64,7 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
     if (file.size > MAX) return fail("tooLarge");
     if (!file.size) return fail("empty");
     setScanned(null);
+    setErr(null);
     const fd = new FormData();
     fd.append("file", file);
     if (ocr) fd.append("ocr", ocr);
@@ -152,7 +158,8 @@ export function CvUpload({ upload, onUploaded }: { upload: UploadMeta | null; on
       <p id={hintId} className={`hint ${upload ? "" : "text-center"}`}>
         {c.formats}
       </p>
-      {adaptRun > 0 && <CvAdapt key={adaptRun} />}
+      {err && <p className="mt-2 text-sm text-danger" role="alert">{err}</p>}
+      {adapt && adaptRun > 0 && <CvAdapt key={adaptRun} />}
       {scanned && !ocrStep && (
         <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-sm" role="status">
           <p className="font-semibold">{c.scannedTitle}</p>

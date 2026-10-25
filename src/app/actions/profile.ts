@@ -109,7 +109,7 @@ export async function chooseCvSource(pref: string): Promise<{ ok: boolean }> {
  * After a new or replaced CV: skills and target roles follow the CV (search/cv-keywords.ts), every open offer is
  * re-scored against it, and the keywords for the next scan are returned (the caller runs the scan).
  */
-export async function adaptToCv(): Promise<{ roles: string[]; keywords: string[]; skillsAdded: number; reranked: number }> {
+export async function adaptToCv(): Promise<{ roles: string[]; keywords: string[]; skills: string[]; skillsAdded: number; reranked: number }> {
   const profile = getProfile();
   const cv = cvForMatching().text;
   const skills = mergeSkills(profile.skills, extractSkills(cv));
@@ -117,5 +117,5 @@ export async function adaptToCv(): Promise<{ roles: string[]; keywords: string[]
   updateProfile({ skills, ...(roles.length ? { target_roles: roles } : {}) });
   const reranked = rerankOpenJobs();
   revalidatePath("/app", "layout");
-  return { roles, keywords: defaultKeywords(getProfile(), cv), skillsAdded: skills.length - profile.skills.length, reranked };
+  return { roles, keywords: defaultKeywords(getProfile(), cv), skills, skillsAdded: skills.length - profile.skills.length, reranked };
 }
