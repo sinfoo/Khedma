@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { ScanPanel } from "@/components/sources/scan-panel";
 import { SourcesTabs } from "@/components/sources/tabs";
 import { getProfile } from "@/lib/db";
@@ -6,7 +6,7 @@ import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { defaultKeywords, getScanOptions, listSavedSearches, searchCountries, listSourceRows } from "@/lib/repo/sources";
 import { cvForMatching } from "@/lib/repo/offers";
 
-export const metadata: Metadata = { title: "Sources" };
+export const generateMetadata = pageTitle("sources");
 
 export default async function SourcesPage({ searchParams }: PageProps<"/app/sources">) {
   const sp = await searchParams;

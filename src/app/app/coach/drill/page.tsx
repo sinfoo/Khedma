@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
 import { Drill } from "@/components/coach/drill";
 
-export const metadata: Metadata = { title: "Drill" };
+export const generateMetadata = pageTitle("drill");
 
 const ROUND = 10;
 

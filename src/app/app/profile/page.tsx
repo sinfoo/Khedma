@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { getDict } from "@/lib/i18n/server";
 import { getProfile } from "@/lib/db";
@@ -12,7 +12,7 @@ import { linkedinDrafts } from "@/lib/cv/linkedin";
 import { cvSkills } from "@/lib/repo/sources";
 import { EVERYDAY_TOOLS } from "@/lib/search/cv-keywords";
 
-export const metadata: Metadata = { title: "Profile" };
+export const generateMetadata = pageTitle("profile");
 
 export default async function ProfilePage() {
   const p = getProfile();

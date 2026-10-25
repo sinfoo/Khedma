@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { Section } from "@/components/kit";
 import { SearchPrefsForm, SweepButton } from "@/components/sources/search-prefs";
 import { SourcesTabs } from "@/components/sources/tabs";
 import { getDict } from "@/lib/i18n/server";
 import { getSearchPrefs } from "@/lib/repo/sources";
 
-export const metadata: Metadata = { title: "Search preferences" };
+export const generateMetadata = pageTitle("searchPrefs");
 
 /** The Preferences tab: what every scan keeps or refuses, in one place. */
 export default async function SearchPreferencesPage() {

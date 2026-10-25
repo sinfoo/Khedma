@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { CalendarPlus, KanbanSquare } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -10,7 +10,7 @@ import { PipelineBoard, type BoardItem } from "@/components/pipeline-board";
 import { daysSince } from "@/components/pipeline/format";
 import { toView } from "@/components/pipeline/cadence";
 
-export const metadata: Metadata = { title: "Pipeline" };
+export const generateMetadata = pageTitle("pipeline");
 
 export default async function PipelinePage({ searchParams }: PageProps<"/app/pipeline">) {
   const { t } = await getDict();

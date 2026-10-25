@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { getDict } from "@/lib/i18n/server";
 import { listStories } from "@/lib/repo/coach";
 import { PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
 import { StoriesBoard } from "@/components/coach/stories-board";
 
-export const metadata: Metadata = { title: "STAR" };
+export const generateMetadata = pageTitle("stories");
 
 export default async function StoriesPage() {
   const { t } = await getDict();

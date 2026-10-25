@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { CalendarPlus, ChevronLeft, ChevronRight } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -6,7 +6,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { dayKey, getCalendar, parseMonth, reminderTargets, shiftMonth } from "@/lib/repo/insights";
 import { CalendarView } from "@/components/insights/calendar-view";
 
-export const metadata: Metadata = { title: "Calendar" };
+export const generateMetadata = pageTitle("calendar");
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;

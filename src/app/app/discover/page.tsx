@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, ArrowRight, Building2, CheckCircle2, ExternalLink, FileText, Lightbulb, Radar, Sparkles } from "lucide-react";
@@ -13,7 +13,7 @@ import { AdjustButton } from "@/components/discover/adjust-button";
 import { AddRoleButton, AddSourceButton, RefreshButton } from "@/components/discover/buttons";
 import { actionText, insightText, roleWhyText, sourceWhyText } from "@/components/discover/text";
 
-export const metadata: Metadata = { title: "Discover" };
+export const generateMetadata = pageTitle("discover");
 
 const TONE = { accent: "tone-accent", saffron: "tone-saffron", danger: "tone-danger", success: "tone-success" };
 

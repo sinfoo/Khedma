@@ -1,11 +1,11 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { getProfile } from "@/lib/db";
 import { getTheme } from "@/lib/i18n/server";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { getUpload } from "@/lib/cv/source";
 import { OnboardingWizard } from "@/components/profile/onboarding-wizard";
 
-export const metadata: Metadata = { title: "Bienvenue" };
+export const generateMetadata = pageTitle("welcome");
 
 export default async function WelcomePage() {
   const p = getProfile();

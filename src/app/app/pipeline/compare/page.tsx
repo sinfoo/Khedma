@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { GitCompareArrows } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -12,7 +12,7 @@ import { EmptyState, PageHeader } from "@/components/kit";
 import { CompareTable, type CompareRow } from "@/components/pipeline/compare";
 import { shortDate } from "@/components/pipeline/format";
 
-export const metadata: Metadata = { title: "Compare" };
+export const generateMetadata = pageTitle("compare");
 
 export default async function ComparePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t, locale } = await getDict();

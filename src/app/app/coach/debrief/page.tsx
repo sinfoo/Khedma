@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { ChevronRight, NotebookPen, Plus } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -8,7 +8,7 @@ import { CompanyAvatar, EmptyState, PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
 import { fmtDate } from "@/components/ui";
 
-export const metadata: Metadata = { title: "Debriefs" };
+export const generateMetadata = pageTitle("debriefs");
 
 export default async function DebriefListPage() {
   const { t, locale } = await getDict();

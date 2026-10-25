@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { Suspense } from "react";
 import Link from "next/link";
 import { GraduationCap } from "lucide-react";
@@ -11,7 +11,7 @@ import { EmptyState, PageHeader } from "@/components/kit";
 import { UpskillBoard, type PlanView } from "@/components/insights/upskill-board";
 import { EscoCard } from "@/components/insights/esco-card";
 
-export const metadata: Metadata = { title: "Skills" };
+export const generateMetadata = pageTitle("upskill");
 
 // Hosts we trust to stay up. Model-suggested links outside this list are dropped.
 const TRUSTED = [

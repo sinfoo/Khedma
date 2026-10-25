@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { getDict } from "@/lib/i18n/server";
 import { listJobs } from "@/lib/db";
@@ -7,7 +7,7 @@ import { TriangleAlert } from "lucide-react";
 import { CompanyAvatar } from "@/components/kit";
 import { SalaryExplorer } from "@/components/insights/salary-explorer";
 
-export const metadata: Metadata = { title: "Salaries" };
+export const generateMetadata = pageTitle("salaries");
 
 export default async function SalariesPage() {
   const { t, locale } = await getDict();

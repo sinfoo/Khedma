@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { ArrowUpRight, Check } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
@@ -7,7 +7,7 @@ import { countryOf, countryName } from "@/lib/geo";
 import { ABROAD_CHECKED, STIPEND_FLOORS } from "@/lib/abroad";
 import { PageHeader } from "@/components/kit";
 
-export const metadata: Metadata = { title: "Going abroad" };
+export const generateMetadata = pageTitle("abroad");
 
 type Code = "FR" | "DE" | "CH" | "NL" | "BE" | "CA" | "GB" | "US";
 const ORDER: Code[] = ["FR", "DE", "CH", "NL", "BE", "CA", "GB", "US"];

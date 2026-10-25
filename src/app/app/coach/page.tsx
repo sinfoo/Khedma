@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { ChevronRight, MessagesSquare } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -12,7 +12,7 @@ import { ScoreRing, fmtDate, scoreColor, scoreLabel } from "@/components/ui";
 import { CoachTabs } from "@/components/coach/parts";
 import { StartForm } from "@/components/coach/start-form";
 
-export const metadata: Metadata = { title: "Coach" };
+export const generateMetadata = pageTitle("coach");
 
 function dueCount(now: number) {
   const states = drillStates();

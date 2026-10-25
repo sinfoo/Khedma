@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -9,7 +9,7 @@ import { ResearchTopButton } from "@/components/company/company-actions";
 import { CheckOffersButton } from "@/components/company/liveness-button";
 import { listCompanies } from "@/lib/company";
 
-export const metadata: Metadata = { title: "Companies" };
+export const generateMetadata = pageTitle("companies");
 
 export default async function CompaniesPage() {
   const { t } = await getDict();

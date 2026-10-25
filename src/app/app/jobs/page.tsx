@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { Link2, Plus, Radar } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -24,7 +24,7 @@ const countryCodesOf = (rows: { location: string; remote: boolean }[]) => {
   return [...set].sort((a, b) => (a === REMOTE_CODE ? 1 : b === REMOTE_CODE ? -1 : a.localeCompare(b)));
 };
 
-export const metadata: Metadata = { title: "Offers" };
+export const generateMetadata = pageTitle("offers");
 
 export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">) {
   const { t } = await getDict();

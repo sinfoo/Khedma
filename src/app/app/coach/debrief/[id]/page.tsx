@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Zap } from "lucide-react";
@@ -10,7 +10,7 @@ import { EngineChip, fmtDate } from "@/components/ui";
 import { Markdown } from "@/components/markdown";
 import { DeleteDebrief } from "@/components/coach/debrief";
 
-export const metadata: Metadata = { title: "Debrief" };
+export const generateMetadata = pageTitle("debrief");
 
 const GLYPH = { red: "🔴", yellow: "🟡", green: "✅" } as const;
 

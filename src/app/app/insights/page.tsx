@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { BarChart3, Lightbulb } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -10,7 +10,7 @@ import { BenchmarksCard, BlockersCard, CalibrationCard, OutcomesCard, SilentCard
 import { scoreColor } from "@/components/ui";
 import type { JobType, SourceKind } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Insights" };
+export const generateMetadata = pageTitle("insights");
 
 const RANGES = { "30": 30, "90": 90, all: null } as const;
 const VERDICT_COLORS = ["var(--score-5)", "var(--score-4)", "var(--score-3)", "var(--score-1)"];

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { notFound } from "next/navigation";
 import { getDict } from "@/lib/i18n/server";
 import { matchStory } from "@/lib/coach/logic";
@@ -8,7 +8,7 @@ import { fmtDate } from "@/components/ui";
 import { Report } from "@/components/coach/report";
 import { SessionRunner, type RunnerAnswer } from "@/components/coach/session-runner";
 
-export const metadata: Metadata = { title: "Coach" };
+export const generateMetadata = pageTitle("coach");
 
 export default async function CoachSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;

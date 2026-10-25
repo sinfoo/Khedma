@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { getDict } from "@/lib/i18n/server";
 import { listApplications } from "@/lib/db";
 import { listInterviews } from "@/lib/repo/apps";
@@ -6,7 +6,7 @@ import { DEBRIEF_ROUNDS, type DebriefRound } from "@/lib/ai/debrief";
 import { PageHeader } from "@/components/kit";
 import { DebriefForm, type DebriefAppOption } from "@/components/coach/debrief";
 
-export const metadata: Metadata = { title: "Debrief" };
+export const generateMetadata = pageTitle("debrief");
 
 export default async function NewDebriefPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t } = await getDict();

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -9,7 +9,7 @@ import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { EmptyState, PageHeader } from "@/components/kit";
 import { CvStudio } from "@/components/profile/cv-studio";
 
-export const metadata: Metadata = { title: "CV" };
+export const generateMetadata = pageTitle("cv");
 
 /** CV templates page; `?job=<id>` adds keyword coverage against that offer. */
 export default async function CvPage({ searchParams }: PageProps<"/app/profile/cv">) {

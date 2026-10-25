@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import Link from "next/link";
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Download, FileText, Lightbulb, Printer, Trophy } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
@@ -11,7 +11,7 @@ import { PolishFocus } from "@/components/reports/polish";
 import { CalibrationCard, SilentCard } from "@/components/insights/calibration";
 import type { JobType } from "@/lib/types";
 
-export const metadata: Metadata = { title: "Reports" };
+export const generateMetadata = pageTitle("reports");
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;

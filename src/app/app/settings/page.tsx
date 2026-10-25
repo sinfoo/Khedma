@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Bot, Database, Info, KeyRound, Palette, Bell } from "lucide-react";
@@ -17,7 +17,7 @@ import { Appearance } from "@/components/settings/appearance";
 import { NotificationSettings, ReminderNotifier } from "@/components/settings/notifications";
 import { DataTools } from "@/components/settings/data-tools";
 
-export const metadata: Metadata = { title: "Settings" };
+export const generateMetadata = pageTitle("settings");
 
 function version(): string {
   try {

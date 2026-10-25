@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { pageTitle } from "@/lib/i18n/title";
 import { CatalogClient } from "@/components/sources/catalog-client";
 import { History, SourcesList } from "@/components/sources/sources-board";
 import { Clipper } from "@/components/sources/clipper";
@@ -13,7 +13,7 @@ import { defaultKeywords, getAutoScan, listRuns, listSourceRows, searchCountries
 import { getProfileExtra } from "@/lib/cv/profile-extra";
 import { cvForMatching } from "@/lib/repo/offers";
 
-export const metadata: Metadata = { title: "Manage sources" };
+export const generateMetadata = pageTitle("manageSources");
 
 /** The Sources tab: the boards Khedma reads, the companies followed, the catalog and past scans. */
 export default async function ManageSourcesPage() {
