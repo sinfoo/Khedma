@@ -85,8 +85,8 @@ export function replaceCourses(source: string, list: NewCourse[]): number {
 }
 
 export interface RefreshState {
-  /** When each source was last read successfully, and how many courses it gave. */
-  sources: Record<string, { at: string; n: number; error?: string }>;
+  /** When each source was last read successfully, how many courses it gave, and the last failed attempt. */
+  sources: Record<string, { at: string; n: number; error?: string; tried?: string }>;
   running: boolean;
 }
 const STATE_KEY = "learn:refresh";
@@ -104,10 +104,18 @@ export function refreshState(): RefreshState {
 // Coupons expire within days: their feed is read twice a day; catalogs weekly.
 const MAX_AGE: Record<string, number> = { coupons: 12 * 3_600_000 };
 
+// A source that failed is tried again after 6 hours, not on every visit.
+const RETRY = 6 * 3_600_000;
+
 /** Sources due for a refresh (or never read). */
 export function staleSources(now = Date.now()): string[] {
   const s = refreshState().sources;
-  return Object.keys(COURSE_SOURCES).filter((k) => !s[k] || now - Date.parse(s[k].at) > (MAX_AGE[k] ?? WEEK));
+  return Object.keys(COURSE_SOURCES).filter((k) => {
+    const x = s[k];
+    if (!x) return true;
+    const due = now - Date.parse(x.at) > (MAX_AGE[k] ?? WEEK);
+    return due && (!x.tried || now - Date.parse(x.tried) > RETRY);
+  });
 }
 
 /**
@@ -122,7 +130,7 @@ export function refreshCatalog(only?: string[]): Promise<void> {
       const { courses, error } = await COURSE_SOURCES[key]().catch((e: Error) => ({ courses: [], error: e.message }));
       const state = kvGet<RefreshState["sources"]>(STATE_KEY, {});
       if (courses.length) state[key] = { at: new Date().toISOString(), n: replaceCourses(key, courses), ...(error ? { error: error.slice(0, 200) } : {}) };
-      else state[key] = { ...(state[key] ?? { at: new Date(0).toISOString(), n: 0 }), error: (error ?? "empty answer").slice(0, 200) };
+      else state[key] = { ...(state[key] ?? { at: new Date(0).toISOString(), n: 0 }), error: (error ?? "empty answer").slice(0, 200), tried: new Date().toISOString() };
       kvSet(STATE_KEY, state);
     }
   })().finally(() => {

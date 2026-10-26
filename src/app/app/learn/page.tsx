@@ -62,10 +62,14 @@ export default async function LearnPage({ searchParams }: PageProps<"/app/learn"
         }
       />
       <div className="-mt-2 mb-5 text-[0.78rem] text-muted" role="status">
-        {(state.running || !counts.total) && <p className="mb-1 font-semibold text-accent-text">{m.loading}</p>}
+        {/* The long first load is announced; a routine refresh only shows "Refreshing…" next to the count. */}
+        {!counts.total && <p className="mb-1 font-semibold text-accent-text">{m.loading}</p>}
         {counts.total > 0 && (
           <details>
-            <summary className="cursor-pointer">{fmt(m.catalog, { n: counts.total.toLocaleString(locale), s: Object.keys(counts.sources).length })}</summary>
+            <summary className="cursor-pointer">
+              {fmt(m.catalog, { n: counts.total.toLocaleString(locale), s: Object.keys(counts.sources).length })}
+              {state.running && <span className="ml-2 font-semibold text-accent-text">{m.refreshing}</span>}
+            </summary>
             <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
               {Object.entries(state.sources).map(([k, s]) => (
                 <li key={k}>

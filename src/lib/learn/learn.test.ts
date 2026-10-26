@@ -113,3 +113,15 @@ test("recommendations draw from every catalog, and short words match whole words
   replaceCourses("third", [c("third", "AI for everyone", 1), c("third", "First aid at work", 2)]);
   assert.deepEqual(searchCourses({ q: "ai", source: "third" }).courses.map((x) => x.title), ["AI for everyone"]);
 });
+
+test("a source that fails is retried after six hours, not on every visit", async () => {
+  const { kvSet } = await import("../db");
+  const { staleSources } = await import("./store");
+  const now = Date.parse("2026-10-27T12:00:00Z");
+  const fresh = new Date(now - 3_600_000).toISOString();
+  const base = Object.fromEntries(["microsoft", "funmooc", "mit", "edx", "skillsboost", "alison", "codecademy", "trailhead", "freecodecamp", "odin", "deeplearning", "unity", "netacad", "hubspot", "edraak", "rwaq", "duolingo"].map((k) => [k, { at: fresh, n: 1 }]));
+  kvSet("learn:refresh", { ...base, coupons: { at: new Date(0).toISOString(), n: 0, error: "x", tried: new Date(now - 3_600_000).toISOString() } });
+  assert.deepEqual(staleSources(now), []);
+  kvSet("learn:refresh", { ...base, coupons: { at: new Date(0).toISOString(), n: 0, error: "x", tried: new Date(now - 7 * 3_600_000).toISOString() } });
+  assert.deepEqual(staleSources(now), ["coupons"]);
+});
