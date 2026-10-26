@@ -15,7 +15,7 @@ export const generateMetadata = pageTitle("upskill");
 
 // Hosts we trust to stay up. Model-suggested links outside this list are dropped.
 const TRUSTED = [
-  "developer.mozilla.org", "freecodecamp.org", "roadmap.sh", "openclassrooms.com", "coursera.org", "edx.org", "youtube.com",
+  "developer.mozilla.org", "freecodecamp.org", "roadmap.sh", "openclassrooms.com", "coursera.org", "edx.org",
   "docs.python.org", "typescriptlang.org", "react.dev", "nextjs.org", "vuejs.org", "angular.dev", "nodejs.org", "dev.java", "spring.io",
   "cppreference.com", "learn.microsoft.com", "go.dev", "rust-lang.org", "kotlinlang.org", "flutter.dev", "developer.android.com",
   "postgresql.org", "mysql.com", "mongodb.com", "redis.io", "docker.com", "kubernetes.io", "hashicorp.com", "ansible.com", "git-scm.com",
@@ -54,7 +54,8 @@ function curated(skill: string, fr: boolean) {
     { title: "freeCodeCamp", url: `https://www.freecodecamp.org/news/search/?query=${q}` },
     { title: fr ? "OpenClassrooms (catalogue)" : "OpenClassrooms (catalog)", url: "https://openclassrooms.com/fr/courses" },
     { title: "Coursera", url: `https://www.coursera.org/search?query=${q}` },
-    { title: "YouTube", url: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${skill} tutorial`)}` },
+    // Every catalog Khedma reads, filtered on this skill.
+    { title: fr ? "Cours dans Khedma (Apprendre)" : "Courses in Khedma (Learn)", url: `/app/learn?q=${q}` },
   ];
 }
 

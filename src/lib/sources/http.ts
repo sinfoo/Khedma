@@ -96,7 +96,7 @@ export async function publicFetch(url: string, init: RequestInit, maxHops = 5): 
   }
 }
 
-export async function getJson<T>(url: string, opts: { headers?: Record<string, string>; body?: string; signal?: AbortSignal } = {}): Promise<{ data?: T; error?: string }> {
+export async function getJson<T>(url: string, opts: { headers?: Record<string, string>; body?: string; signal?: AbortSignal; timeoutMs?: number } = {}): Promise<{ data?: T; error?: string }> {
   const { text, error } = await getText(url, "application/json", opts);
   if (error) return { error };
   try {

@@ -105,3 +105,12 @@ test("cover letter: the known date and the unknown recipient are spelled out, so
   assert.match(sys, /"Madame, Monsieur,"/);
   assert.match(sys, /do not mention start or end dates/);
 });
+
+test("course ranking: the AI's order is kept, unknown ids are dropped, reasons are kept", async () => {
+  const { aiRankCourses } = await import("../learn/recommend");
+  const course = (id: number, title: string) => ({ course: { id, source: "t", title, url: `https://e.x/${id}`, provider: "P", description: "", fields: [], skills: [], level: null, duration_min: null, languages: ["en"], price: "free" as const, cert: "none" as const, image: null, updated_at: null, expires_at: null }, score: 10, reasons: [] });
+  replies.push(reply({ picks: [{ id: 2, why: "Closes the Docker gap." }, { id: 99, why: "invented" }, { id: 1, why: "SQL basics." }] }));
+  const input = { gaps: [{ skill: "Docker", demand: 3 }], roles: ["DevOps"], have: [], lang: "en" as const };
+  const r = await aiRankCourses(profile.settings, input, [course(1, "SQL"), course(2, "Docker")]);
+  assert.deepEqual(r?.recs.map((x) => [x.course.id, x.why]), [[2, "Closes the Docker gap."], [1, "SQL basics."]]);
+});

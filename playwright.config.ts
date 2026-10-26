@@ -17,6 +17,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/app`,
     timeout: 300_000,
     reuseExistingServer: false,
-    env: { KHEDMA_DB: DB, NEXT_DIST_DIR: ".next-e2e", ANTHROPIC_API_KEY: "", PORT: String(PORT) },
+    env: { KHEDMA_DB: DB, NEXT_DIST_DIR: ".next-e2e", ANTHROPIC_API_KEY: "", PORT: String(PORT), KHEDMA_NO_LEARN_REFRESH: "1" },
   },
 });

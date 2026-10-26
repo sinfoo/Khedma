@@ -7,6 +7,7 @@ import {
   Sparkles,
   Coins,
   Globe2,
+  BookOpen,
   UserRound,
   BarChart3,
   Radar,
@@ -31,6 +32,7 @@ export type NavKey =
   | "upskill"
   | "salaries"
   | "abroad"
+  | "learn"
   | "profile"
   | "insights"
   | "sources"
@@ -72,6 +74,7 @@ export const NAV_GROUPS: { key: NavGroupKey; items: NavItem[] }[] = [
       { key: "salaries", href: "/app/salaries", Icon: Coins },
       { key: "abroad", href: "/app/abroad", Icon: Globe2 },
       { key: "upskill", href: "/app/upskill", Icon: Sparkles, g: "k" },
+      { key: "learn", href: "/app/learn", Icon: BookOpen, g: "l" },
     ],
   },
   {

@@ -9,6 +9,7 @@ export default defineMessages({
     badges: { offers: "{n} good matches not tracked yet", pipeline: "{n} tracked, still to send", calendar: "{n} due this week", coach: "{n} cards to review", sources: "{n}" },
     titles: {
       abroad: "Going abroad",
+      learn: "Learn",
       calendar: "Calendar",
       clip: "Clipper",
       debrief: "Debrief",
@@ -48,6 +49,7 @@ export default defineMessages({
       upskill: "Skills",
       salaries: "Salaries",
       abroad: "Going abroad",
+      learn: "Learn",
       profile: "Profile & CV",
       insights: "Insights",
       sources: "Sources",
@@ -129,6 +131,7 @@ export default defineMessages({
     badges: { offers: "{n} bonnes offres pas encore suivies", pipeline: "{n} suivies, encore à envoyer", calendar: "{n} échéances cette semaine", coach: "{n} cartes à revoir", sources: "{n}" },
     titles: {
       abroad: "Partir à l'étranger",
+      learn: "Apprendre",
       calendar: "Calendrier",
       clip: "Clipper",
       debrief: "Débrief",
@@ -168,6 +171,7 @@ export default defineMessages({
       upskill: "Compétences",
       salaries: "Salaires",
       abroad: "Partir à l'étranger",
+      learn: "Apprendre",
       profile: "Profil & CV",
       insights: "Statistiques",
       sources: "Sources",
