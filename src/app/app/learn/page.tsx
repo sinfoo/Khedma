@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { after } from "next/server";
-import { ArrowUpRight, GraduationCap, Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, Search, Sparkles } from "lucide-react";
 import { pageTitle } from "@/lib/i18n/title";
 import { getDict } from "@/lib/i18n/server";
 import { fmt, type Dict } from "@/lib/i18n/dict";
@@ -13,8 +13,9 @@ import { aiRankCourses, recommendCourses } from "@/lib/learn/recommend";
 import { FIELD_KEYS, type FieldKey } from "@/lib/learn/model";
 import { DIRECTORY, SOURCE_NAMES, providerLink } from "@/lib/learn/directory";
 import { CourseCard } from "@/components/learn/course-card";
+import { FIELD_STYLE, hueVar } from "@/components/learn/field-style";
 import { ActionButton } from "@/components/action-button";
-import { PageHeader } from "@/components/kit";
+import { CompanyAvatar, PageHeader } from "@/components/kit";
 import { refreshLearn } from "@/app/actions/learn";
 import type { Locale } from "@/lib/types";
 
@@ -105,13 +106,16 @@ export default async function LearnPage({ searchParams }: PageProps<"/app/learn"
         </form>
 
         <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={m.filters.field}>
-          {FIELD_KEYS.filter((k) => counts.fields[k]).map((k) => (
-            <li key={k}>
-              <Link href={qs({ field: field === k ? null : k })} aria-current={field === k ? "page" : undefined} className={`chip min-h-7 ${field === k ? "chip-accent" : ""}`}>
-                {m.fields[k]} <span className="mono opacity-70">{counts.fields[k]}</span>
-              </Link>
-            </li>
-          ))}
+          {FIELD_KEYS.filter((k) => counts.fields[k]).map((k) => {
+            const { Icon, hue } = FIELD_STYLE[k];
+            return (
+              <li key={k}>
+                <Link href={qs({ field: field === k ? null : k })} aria-current={field === k ? "page" : undefined} className="chip lc-chip min-h-7" style={hueVar(hue)}>
+                  <Icon size={13} aria-hidden="true" /> {m.fields[k]} <span className="mono opacity-70">{counts.fields[k]}</span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
 
         {counts.total > 0 && (
@@ -142,7 +146,7 @@ export default async function LearnPage({ searchParams }: PageProps<"/app/learn"
         <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {DIRECTORY.filter((p) => !field || p.fields.includes(field)).map((p) => (
             <li key={p.name} className="card flex items-start gap-3 p-3.5">
-              <GraduationCap size={18} className="mt-0.5 shrink-0 text-accent-text" aria-hidden="true" />
+              <CompanyAvatar name={p.name} size={34} />
               <div className="min-w-0 flex-1">
                 <a href={providerLink(p, q)} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink hover:text-accent-text">
                   {p.name} <ArrowUpRight size={13} className="inline" aria-hidden="true" />
