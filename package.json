@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "check:sources": "tsx scripts/check-sources.ts"
   },
   "dependencies": {
     "@tesseract.js-data/eng": "1.0.0",
