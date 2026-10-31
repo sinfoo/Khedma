@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { db, getProfile, kvGet, kvSet, updateProfile } from "@/lib/db";
 import { aiText, getEngine } from "@/lib/ai";
-import { claudeConfigured, claudeHealth } from "@/lib/ai/anthropic";
+import { claudeConfigured, claudeHealth, claudeProblem } from "@/lib/ai/anthropic";
 import { resetAll } from "@/app/api/backup/backup";
 import type { Settings } from "@/lib/types";
 
@@ -14,8 +14,9 @@ const CLAUDE_MODELS = ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-4-5
 const MOTION_COOKIE = "khedma_motion";
 
 /** Claude status for the settings page. Never returns or logs the key itself. */
-export async function claudeStatus(): Promise<{ configured: boolean; working: boolean }> {
-  return { configured: claudeConfigured(), working: await claudeHealth() };
+export async function claudeStatus(): Promise<{ configured: boolean; working: boolean; problem: "credit" | "key" | null }> {
+  const working = await claudeHealth();
+  return { configured: claudeConfigured(), working, problem: working ? null : claudeProblem() };
 }
 
 type EngineInput = { provider?: string; claude_model?: string };

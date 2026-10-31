@@ -45,6 +45,10 @@ async function post(body: object, timeoutMs: number): Promise<Response> {
   }
   if (!r.ok) {
     const text = await r.text().catch(() => "");
+    // An empty balance or a revoked key fails every call while the cheap key check still passes: remember it, so
+    // the next calls go straight to the offline engine and Settings can say why.
+    const problem = /credit balance|billing/i.test(text) ? "credit" : r.status === 401 || r.status === 403 ? "key" : null;
+    if (problem) healthCache = { at: Date.now(), ok: false, key: providerKey(AI_KEY), problem };
     // 401/403: bad key; 429/529: rate limit/overload. Callers fall back either way.
     throw new ClaudeUnavailable(`Claude API HTTP ${r.status}: ${text.slice(0, 200)}`);
   }
@@ -136,13 +140,18 @@ export async function* claudeStream(opts: { model: string; messages: ChatMessage
 }
 
 // Keyed by the key itself, so a key changed in Settings is checked again at once.
-let healthCache: { at: number; ok: boolean; key: string } | null = null;
+let healthCache: { at: number; ok: boolean; key: string; problem?: "credit" | "key" } | null = null;
+
+/** Why the online model is not used right now ("credit": no balance left, "key": refused), or null. */
+export const claudeProblem = () => (healthCache && !healthCache.ok && healthCache.key === providerKey(AI_KEY) ? (healthCache.problem ?? null) : null);
 /** Cheap key check (GET /v1/models), cached 10 minutes so page loads stay fast. */
 /** `fresh`: skip the 10-minute cache (the Settings "Test" button). */
 export async function claudeHealth(fresh = false): Promise<boolean> {
   if (!claudeConfigured()) return false;
   const key = providerKey(AI_KEY);
   if (!fresh && healthCache?.key === key && Date.now() - healthCache.at < 600_000) return healthCache.ok;
+  // A key known to have no credit stays offline for 30 minutes (the model list would still answer).
+  if (!fresh && healthCache?.key === key && healthCache.problem === "credit" && Date.now() - healthCache.at < 1_800_000) return false;
   let ok = false;
   try {
     const r = await fetch("https://api.anthropic.com/v1/models?limit=1", { headers: headers(), signal: AbortSignal.timeout(4000) });

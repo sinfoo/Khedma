@@ -45,7 +45,7 @@ export function AiEngine({
   engine,
 }: {
   settings: Pick<Settings, "provider" | "claude_model">;
-  claude: { configured: boolean; working: boolean };
+  claude: { configured: boolean; working: boolean; problem?: "credit" | "key" | null };
   engine: string;
 }) {
   const { t } = useT();
@@ -91,7 +91,7 @@ export function AiEngine({
           {!claude.working && (
             <p className="mt-3 flex gap-2 rounded-lg bg-surface-2 p-2.5 text-xs leading-relaxed text-ink-2">
               <KeyRound size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
-              <span>{a.keyHelp}</span>
+              <span>{claude.problem === "credit" ? a.keyNoCredit : claude.problem === "key" ? a.keyRefused : a.keyHelp}</span>
             </p>
           )}
           <label className="label mt-4" htmlFor="claude-model">
