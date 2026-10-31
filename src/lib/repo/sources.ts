@@ -8,7 +8,7 @@ import { mapLimit, scanSignal } from "../sources/http";
 import { trustScore, type HostClass } from "../sources/trust";
 import { checkJobs } from "../company/liveness";
 import { syncBoard } from "../company";
-import { planSearch, planSources, type PlanRun, type PlanSkipped, type Remote } from "../search/plan";
+import { COMPANY_KINDS, planSearch, planSources, type PlanRun, type PlanSkipped, type Remote } from "../search/plan";
 import { buildFilter, compileKeyword, dropBucket, fold, type FilterOptions } from "../search/filter";
 import { companyKey, scoreJob, type RankContext } from "../search/rank";
 import { appliedCompanies, ensureSearchSchema, getSearchPrefs, knownIndex, setRelevance, setTrust, type KnownIndex } from "../search/store";
@@ -644,9 +644,10 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       emit({ type: "source", status: error ? "error" : "done", ...d });
       return d;
     };
-    // Boards spend most of their time in polite pauses on their own host, so six run at once. LinkedIn's runs
-    // (one per country) share its rate-limited guest search: they go one after another.
-    const groups = [...Map.groupBy(runs, (r) => (r.kind === "linkedin" ? "linkedin" : r.key)).values()];
+    // Boards spend most of their time in polite pauses on their own host, so six run at once. Runs of one board
+    // (LinkedIn per country, two Job Bank cities) share its host and its crawl delay: they go one after another.
+    // Tracked companies are each their own board.
+    const groups = [...Map.groupBy(runs, (r) => (COMPANY_KINDS.has(r.kind) ? r.key : r.kind)).values()];
     const detail = (await mapLimit(groups, 6, async (g) => {
       const out: RunSourceDetail[] = [];
       for (const run of g) out.push(await scanRun(run));
