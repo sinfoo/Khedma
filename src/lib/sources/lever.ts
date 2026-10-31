@@ -45,9 +45,10 @@ export function mapLever(json: LeverPosting[], slug: string): NewJob[] {
 export async function scan(handle: string): Promise<{ jobs: NewJob[]; error?: string }> {
   const slug = handle.trim().toLowerCase();
   const url = (host: string) => `https://${host}/v0/postings/${encodeURIComponent(slug)}?mode=json`;
-  let { data, error } = await getJson<LeverPosting[]>(url("api.lever.co"));
+  // Lever answers big boards slowly (Spotify: 850 KB in about 10 s, checked 2026-10-31): more than the default 10 s timeout.
+  let { data, error } = await getJson<LeverPosting[]>(url("api.lever.co"), { timeoutMs: 30_000 });
   // Boards on jobs.eu.lever.co return 404 "Document not found" on the global host.
-  if (!Array.isArray(data)) {
+  if (!Array.isArray(data) && !error?.startsWith("Timeout")) {
     const eu = await getJson<LeverPosting[]>(url("api.eu.lever.co"));
     if (Array.isArray(eu.data)) ({ data, error } = eu);
   }
