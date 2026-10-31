@@ -20,3 +20,11 @@ test("a run left unfinished by a previous server is closed, finished runs are un
   assert.equal(ok.finished_at, "2026-10-01T10:01:00Z");
   assert.equal(closeStuckRuns(), 0);
 });
+
+test("saved sources of a board that became link-only leave the list", async () => {
+  const { db } = await import("@/lib/db");
+  const { listSourceRows } = await import("./sources");
+  listSourceRows();
+  db().prepare("INSERT INTO sources (kind, label, handle) VALUES ('keejob', 'Keejob', ''), ('emploitunisie', 'Emploitunisie', '')").run();
+  assert.deepEqual(listSourceRows().map((s) => s.kind), ["keejob"]);
+});

@@ -3,7 +3,7 @@
 import { getProfileExtra } from "../cv/profile-extra";
 import { autoArchive, db, getProfile, kvGet, kvSet, latestEvaluation, listJobs, migrate, upsertJob, type NewJob } from "../db";
 import { JOB_TYPES, type JobType, type Profile } from "../types";
-import { CATALOG, dedupeKey, detectAts, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
+import { CATALOG, dedupeKey, detectAts, isProviderKind, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit, scanSignal } from "../sources/http";
 import { trustScore, type HostClass } from "../sources/trust";
 import { checkJobs } from "../company/liveness";
@@ -95,7 +95,8 @@ const toSource = (r: Row): SourceRow => ({
 
 export function listSourceRows(): SourceRow[] {
   ensure();
-  return (db().prepare("SELECT * FROM sources ORDER BY id").all() as Row[]).map(toSource);
+  // A board moved to link-only (Emploitunisie) keeps its saved row but leaves the list: it could no longer be scanned.
+  return (db().prepare("SELECT * FROM sources ORDER BY id").all() as Row[]).map(toSource).filter((s) => isProviderKind(s.kind));
 }
 
 export function getSourceRow(id: number): SourceRow | null {

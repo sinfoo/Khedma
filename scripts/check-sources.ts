@@ -39,7 +39,7 @@ const CASES: Record<string, [handle: string, keyword?: string]> = {
   jobscore: ["atlanticbt"],
   join: ["justhiringde"],
   softgarden: ["bundesdruckerei"],
-  successfactors: ["jobs.danfoss.com"],
+  successfactors: ["jobsearch.alstom.com"],
   icims: ["360care"],
   rss: ["https://weworkremotely.com/categories/remote-programming-jobs.rss"],
   careers: ["https://vercel.com/careers"],
