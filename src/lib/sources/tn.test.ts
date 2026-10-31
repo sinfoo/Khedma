@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseKeejobDetail, parseKeejobIndex } from "./keejob";
 import { parseTanitDetail, parseTanitList, tanitListUrl } from "./tanitjobs";
-import { emploitunisieSearchUrl, parseEmploitunisieList } from "./emploitunisie";
+import { isProviderKind, platformLinks } from "./catalog";
 import { parseLinkedinSearch, linkedinSearchUrl } from "./linkedin";
 import { farojobListUrl, parseFarojobDetail, parseFarojobList, stripRecruitPrefix } from "./farojob";
 import { dedupeKey, guessTypeWithContract, matchesKeywords } from "./classify";
@@ -57,20 +57,10 @@ test("tanitjobs listing cards and JSON-LD detail", () => {
   assert.equal(tanitListUrl("https://www.tanitjobs.com/categories/705/informatique-jobs/"), "https://www.tanitjobs.com/categories/705/informatique-jobs/");
 });
 
-test("emploitunisie listing", () => {
-  const jobs = parseEmploitunisieList(fx("emploitunisie-list.html"));
-  assert.equal(jobs.length, 3);
-  const [j] = jobs;
-  assert.equal(j.title, "Stagiaire Assistant Chef de Projet");
-  assert.equal(j.company, "Ayp Edge");
-  assert.equal(j.location, "Tunis");
-  assert.equal(j.posted_at, "2026-10-12");
-  assert.equal(j.type, "stage");
-  assert.ok(j.description.startsWith("Contrat : Stage\nNiveau d'études : Bac+5 et plus"));
-  assert.equal(j.url, "https://www.emploitunisie.com/offre-emploi-tunisie/stagiaire-assistant-chef-projet-tunis-473067");
-  // Multi-contract offer is not forced to "stage".
-  assert.equal(jobs[1].type, "emploi");
-  assert.equal(emploitunisieSearchUrl("Développeur"), "https://www.emploitunisie.com/recherche-jobs-tunisie/d%C3%A9veloppeur");
+test("emploitunisie is a search link: its pages answer robots with a Cloudflare challenge", () => {
+  assert.ok(!isProviderKind("emploitunisie"));
+  const link = platformLinks(["Développeur"], ["TN"]).find((l) => l.name === "Emploitunisie");
+  assert.equal(link?.url, "https://www.emploitunisie.com/recherche-jobs-tunisie/d%C3%A9veloppeur");
 });
 
 test("farojob listing drops stale posts and strips 'X recrute'", () => {

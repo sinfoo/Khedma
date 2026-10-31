@@ -10,7 +10,6 @@ import * as more from "./ats-more";
 import * as rss from "./rss";
 import * as keejob from "./keejob";
 import * as tanitjobs from "./tanitjobs";
-import * as emploitunisie from "./emploitunisie";
 import * as farojob from "./farojob";
 import * as linkedin from "./linkedin";
 import * as arbeitnow from "./arbeitnow";
@@ -65,7 +64,6 @@ export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
 export const SUGGESTED_TN_SOURCES: { kind: ProviderKind; label: string; handle: string }[] = [
   { kind: "keejob", label: "Keejob", handle: "" },
   { kind: "tanitjobs", label: "Tanitjobs – Informatique", handle: "705/informatique-jobs" },
-  { kind: "emploitunisie", label: "Emploitunisie", handle: "" },
   { kind: "farojob", label: "Farojob – Informatique", handle: "informatique" },
 ];
 
@@ -104,7 +102,6 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   rss: { list: (h) => rss.scan(h) },
   keejob: { list: keejob.scan, detail: keejob.detail },
   tanitjobs: { list: tanitjobs.scan, detail: tanitjobs.detail },
-  emploitunisie: { list: emploitunisie.scan },
   farojob: { list: farojob.scan, detail: farojob.detail },
   linkedin: { list: linkedin.scan, detail: linkedin.detail },
   arbeitnow: { list: arbeitnow.scan },

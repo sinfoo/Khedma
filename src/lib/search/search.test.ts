@@ -45,7 +45,7 @@ test("plan: TN runs the Tunisian boards and LinkedIn Tunis; saved sources from o
     ],
   });
   const k = kinds(p.runs);
-  for (const x of ["keejob", "tanitjobs", "emploitunisie", "farojob", "greenhouse", "linkedin"]) assert.ok(k.includes(x), x);
+  for (const x of ["keejob", "tanitjobs", "farojob", "greenhouse", "linkedin"]) assert.ok(k.includes(x), x);
   assert.ok(!k.includes("jobsch") && !k.includes("remoteok") && !k.includes("jobbank"));
   assert.deepEqual(p.skipped.map((s) => [s.label, s.reason]), [["jobs.ch", "country"], ["Remote OK", "remote"]]);
   const keejob = p.runs.find((r) => r.kind === "keejob")!;

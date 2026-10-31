@@ -2,7 +2,7 @@
 import { countryByCode, countryOf, REMOTE_CODE } from "../geo";
 
 export const PROVIDER_KINDS = [
-  "keejob", "tanitjobs", "emploitunisie", "farojob", "linkedin",
+  "keejob", "tanitjobs", "farojob", "linkedin",
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
   "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "gem", "rippling", "flatchr", "jobscore", "join", "softgarden", "successfactors", "icims", "rss", "careers",
@@ -15,6 +15,7 @@ export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS
 export const LINK_KINDS = [
   "indeed", "google", "stepstone", "xing", "glassdoor", "ziprecruiter", "wellfound",
   "hellowork", "apec", "wttj", "bayt", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
+  "emploitunisie",
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
@@ -86,7 +87,8 @@ export const CATALOG: CatalogEntry[] = [
     },
     keywords: true,
   },
-  { kind: "emploitunisie", name: "Emploitunisie", country: "TN", method: "html", site: "https://www.emploitunisie.com", handle: none, keywords: true },
+  // Link only since 2026-10-31: every page answers a Cloudflare "Just a moment..." challenge (HTTP 403), whatever the user agent.
+  link("emploitunisie", "Emploitunisie", "TN", "https://www.emploitunisie.com", (q) => `https://www.emploitunisie.com/recherche-jobs-tunisie${q.trim() ? `/${enc(q.trim().toLowerCase())}` : ""}`),
   {
     kind: "farojob",
     name: "Farojob",
