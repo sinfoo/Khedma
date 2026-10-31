@@ -1,0 +1,242 @@
+{
+ "data": [
+  {
+   "id": "883901f4-59b1-4ac9-a250-118221b29570",
+   "apply": {
+    "on": "jobsly",
+    "url": "https://jobs.ly/jobs/883901f4-59b1-4ac9-a250-118221b29570-full-stack-developer?apply=1"
+   },
+   "url": {
+    "ar": "https://jobs.ly/jobs/883901f4-59b1-4ac9-a250-118221b29570-full-stack-developer?utm_source=partner",
+    "en": "https://jobs.ly/en/jobs/883901f4-59b1-4ac9-a250-118221b29570-full-stack-developer?utm_source=partner"
+   },
+   "title": {
+    "ar": "مطور تطبيقات ويب متكامل",
+    "en": "Full Stack Developer"
+   },
+   "company": {
+    "name": {
+     "ar": "شركة المجموعة الهندسية",
+     "en": "Engineering Group"
+    },
+    "url": {
+     "ar": "https://jobs.ly/companies/engineering-group-b82128a038b7",
+     "en": "https://jobs.ly/en/companies/engineering-group-b82128a038b7"
+    },
+    "verified": false,
+    "logo": "https://jobs.ly/api/files/logos/13c587de-34f7-4ed7-ba31-cebfc4a0e71c.webp",
+    "confidential": false
+   },
+   "hiringFor": null,
+   "city": {
+    "code": "benghazi",
+    "ar": "بنغازي",
+    "en": "Benghazi"
+   },
+   "countryCode": "LY",
+   "locations": [
+    {
+     "countryCode": "LY",
+     "cityCode": "benghazi",
+     "locality": null,
+     "localityAr": null
+    }
+   ],
+   "category": {
+    "code": "engineering",
+    "ar": "الهندسة",
+    "en": "Engineering"
+   },
+   "occupation": null,
+   "jobType": {
+    "code": "full_time",
+    "ar": "دوام كامل",
+    "en": "Full-time"
+   },
+   "workMode": {
+    "code": "onsite",
+    "ar": "في المقر",
+    "en": "On-site"
+   },
+   "experienceLevel": {
+    "code": "junior",
+    "ar": "خبرة قليلة",
+    "en": "Junior"
+   },
+   "salary": {
+    "min": 2000,
+    "max": null,
+    "currency": "LYD",
+    "period": "month",
+    "formatted": {
+     "ar": "2,000 د.ل",
+     "en": "2,000 LYD"
+    }
+   },
+   "postedAt": "2026-10-26T11:15:53.338Z",
+   "expiresAt": "2026-12-10T11:15:53.484Z"
+  },
+  {
+   "id": "4788e2db-60c7-4985-b13d-308a3d836f4f",
+   "apply": {
+    "on": "jobsly",
+    "url": "https://jobs.ly/jobs/4788e2db-60c7-4985-b13d-308a3d836f4f-accountant?apply=1"
+   },
+   "url": {
+    "ar": "https://jobs.ly/jobs/4788e2db-60c7-4985-b13d-308a3d836f4f-accountant?utm_source=partner",
+    "en": "https://jobs.ly/en/jobs/4788e2db-60c7-4985-b13d-308a3d836f4f-accountant?utm_source=partner"
+   },
+   "title": {
+    "ar": "محاسب",
+    "en": "Accountant"
+   },
+   "company": {
+    "name": {
+     "ar": "إيجاد",
+     "en": "Ejad"
+    },
+    "url": {
+     "ar": "https://jobs.ly/companies/altamkeen-consulting-250daaee7036",
+     "en": "https://jobs.ly/en/companies/altamkeen-consulting-250daaee7036"
+    },
+    "verified": true,
+    "logo": "https://jobs.ly/api/files/logos/24c6c62d-7246-4ba2-98ef-a6e64bdc57b3.svg",
+    "confidential": false
+   },
+   "hiringFor": {
+    "name": "التمكين",
+    "nameEn": "Altamkeen"
+   },
+   "city": {
+    "code": "tripoli",
+    "ar": "طرابلس",
+    "en": "Tripoli"
+   },
+   "countryCode": null,
+   "locations": [],
+   "category": {
+    "code": "accounting_finance",
+    "ar": "المحاسبة والمالية",
+    "en": "Accounting & Finance"
+   },
+   "occupation": {
+    "isco08": "2411",
+    "ar": "المحاسبون",
+    "en": "Accountants"
+   },
+   "jobType": {
+    "code": "full_time",
+    "ar": "دوام كامل",
+    "en": "Full-time"
+   },
+   "workMode": {
+    "code": "remote",
+    "ar": "عن بُعد",
+    "en": "Remote"
+   },
+   "experienceLevel": {
+    "code": "junior",
+    "ar": "خبرة قليلة",
+    "en": "Junior"
+   },
+   "salary": {
+    "min": 1500,
+    "max": 2500,
+    "currency": "LYD",
+    "period": "month",
+    "formatted": {
+     "ar": "1,500 – 2,500 د.ل",
+     "en": "1,500 – 2,500 LYD"
+    }
+   },
+   "postedAt": "2026-10-26T14:46:00.206Z",
+   "expiresAt": "2026-12-10T14:46:00.225Z"
+  },
+  {
+   "id": "ad1a2d3b-f668-4d7c-8b62-419226cc8f1a",
+   "apply": {
+    "on": "jobsly",
+    "url": "https://jobs.ly/jobs/ad1a2d3b-f668-4d7c-8b62-419226cc8f1a-restaurant-manager?apply=1"
+   },
+   "url": {
+    "ar": "https://jobs.ly/jobs/ad1a2d3b-f668-4d7c-8b62-419226cc8f1a-restaurant-manager?utm_source=partner",
+    "en": "https://jobs.ly/en/jobs/ad1a2d3b-f668-4d7c-8b62-419226cc8f1a-restaurant-manager?utm_source=partner"
+   },
+   "title": {
+    "ar": "مدير مطعم",
+    "en": "Restaurant Manager"
+   },
+   "company": {
+    "name": {
+     "ar": "مجموعة النخبة للتعهدات والتموين",
+     "en": "Elite Group"
+    },
+    "url": {
+     "ar": "https://jobs.ly/companies/elite-group-0c5dc83666c4",
+     "en": "https://jobs.ly/en/companies/elite-group-0c5dc83666c4"
+    },
+    "verified": false,
+    "logo": "https://jobs.ly/api/files/logos/5ed361ea-1bf5-448c-a0ab-e8348c9dff0a.webp",
+    "confidential": false
+   },
+   "hiringFor": null,
+   "city": {
+    "code": "benghazi",
+    "ar": "بنغازي",
+    "en": "Benghazi"
+   },
+   "countryCode": "LY",
+   "locations": [
+    {
+     "countryCode": "LY",
+     "cityCode": "benghazi",
+     "locality": null,
+     "localityAr": null
+    }
+   ],
+   "category": {
+    "code": "hospitality_tourism",
+    "ar": "الفنادق والمطاعم",
+    "en": "Hospitality & Restaurants"
+   },
+   "occupation": {
+    "isco08": "1412",
+    "ar": "مديرو المطاعم",
+    "en": "Restaurant Managers"
+   },
+   "jobType": {
+    "code": "full_time",
+    "ar": "دوام كامل",
+    "en": "Full-time"
+   },
+   "workMode": {
+    "code": "onsite",
+    "ar": "في المقر",
+    "en": "On-site"
+   },
+   "experienceLevel": {
+    "code": "manager",
+    "ar": "مدير",
+    "en": "Manager"
+   },
+   "salary": {
+    "min": 3000,
+    "max": null,
+    "currency": "LYD",
+    "period": "month",
+    "formatted": {
+     "ar": "3,000 د.ل",
+     "en": "3,000 LYD"
+    }
+   },
+   "postedAt": "2026-10-31T18:42:25.886Z",
+   "expiresAt": "2026-12-15T18:42:25.958Z"
+  }
+ ],
+ "meta": {
+  "total": 98,
+  "page": 1,
+  "pageCount": 5,
+  "perPage": 20
+ }
+}

@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
+import { jobslyDetailText, jobslyUrl, mapJobsly } from "./jobsly";
 import { mapMcf, mcfUrl } from "./mycareersfuture";
 import { mapWorkableJobs, workableJobsUrl } from "./workablejobs";
 
@@ -45,4 +46,22 @@ test("mycareersfuture: Singapore's public search -> employer, district, monthly 
   assert.ok(j.description.startsWith("Salary: S$900 – S$1,100 / month · Internship/Attachment · Fresh/entry level"), j.description.slice(0, 90));
   assert.ok(j.description.includes("Skills: Internships, SQL Database"));
   assert.equal(mcfUrl("software intern"), "https://api.mycareersfuture.gov.sg/v2/jobs?search=software+intern&limit=50&page=0");
+});
+
+test("jobs.ly: English titles, Libyan city, salary in dinars, remote mode; every offer links to its jobs.ly page", () => {
+  const jobs = mapJobsly(JSON.parse(fx("jobsly.json")));
+  assert.equal(jobs.length, 3);
+  const [dev, remote] = jobs;
+  assert.equal(dev.title, "Full Stack Developer");
+  assert.equal(dev.company, "Engineering Group");
+  assert.equal(dev.location, "Benghazi, Libya");
+  assert.equal(countryOf(dev.location), "LY");
+  assert.ok(dev.url.startsWith("https://jobs.ly/en/jobs/883901f4-59b1-4ac9-a250-118221b29570-full-stack-developer"));
+  assert.ok(dev.description.startsWith("Salary: 2,000 LYD / month · Full-time"), dev.description);
+  assert.equal(dev.posted_at !== null, true);
+  assert.equal(remote.remote, true);
+  assert.equal(jobs.every((j) => j.source === "jobsly"), true);
+  assert.equal(jobslyUrl("engineer"), "https://jobs.ly/api/v1/jobs?q=engineer&perPage=50&page=1");
+  const body = jobslyDetailText({ data: { description: { en: "Build our web apps.", ar: "" }, requirements: { en: ["React", "Node.js"] } } });
+  assert.equal(body, "Build our web apps.\n\nRequirements:\n- React\n- Node.js");
 });
