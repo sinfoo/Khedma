@@ -33,7 +33,7 @@ import { useToast } from "@/components/kit/toast";
 import { CompanyAvatar } from "@/components/kit";
 import { Menu, MenuItem } from "@/components/kit/menu";
 import { ScoreRing, scoreLabel } from "@/components/ui";
-import { countryByCode, REMOTE_CODE } from "@/lib/geo";
+import { countryByCode, REMOTE_CODE, REGIONS } from "@/lib/geo";
 import { contactSearchUrl } from "@/lib/links";
 import { JOB_TYPES, type JobType } from "@/lib/types";
 import { planSearch, runLabel, type Remote } from "@/lib/search/plan";
@@ -285,7 +285,8 @@ export function ScanPanel({
         </button>
       </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted" role="group" aria-label={m.countries}>
-        {places.countries.map((code) => {
+        {/* The profile's countries, plus any picked for this scan below. */}
+        {[...new Set([...places.countries, ...countries])].map((code) => {
           const on = countries.includes(code);
           return (
             <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? (cs.length > 1 ? cs.filter((x) => x !== code) : cs) : [...cs, code]))}>
@@ -293,6 +294,30 @@ export function ScanPanel({
             </button>
           );
         })}
+        <label className="ml-1 inline-flex items-center">
+          <span className="sr-only">{m.addCountryPh}</span>
+          <select
+            className="input !h-6 !w-auto !py-0 !pl-2 !pr-6 text-[0.7rem]"
+            value=""
+            disabled={busy}
+            onChange={(e) => {
+              const v = e.target.value;
+              const region = REGIONS.find((r) => `region:${r.key}` === v);
+              const add = region ? region.codes : v ? [v] : [];
+              if (add.length) setCountries((cs) => [...new Set([...cs, ...add])]);
+            }}
+          >
+            <option value="">{m.addCountryPh}</option>
+            {REGIONS.filter((r) => r.codes.length > 1).map((r) => (
+              <optgroup key={r.key} label={m.regions[r.key]}>
+                <option value={`region:${r.key}`}>{fmt(m.regionAll, { name: m.regions[r.key], n: r.codes.length })}</option>
+                {r.codes.filter((c) => !countries.includes(c)).map((c) => (
+                  <option key={c} value={c}>{countryName(c)}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
         <Link href="/app/profile" className="ml-1 font-semibold text-accent-text">{m.addCountry}</Link>
       </p>
       <p id="scan-kw-hint" className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[0.72rem] text-muted">

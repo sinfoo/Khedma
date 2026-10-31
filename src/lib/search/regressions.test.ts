@@ -117,3 +117,10 @@ test("messages pick the singular for one and the plural otherwise", async () => 
   assert.equal(fmt("{n} {n:envoyée|envoyées}", { n: 3 }), "3 envoyées");
   assert.equal(fmt("Relance {n} {n:candidature|candidatures}.", { n: 1 }), "Relance 1 candidature.");
 });
+
+test("every known country can be picked through a region, and regions only hold known countries", async () => {
+  const { COUNTRIES, REGIONS } = await import("../geo");
+  const inRegion = new Set(REGIONS.flatMap((r) => r.codes));
+  assert.deepEqual(COUNTRIES.map((c) => c.code).filter((c) => !inRegion.has(c)), []);
+  for (const r of REGIONS) for (const c of r.codes) assert.ok(COUNTRIES.some((x) => x.code === c), c);
+});

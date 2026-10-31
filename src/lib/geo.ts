@@ -49,6 +49,22 @@ export const COUNTRIES: Country[] = [
 ];
 
 export const REMOTE_CODE = "REMOTE";
+
+/** Regions the scan form offers as one pick ("all of the Gulf"). Codes Khedma does not know yet are left out. */
+const REGION_CODES = {
+  maghreb: ["TN", "MA", "DZ", "LY", "EG"],
+  europe: ["FR", "DE", "BE", "CH", "NL", "LU", "AT", "IT", "ES", "PT", "IE", "PL", "CZ", "RO", "HU", "GR", "TR"],
+  nordics: ["SE", "NO", "DK", "FI", "IS"],
+  uk: ["GB", "IE"],
+  gulf: ["AE", "SA", "QA", "KW", "OM", "BH"],
+  northAmerica: ["US", "CA"],
+  asiaPacific: ["JP", "KR", "SG", "MY", "AU", "NZ", "IN"],
+} as const;
+export type RegionKey = keyof typeof REGION_CODES;
+export const REGIONS = Object.entries(REGION_CODES).map(([key, codes]) => ({
+  key: key as RegionKey,
+  codes: codes.filter((c) => COUNTRIES.some((x) => x.code === c)),
+}));
 export const TN_CITIES = ["Tunis", "Lac 1 / Lac 2", "Ariana", "La Marsa", "Ben Arous", "Sfax", "Sousse", "Monastir", "Nabeul", "Hammamet", "Bizerte", "Gabès", "Kairouan", "Gafsa", "Enfidha"];
 
 export const countryByCode = (code: string) => COUNTRIES.find((c) => c.code === code) ?? null;
