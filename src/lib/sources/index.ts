@@ -55,6 +55,18 @@ export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
   { kind: "lever", label: "Qonto", handle: "qonto" },
   { kind: "ashby", label: "Supabase", handle: "supabase" },
   { kind: "ashby", label: "Replit", handle: "replit" },
+  // Gulf, Egypt and Latin American employers with open boards (each returned offers on 2026-10-31). Company boards run on
+  // every search whatever the country, so this stays a short list of the largest.
+  { kind: "greenhouse", label: "Tamara (Saudi Arabia)", handle: "tamara" },
+  { kind: "greenhouse", label: "Careem (UAE)", handle: "careem" },
+  { kind: "ashby", label: "Ziina (UAE)", handle: "ziina" },
+  { kind: "workable", label: "Bayut & dubizzle (UAE)", handle: "bayutdubizzle" },
+  { kind: "workable", label: "Salla (Saudi Arabia)", handle: "salla" },
+  { kind: "workable", label: "Foodics (Saudi Arabia)", handle: "foodics" },
+  { kind: "workable", label: "Lucidya (Saudi Arabia)", handle: "lucidya" },
+  { kind: "ashby", label: "Thndr (Egypt)", handle: "thndr" },
+  { kind: "ashby", label: "Nubank (Brazil)", handle: "nubank" },
+  { kind: "lever", label: "dLocal (Uruguay)", handle: "dlocal" },
   { kind: "rss", label: "We Work Remotely – Programming", handle: "https://weworkremotely.com/categories/remote-programming-jobs.rss" },
   { kind: "rss", label: "Python.org Jobs", handle: "https://www.python.org/jobs/feed/rss/" },
   ...COUNTRY_FEEDS.map((f) => ({ kind: "rss" as const, label: f.label, handle: f.handle })),
