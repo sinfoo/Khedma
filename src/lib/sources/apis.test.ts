@@ -47,7 +47,7 @@ test("himalayas: country restrictions as location, epoch dates and deadlines", (
   assert.match(j.posted_at!, /^\d{4}-\d{2}-\d{2}$/);
   assert.match(j.deadline!, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(j.location.length > 1);
-  assert.equal(himalayasUrl("software intern"), "https://himalayas.app/jobs/api?limit=50&search=software+intern");
+  assert.equal(himalayasUrl("software intern"), "https://himalayas.app/jobs/api/search?q=software+intern");
 });
 
 test("remotive: software-dev category feed, candidate location kept", () => {

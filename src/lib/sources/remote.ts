@@ -72,10 +72,11 @@ async function scanJobicy(handle: string, keywords: string[] = []): Promise<List
   return { jobs: byTitle(jobs, keywords), error: jobs.length ? undefined : error };
 }
 
-// ---------- Himalayas — https://himalayas.app/jobs/api ----------
+// ---------- Himalayas — https://himalayas.app/jobs/api/search (the browse feed /jobs/api ignores `search`) ----------
+// Search answers 20 offers a page; robots.txt disallows "&page=", so only the first page is read.
 interface HimalayasJob { title?: string; companyName?: string; applicationLink?: string; guid?: string; description?: string; employmentType?: string; seniority?: string[]; locationRestrictions?: string[]; pubDate?: number; expiryDate?: number }
 export interface HimalayasPayload { jobs?: HimalayasJob[] }
-export const himalayasUrl = (search: string) => `https://himalayas.app/jobs/api?${new URLSearchParams({ limit: "50", search })}`;
+export const himalayasUrl = (q: string) => `https://himalayas.app/jobs/api/search?${new URLSearchParams({ q })}`;
 
 export function mapHimalayas(json: HimalayasPayload): NewJob[] {
   const out: NewJob[] = [];
