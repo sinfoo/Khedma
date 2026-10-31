@@ -135,3 +135,11 @@ test("offline tailoring adds no placeholder, no second summary and no spoken lan
   const none = heuristicTailorCv({ ...(job as object), description: "Sales." } as never, { ...(profile as object), skills: [] } as never, "en");
   assert.ok(!none.includes("[key skills]"));
 });
+
+test("an English offline letter never opens with a French headline", async () => {
+  const { heuristicCoverLetter } = await import("./heuristic");
+  const profile = { name: "Ana", email: "a@b.c", headline: "Élève ingénieur à l'ENIT", skills: ["Python", "English"], cv_md: "Python", target_roles: [], target_types: [] } as never;
+  const out = heuristicCoverLetter({ title: "Backend Intern", company: "Acme", location: "Tunis", description: "Python and English.", tags: [], type: "stage" } as never, profile, "en");
+  assert.match(out, /As an engineering student at ENIT, I am writing/);
+  assert.ok(!/Élève/.test(out) && !/Python, English/.test(out));
+});

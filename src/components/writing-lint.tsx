@@ -80,7 +80,8 @@ export function WritingLint({ text, onReplace, onEdit, className = "" }: { text:
   );
 }
 
-export const useFacts = (source: string | null | undefined, generated: string) => useMemo(() => (source?.trim() ? checkFacts(source, generated) : []), [source, generated]);
+export const useFacts = (source: string | null | undefined, generated: string, context = "") =>
+  useMemo(() => (source?.trim() ? checkFacts(source, generated, context) : []), [source, generated, context]);
 
 /** Invented-fact list; with `onConfirm` it also renders the acknowledgement checkbox that gates "Accept". */
 export function FactGate({ findings, confirmed, onConfirm, className = "" }: { findings: FactFinding[]; confirmed?: boolean; onConfirm?: (v: boolean) => void; className?: string }) {

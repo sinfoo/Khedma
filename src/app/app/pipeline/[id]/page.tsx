@@ -160,6 +160,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         }
       : null;
   const pack = AFTER_TABS.includes(tab) ? getPack(app.id) : null;
+  // The offer itself, for the fact check: naming the employer or the job title is not inventing a fact.
+  const offerContext = [job.title, job.company, job.location].join("\n");
   const known = tab === "overview" || tab === "contacts" ? contactsAtCompany(job.company, app.id) : [];
   const lastCheck = tab === "overview" ? getChecks([job.id]).get(job.id) : undefined;
   // A check from the last 24 h is reused; older ones run again when the review step opens.
@@ -352,6 +354,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 downloads={{ pdf: `/api/applications/${app.id}/export?doc=cv&format=pdf`, docx: `/api/applications/${app.id}/export?doc=cv&format=docx`, md: `/api/applications/${app.id}/export?doc=cv&format=md` }}
                 preview={`/print/${app.id}?doc=cv&embed=1&v=${styleKey}`}
                 original={hasCv ? cvBase(source) : null}
+                context={offerContext}
                 limit={{ words: 900, pages: 2 }}
               />
             ) : (
@@ -369,6 +372,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 downloads={{ pdf: `/api/applications/${app.id}/export?doc=letter&format=pdf`, docx: `/api/applications/${app.id}/export?doc=letter&format=docx`, md: `/api/applications/${app.id}/export?doc=letter&format=md` }}
                 preview={`/print/${app.id}?doc=letter&embed=1&v=${styleKey}`}
                 original={hasCv ? cvBase(source) : null}
+                context={offerContext}
                 compare={false}
                 limit={{ words: 320, pages: 1 }}
               />

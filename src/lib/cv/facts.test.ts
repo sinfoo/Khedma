@@ -53,3 +53,10 @@ test("thousand separators and percent normalise", () => {
   assert.deepEqual(checkFacts(src, "Processed 1200 records, 12.5 % faster."), []);
   assert.equal(checkFacts(src, "Processed 1300 records.").length, 1);
 });
+
+test("a letter's date and subject lines and the offer's own names are not invented facts", async () => {
+  const { checkFacts } = await import("./facts");
+  const letter = "25 October 2026\n\nSubject: Application, Backend Developer (Python / Django)\n\nI would like to join Carthago Labs this summer.";
+  assert.deepEqual(checkFacts("Python developer at ENIT.", letter, "Backend Developer (Python / Django)\nCarthago Labs\nTunis"), []);
+  assert.equal(checkFacts("Python developer.", "I built Django apps at Acme Corp.", "Carthago Labs").length, 2, "real invented claims are still caught");
+});

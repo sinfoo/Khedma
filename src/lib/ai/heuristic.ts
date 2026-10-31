@@ -247,9 +247,11 @@ export function heuristicTailorCv(job: Job, profile: Profile, locale: Locale): s
 
 // ---------- cover letter ----------
 export function heuristicCoverLetter(job: Job, profile: Profile, locale: Locale): string {
-  const matched = splitSkills(job, profile).matched.slice(0, 5);
+  const matched = splitSkills(job, profile).matched.filter(isRoleSkill).slice(0, 5);
   const name = profile.name || (locale === "fr" ? "[Prénom Nom]" : "[Full name]");
-  const headline = profile.headline || (locale === "fr" ? "élève ingénieur à l'ENIT" : "engineering student at ENIT");
+  // "As a Élève ingénieur…" in an English letter: the headline is used only when it is in the letter's language.
+  const ownHeadline = profile.headline && detectLanguage(profile.headline, locale) === locale ? profile.headline.replace(/[.\s]+$/, "") : "";
+  const headline = ownHeadline || (locale === "fr" ? "élève ingénieur à l'ENIT" : "engineering student at ENIT");
   const skills = matched.length ? matched.join(", ") : locale === "fr" ? "[compétences principales]" : "[main skills]";
   const type = job.type === "emploi" ? (locale === "fr" ? "poste" : "position") : job.type === "pfe" ? "PFE" : locale === "fr" ? "stage" : "internship";
 
@@ -291,7 +293,7 @@ Subject: Application, ${job.title}
 
 [Dear Hiring Team],
 
-As a ${headline}, I am writing to apply for the ${job.title} ${type} at ${job.company}.
+As ${/^[aeiou]/i.test(headline) ? "an" : "a"} ${headline.charAt(0).toLowerCase()}${headline.slice(1)}, I am writing to apply for the ${job.title} ${type} at ${job.company}.
 
 Your posting caught my attention because it calls for skills I have built during my studies: ${skills}. [One sentence about a concrete project or course from your CV.]
 

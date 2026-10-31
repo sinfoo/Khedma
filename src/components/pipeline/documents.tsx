@@ -17,7 +17,7 @@ export function SourceBar({ appId, label, isOverride }: { appId: number; label: 
     <div className="card mb-4 p-3 no-print">
       <div className="flex flex-wrap items-center gap-2">
         <FileText size={16} aria-hidden="true" className="text-muted" />
-        <p className="min-w-0 flex-1 text-sm">
+        <p className="min-w-0 flex-1 basis-56 text-sm">
           <span className="text-muted">{d.source}: </span>
           <span className="font-medium">{label}</span>
         </p>

@@ -58,7 +58,7 @@ export function DocStylePanel({ initial }: { initial: DocStyle }) {
       <div className="mb-3 flex items-center gap-2">
         <span className="label !mb-0 flex-1">{m.size}</span>
         <button type="button" className="btn btn-outline btn-sm !px-2" aria-label={m.smaller} disabled={s.size <= 9} onClick={() => set({ size: s.size - 0.5 })}><Minus size={14} aria-hidden="true" /></button>
-        <span className="mono w-12 text-center text-sm tabular" aria-live="polite">{s.size} pt</span>
+        <span className="mono w-16 shrink-0 whitespace-nowrap text-center text-sm tabular" aria-live="polite">{s.size} pt</span>
         <button type="button" className="btn btn-outline btn-sm !px-2" aria-label={m.bigger} disabled={s.size >= 12.5} onClick={() => set({ size: s.size + 0.5 })}><Plus size={14} aria-hidden="true" /></button>
       </div>
       <label className="flex items-start gap-2 text-[0.8rem] text-ink-2">

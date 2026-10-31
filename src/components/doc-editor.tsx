@@ -28,6 +28,7 @@ export function DocEditor({
   disabledSlot,
   downloads,
   original,
+  context = "",
   compare = true,
   preview,
   limit,
@@ -47,6 +48,8 @@ export function DocEditor({
   preview?: string;
   /** Source document: checks the facts, and enables the side-by-side compare view unless `compare` is false. */
   original?: string | null;
+  /** The offer (title, company, place): facts it names are not invented. */
+  context?: string;
   compare?: boolean;
   /** Rough fit: past `words`, the document likely runs over `pages`. */
   limit?: { words: number; pages: number };
@@ -64,7 +67,7 @@ export function DocEditor({
   const count = useMemo(() => words(current), [current]);
   const area = useRef<HTMLTextAreaElement>(null);
   const [select, setSelect] = useState<string | null>(null);
-  const facts = useFacts(original, current);
+  const facts = useFacts(original, current, context);
 
   // Replace one sentence (from a lint fix) in the working copy; the user saves explicitly.
   const replaceSentence = (sentence: string, next: string) => {

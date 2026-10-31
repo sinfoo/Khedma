@@ -37,6 +37,8 @@ const ACRONYM_IGNORE = new Set([
   "GCP", "JWT", "SSO", "STAR", "FR", "EN", "AR",
 ]);
 
+const LETTER_FRAME = /^(subject|objet|object|re|betreff)\s*:|^\d{1,2}(er)?\s+\p{L}+\.?\s+\d{4}$|^\p{L}+\s+\d{1,2},?\s+\d{4}$/iu;
+
 const sentencesOf = (s: string) => s.split(/\n+|(?<=\D[.!?])\s+(?=\p{Lu})/u).map((x) => x.trim()).filter(Boolean);
 
 /**
@@ -44,7 +46,7 @@ const sentencesOf = (s: string) => s.split(/\n+|(?<=\D[.!?])\s+(?=\p{Lu})/u).map
  * Numbers: digits must match after dropping separators. Tools: `extractSkills` canonical names.
  * Orgs: names after "chez/at/@", school phrases and new ALL-CAPS acronyms.
  */
-export function checkFacts(source: string, generated: string): FactFinding[] {
+export function checkFacts(source: string, generated: string, context = ""): FactFinding[] {
   const srcClaims = claims(source ?? "");
   const srcFold = fold(srcClaims);
   const srcNums = new Set([...(srcClaims.match(NUMBER) ?? []), ...(srcClaims.replace(YEAR, " ").match(NUMBER) ?? [])].map(normNum));
@@ -59,10 +61,14 @@ export function checkFacts(source: string, generated: string): FactFinding[] {
     seen.add(key);
     out.push({ kind, value: value.trim(), sentence: sentence.slice(0, 240) });
   };
-  const inSource = (phrase: string) => srcFold.includes(fold(phrase));
+  // `context` is the offer itself (title, company, place): naming the employer is not inventing an employer.
+  const ctxFold = fold(context);
+  const inSource = (phrase: string) => srcFold.includes(fold(phrase)) || (!!ctxFold && ctxFold.includes(fold(phrase)));
 
   for (const sentence of sentencesOf(claims(generated ?? ""))) {
     const body = sentence.replace(/^[-*•]\s+|^#+\s+|^\d{1,2}[.)]\s+/, "");
+    // A letter's subject line repeats the offer's title, and its date line is today: neither is a claim.
+    if (LETTER_FRAME.test(body)) continue;
     for (const y of body.match(YEAR) ?? []) if (!srcYears.has(y)) add("year", y, body);
     const noYears = body.replace(YEAR, " ");
     for (const n of noYears.match(NUMBER) ?? []) {
