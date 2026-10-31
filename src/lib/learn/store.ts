@@ -172,9 +172,17 @@ export function searchCourses(f: CourseQuery): { courses: Course[]; total: numbe
   // Title hits first, then free before paid, then shorter first.
   const titleFirst = f.q?.trim() ? `CASE WHEN haystack LIKE ? THEN 0 ELSE 1 END,` : "";
   const order = `${titleFirst} CASE price WHEN 'free' THEN 0 WHEN 'coupon' THEN 1 WHEN 'freemium' THEN 2 ELSE 3 END, COALESCE(duration_min, 600)`;
+  // Without a catalog filter the list takes turns between catalogs: ordered by price and length alone, the first
+  // pages were all short free Microsoft Learn badges out of twenty catalogs.
+  const query = f.source
+    ? `SELECT * FROM courses WHERE ${sql} ORDER BY ${order} LIMIT ? OFFSET ?`
+    : `SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY source ORDER BY ${order}) AS turn FROM courses WHERE ${sql}) ORDER BY turn, source LIMIT ? OFFSET ?`;
+  const titleArg = titleFirst ? [` ${searchWords(f.q!).join(" ")}%`] : [];
+  // Placeholders bind in text order: in the turn-taking query the ORDER BY sits before the WHERE.
+  const params = f.source ? [...args, ...titleArg] : [...titleArg, ...args];
   const rows = db()
-    .prepare(`SELECT * FROM courses WHERE ${sql} ORDER BY ${order} LIMIT ? OFFSET ?`)
-    .all(...args, ...(titleFirst ? [` ${searchWords(f.q!).join(" ")}%`] : []), Math.min(f.limit ?? 30, 100), f.offset ?? 0) as Row[];
+    .prepare(query)
+    .all(...params, Math.min(f.limit ?? 30, 100), f.offset ?? 0) as Row[];
   return { courses: rows.map(toCourse), total };
 }
 

@@ -9,11 +9,12 @@ import { getProfile, listJobs } from "@/lib/db";
 import { skillMatrix } from "@/lib/repo/insights";
 import { getEngine } from "@/lib/ai";
 import { catalogCounts, refreshCatalog, refreshState, searchCourses, staleSources } from "@/lib/learn/store";
-import { aiRankCourses, recommendCourses } from "@/lib/learn/recommend";
+import { aiRankCourses, learningPaths, recommendCourses } from "@/lib/learn/recommend";
 import { FIELD_KEYS, type FieldKey } from "@/lib/learn/model";
 import { DIRECTORY, SOURCE_NAMES, providerLink } from "@/lib/learn/directory";
 import { CourseCard } from "@/components/learn/course-card";
-import { FIELD_STYLE, hueVar } from "@/components/learn/field-style";
+import { FIELD_STYLE, fieldStyle, hueVar } from "@/components/learn/field-style";
+import { duration } from "@/components/learn/course-card";
 import { ActionButton } from "@/components/action-button";
 import { CompanyAvatar, PageHeader } from "@/components/kit";
 import { refreshLearn } from "@/app/actions/learn";
@@ -188,7 +189,49 @@ async function Recommended({ t, locale, empty }: { t: Dict; locale: Locale; empt
   const base = empty ? [] : recommendCourses({ ...input, limit: 24 });
   const ai = base.length > 1 && (await getEngine(profile.settings)).online ? await aiRankCourses(profile.settings, input, base) : null;
   const recs = (ai?.recs ?? base).slice(0, 9);
+  const paths = empty ? [] : learningPaths(input);
   return (
+    <>
+    {paths.length > 0 && (
+      <section className="mb-8" aria-labelledby="paths-h">
+        <h2 id="paths-h" className="text-[1.25rem] tracking-[-0.015em]">{m.pathsTitle}</h2>
+        <p className="mt-1 max-w-[75ch] text-sm text-muted">{m.pathsLead}</p>
+        <ul className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {paths.map((p) => {
+            const { Icon, hue } = fieldStyle(p.steps[0].fields);
+            return (
+              <li key={p.skill} className="card overflow-hidden" style={hueVar(hue)}>
+                <div className="lc-cover flex items-center gap-2.5 px-4 py-3">
+                  <Icon size={20} className="lc-cover-icon !opacity-100" aria-hidden="true" />
+                  <div className="min-w-0">
+                    <h3 className="truncate text-[1rem] font-semibold">{p.skill}</h3>
+                    <p className="text-[0.75rem] text-ink-2">{fmt(m.pathAsked, { n: p.demand })}</p>
+                  </div>
+                </div>
+                {/* A real sequence: beginner first, so the steps are numbered. */}
+                <ol className="flex flex-col gap-2.5 p-4">
+                  {p.steps.map((c, i) => {
+                    const d = duration(t, c.duration_min);
+                    return (
+                      <li key={c.id} className="flex gap-3">
+                        <span className="lc-field grid size-6 shrink-0 place-items-center rounded-full text-[0.72rem] font-bold" aria-hidden="true">{i + 1}</span>
+                        <div className="min-w-0 text-[0.82rem]">
+                          <a href={c.url} target="_blank" rel="noopener noreferrer" className="line-clamp-2 font-semibold text-ink hover:text-accent-text">
+                            <span className="sr-only">{fmt(m.step, { n: i + 1 })}: </span>
+                            {c.title}
+                          </a>
+                          <p className="text-[0.72rem] text-muted">{[c.provider, m.level[c.level ?? "intermediate"], m.price[c.price], d].filter(Boolean).join(" · ")}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    )}
     <section aria-labelledby="rec-h">
       <h2 id="rec-h" className="flex items-center gap-2 text-[1.25rem] tracking-[-0.015em]">
         <Sparkles size={18} className="text-saffron" aria-hidden="true" /> {m.recTitle}
@@ -202,5 +245,6 @@ async function Recommended({ t, locale, empty }: { t: Dict; locale: Locale; empt
         </ul>
       )}
     </section>
+    </>
   );
 }

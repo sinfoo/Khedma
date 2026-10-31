@@ -85,6 +85,45 @@ export function recommendCourses(input: RecommendInput): Recommendation[] {
   return out;
 }
 
+// ---------- learning paths: one ordered route per top gap ----------
+export interface LearningPath {
+  skill: string;
+  /** How many target offers ask for it. */
+  demand: number;
+  /** Beginner first; one course per level, at most three steps. */
+  steps: Course[];
+}
+
+const LEVEL_RANK = { beginner: 0, intermediate: 1, advanced: 2 } as const;
+
+/**
+ * For each of the biggest gaps the CV does not cover, a short route from first steps to an advanced course: courses
+ * named after the skill, one per level (a course with no level counts as intermediate), free ones and courses in
+ * the student's language first. A gap with fewer than two steps has no path. Pure apart from the catalog read.
+ */
+export function learningPaths(input: Pick<RecommendInput, "gaps" | "have" | "lang">, max = 3): LearningPath[] {
+  const have = new Set(input.have.map(fold));
+  const out: LearningPath[] = [];
+  const used = new Set<number>();
+  for (const g of input.gaps.filter((x) => x.skill.trim() && !have.has(fold(x.skill)))) {
+    if (out.length >= max) break;
+    // Free first; the student's language, then English; a course in neither language only as a last resort.
+    const lang = (c: Course) => (c.languages.includes(input.lang) ? -1 : !c.languages.length || c.languages.includes("en") ? 0 : 4);
+    const pick = (c: Course) => (c.price === "free" || c.price === "coupon" ? 0 : c.price === "freemium" ? 1 : 3) + lang(c);
+    const byLevel = new Map<number, Course>();
+    for (const c of coursesMatching([g.skill], 120).filter((c) => has(fold(c.title), g.skill) && !used.has(c.id))) {
+      const lvl = LEVEL_RANK[c.level ?? "intermediate"];
+      const cur = byLevel.get(lvl);
+      if (!cur || pick(c) < pick(cur) || (pick(c) === pick(cur) && (c.duration_min ?? 9e9) < (cur.duration_min ?? 9e9))) byLevel.set(lvl, c);
+    }
+    const steps = [...byLevel.entries()].sort((a, b) => a[0] - b[0]).map(([, c]) => c);
+    if (steps.length < 2) continue;
+    steps.forEach((c) => used.add(c.id));
+    out.push({ skill: g.skill, demand: g.demand, steps });
+  }
+  return out;
+}
+
 // ---------- AI re-ranking (only with a key; cached a day for the same list) ----------
 function rankPrompt(input: RecommendInput, recs: Recommendation[]): Prompt {
   return {

@@ -125,3 +125,14 @@ test("a source that fails is retried after six hours, not on every visit", async
   kvSet("learn:refresh", { ...base, coupons: { at: new Date(0).toISOString(), n: 0, error: "x", tried: new Date(now - 7 * 3_600_000).toISOString() } });
   assert.deepEqual(staleSources(now), ["coupons"]);
 });
+
+test("learning paths go from beginner up, in the student's language or English first", async () => {
+  const { replaceCourses } = await import("./store");
+  const { learningPaths } = await import("./recommend");
+  const c = (title: string, level: "beginner" | "intermediate" | "advanced", languages: string[], price: "free" | "paid" = "free") =>
+    ({ source: "pathtest", title, url: `https://x.test/${encodeURIComponent(title)}`, provider: "P", description: "", fields: ["programming" as const], skills: [], level, duration_min: 60, languages, price, cert: "none" as const, image: null, updated_at: null, expires_at: null });
+  replaceCourses("pathtest", [c("Kotlin avancé", "advanced", ["fr"]), c("Kotlin débutant (arabe)", "beginner", ["ar"]), c("Kotlin for beginners", "beginner", ["en"]), c("Kotlin intermediate", "intermediate", ["en"], "paid")]);
+  const [p] = learningPaths({ gaps: [{ skill: "Kotlin", demand: 4 }], have: [], lang: "fr" });
+  assert.deepEqual(p.steps.map((x) => x.title), ["Kotlin for beginners", "Kotlin intermediate", "Kotlin avancé"]);
+  assert.deepEqual(learningPaths({ gaps: [{ skill: "Kotlin", demand: 4 }], have: ["kotlin"], lang: "fr" }), [], "a skill already in the CV gets no path");
+});

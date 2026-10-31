@@ -5,6 +5,10 @@ export default defineMessages({
   en: {
     title: "Learn",
     lead: "Courses from open catalogs, for every field: languages, programming, design, game dev, AI, engineering, business and more. Recommended from what your target offers ask for and your CV lacks.",
+    pathsTitle: "Your learning paths",
+    pathsLead: "For the skills your target offers ask for most and your CV does not show yet: start with step 1, then move up. Free courses come first.",
+    pathAsked: "asked by {n} {n:offer|offers} you target",
+    step: "Step {n}",
     recTitle: "Recommended for you",
     recLeadAi: "Ranked by the AI from the skills your target offers ask for and your CV does not show yet.",
     recLeadEstimate: "Estimate: ranked from the skills your target offers ask for and your CV does not show yet. Add an AI key in Settings for a closer ranking with a reason for each course.",
@@ -51,6 +55,10 @@ export default defineMessages({
   fr: {
     title: "Apprendre",
     lead: "Des cours issus de catalogues ouverts, dans tous les domaines : langues, programmation, design, jeu vidéo, IA, ingénierie, gestion et plus. Recommandés d'après ce que demandent tes offres visées et ce qui manque à ton CV.",
+    pathsTitle: "Tes parcours d'apprentissage",
+    pathsLead: "Pour les compétences que tes offres visées demandent le plus et que ton CV ne montre pas encore : commence par l'étape 1, puis monte d'un niveau. Les cours gratuits passent en premier.",
+    pathAsked: "demandée par {n} {n:offre visée|offres visées}",
+    step: "Étape {n}",
     recTitle: "Recommandés pour toi",
     recLeadAi: "Classés par l'IA d'après les compétences que demandent tes offres visées et que ton CV ne montre pas encore.",
     recLeadEstimate: "Estimation : classés d'après les compétences que demandent tes offres visées et que ton CV ne montre pas encore. Ajoute une clé IA dans les Réglages pour un classement plus fin, avec une raison pour chaque cours.",
