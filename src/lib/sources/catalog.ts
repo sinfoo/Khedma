@@ -20,7 +20,7 @@ export const LINK_KINDS = [
 export type LinkKind = (typeof LINK_KINDS)[number];
 
 /** Khedma countries covered by EURES (EU/EEA public employment services + Switzerland). */
-export const EURES_COUNTRIES: ReadonlySet<string> = new Set(["FR", "DE", "BE", "CH", "NL", "IT", "ES", "LU", "SE", "IE", "PT", "NO", "DK", "FI", "IS", "AT", "CZ", "PL"]);
+export const EURES_COUNTRIES: ReadonlySet<string> = new Set(["FR", "DE", "BE", "CH", "NL", "IT", "ES", "LU", "SE", "IE", "PT", "NO", "DK", "FI", "IS", "AT", "CZ", "PL", "RO", "HU", "BG", "GR", "EE", "LV", "LT", "SK", "SI", "HR"]);
 
 /** ISO country code of the board, or "INT" for worldwide boards. */
 export type CatalogCountry = "TN" | "FR" | "DE" | "CA" | "BE" | "CH" | "NL" | "GB" | "US" | "AE" | "QA" | "SA" | "MA" | "DZ" | "IT" | "ES" | "LU" | "SE" | "NO" | "DK" | "FI" | "IS" | "IE" | "PT" | "AT" | "CZ" | "PL" | "TR" | "JP" | "KR" | "SG" | "AU" | "LY" | "EG" | "KW" | "OM" | "BH" | "SN" | "CI" | "CM" | "RO" | "HU" | "BG" | "GR" | "EE" | "LV" | "LT" | "SK" | "SI" | "HR" | "MY" | "NZ" | "IN" | "BR" | "MX" | "CL" | "INT";

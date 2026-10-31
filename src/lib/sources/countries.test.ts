@@ -5,6 +5,7 @@ import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
 import { CATALOG, COUNTRY_FEEDS, EURES_COUNTRIES, type CatalogEntry } from "./catalog";
+import { euresBody, mapEures } from "./eures";
 import { parseRss } from "./rss";
 
 const fx = (name: string) => readFileSync(path.join(process.cwd(), "src/lib/sources/fixtures", name), "utf8");
@@ -35,6 +36,19 @@ test("eures: the new EU/EEA countries are searchable", () => {
   for (const c of ["NO", "DK", "FI", "IS", "AT", "CZ", "PL"]) assert.ok(EURES_COUNTRIES.has(c), c);
   const p = planSearch({ keywords: ["software"], countries: ["AT", "PL"], remote: "no" });
   assert.equal(p.runs.find((r) => r.kind === "eures")!.handle, "at,pl");
+});
+
+test("eures: Eastern Europe is searchable, and Greece is asked and read back under EURES' own code EL", () => {
+  for (const c of ["RO", "HU", "BG", "GR", "EE", "LV", "LT", "SK", "SI", "HR"]) assert.ok(EURES_COUNTRIES.has(c), c);
+  const p = planSearch({ keywords: ["engineer"], countries: ["GR", "RO"], remote: "no" });
+  assert.equal(p.runs.find((r) => r.kind === "eures")!.handle, "gr,ro");
+  assert.deepEqual(JSON.parse(euresBody("engineer", ["GR", "RO"])).locationCodes, ["el", "ro"]);
+  const jobs = mapEures(JSON.parse(fx("eures-el.json")));
+  assert.equal(jobs.length, 3);
+  assert.equal(jobs[0].location, "Greece");
+  assert.equal(jobs[0].company, "Job Traveler GmbH");
+  assert.equal(jobs[2].location, "Germany · Greece");
+  assert.equal(countryOf(jobs[0].location), "GR");
 });
 
 test("rss: 'Role // Company' titles give the employer, not a location", () => {

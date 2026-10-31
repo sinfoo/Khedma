@@ -10,6 +10,9 @@ import { htmlToText } from "./html";
 import { getJson } from "./http";
 
 const SEARCH = "https://europa.eu/eures/api/jv-searchengine/public/jv-search/search";
+/** EURES writes Greece as EL (the EU's own code), not ISO GR: a "gr" search returns nothing. */
+const toEures = (iso: string) => (iso.toUpperCase() === "GR" ? "el" : iso.toLowerCase());
+const fromEures = (code: string) => (code === "EL" ? "GR" : code);
 
 interface EuresJob {
   id?: string;
@@ -28,7 +31,7 @@ export function euresBody(keyword: string, countries: string[], perPage = 50): s
     resultsPerPage: perPage, page: 1, sortSearch: "BEST_MATCH",
     keywords: [{ keyword, specificSearchCode: "EVERYWHERE" }],
     publicationPeriod: null, occupationUris: [], skillUris: [], requiredExperienceCodes: [], positionScheduleCodes: [], sectorCodes: [],
-    educationAndQualificationLevelCodes: [], positionOfferingCodes: [], locationCodes: countries.map((c) => c.toLowerCase()),
+    educationAndQualificationLevelCodes: [], positionOfferingCodes: [], locationCodes: countries.map(toEures),
     euresFlagCodes: [], otherBenefitsCodes: [], requiredLanguages: [], minNumberPost: null, sessionId: "khedma",
   });
 }
@@ -41,7 +44,7 @@ export function mapEures(json: EuresPayload): NewJob[] {
     if (!j.title || !j.id) continue;
     const title = j.title.trim();
     const description = htmlToText(j.description ?? "");
-    const codes = Object.keys(j.locationMap ?? {});
+    const codes = Object.keys(j.locationMap ?? {}).map(fromEures);
     const location = codes.map((c) => countryByCode(c)?.en ?? c).join(" · ") || "Europe";
     out.push({
       title,
