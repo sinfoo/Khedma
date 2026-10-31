@@ -41,6 +41,7 @@ const CASES: Record<string, [handle: string, keyword?: string]> = {
   softgarden: ["bundesdruckerei"],
   successfactors: ["jobsearch.alstom.com"],
   icims: ["360care"],
+  workablejobs: ["ma,eg", "engineer"],
   rss: ["https://weworkremotely.com/categories/remote-programming-jobs.rss"],
   careers: ["https://vercel.com/careers"],
 };

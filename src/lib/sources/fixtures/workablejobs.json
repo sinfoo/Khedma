@@ -1,0 +1,94 @@
+{
+ "title": "Workable",
+ "totalSize": 37,
+ "nextPageToken": "eyJzZWFyY2hBdCI6IjIwMjYtMTAtMzFUMjE6NTk6NTkuOTk5WiIsIm9mZnNldCI6WzQuMjI3OTQxLDAsMTc4ODI4NTA2ODgwMiwiODM3YWRhZWEtZWM3NS00Y2U1LTlkNTQtYTE5YWE5YzllNDBmIl19",
+ "jobs": [
+  {
+   "department": "CXG",
+   "id": "56eade87-dd39-4417-97a7-9a46c79be6ea",
+   "title": "Data Engineer - Web Scraping (3 months contract)",
+   "state": "published",
+   "description": "<p>We are growing! We are currently looking to hire a <strong>Data Engineer - Web Scraping </strong>to work with us remotely on a <strong>3 months contract. </strong></p><p><strong>Who we are:</strong></p><p>Founded in 2006, CXG is a global customer experience company uniquely positioned at the intersection of <strong>data-driven retail performance, customer experience transformation, and operational execution across 200+ luxury brands worldwide.</strong>  </p><p>The mission of our 270 collabora",
+   "socialSharingDescription": "We are growing! We are currently looking to hire a&amp;nbsp;Data Engineer - Web ",
+   "employmentType": "Contract",
+   "benefitsSection": "",
+   "requirementsSection": "<p><strong>What you will bring along:</strong></p><ul> <li>Proven experience in data engineering with expertise in designing and implementing scalable data architectures.</li> <li>Strong experience with ETL processes, data modeling, and data warehousing (Airflow &amp; DBT preferred).</li> <li>Expert",
+   "url": "https://jobs.workable.com/view/bJvB3Zm74s56PBT9nBsFDL/remote-data-engineer---web-scraping-(3-months-contract)-in-morocco-at-cxg",
+   "language": "en",
+   "locations": [
+    "TELECOMMUTE",
+    "Morocco"
+   ],
+   "location": {
+    "city": "",
+    "subregion": null,
+    "countryName": "Morocco"
+   },
+   "created": "2026-10-30T11:29:21.624Z",
+   "updated": "2026-10-30T11:29:21.624Z",
+   "company": {
+    "title": "CXG"
+   },
+   "isFeatured": false,
+   "workplace": "remote"
+  },
+  {
+   "department": "Technology > IT, Security & Cloud > IT & Security",
+   "id": "ff1b889a-bdff-4339-9677-196657189fd0",
+   "title": "Cyber Security Engineer (Staff/Lead Level)",
+   "state": "published",
+   "description": "<p>We are seeking a skilled Cyber Security Engineer (Staff / Lead Level) to join our Information Security &amp; Compliance team and play a key role in designing, implementing and continuously improving A2MAC1's cybersecurity engineering capabilities.</p><p>Based in our Casablanca office, you will provide technical leadership across security architecture, cloud security, detection engineering and platform protection. Working closely with the Cyber Security Manager / Director, you will drive scala",
+   "socialSharingDescription": "We are seeking a skilled Cyber Security Engineer (Staff / Lead Level) to join ou",
+   "employmentType": "Full-time",
+   "benefitsSection": "",
+   "requirementsSection": "<p>PROFILE &amp; SKILLS</p><p>Must-Have</p><ul><li>8+ years of experience in Cybersecurity, Security Engineering, Cloud Security or Application Security</li><li>Strong experience with security architecture, cloud environments and modern security engineering practices</li><li>Experience designing and",
+   "url": "https://jobs.workable.com/view/xv6X1mYVKcfJVzzvdGos9G/hybrid-cyber-security-engineer-(staff%2Flead-level)-in-casablanca-at-a2mac1",
+   "language": "en",
+   "locations": [
+    "Casablanca, Casablanca-Settat, Morocco"
+   ],
+   "location": {
+    "city": "Casablanca",
+    "subregion": "Casablanca-Settat",
+    "countryName": "Morocco"
+   },
+   "created": "2026-07-30T08:16:04.750Z",
+   "updated": "2026-07-30T08:16:04.750Z",
+   "company": {
+    "title": "A2MAC1"
+   },
+   "isFeatured": false,
+   "workplace": "hybrid"
+  },
+  {
+   "department": "DevOps",
+   "id": "aecdcbf1-2402-42c9-a4cc-20a30bfe20a1",
+   "title": "Senior DevOps Engineer (Short term)",
+   "state": "published",
+   "description": "<p>Intetics Inc. is a leading American technology company providing custom software application development, distributed professional teams creation, software product quality assessment, and “all-things-digital” solutions, is looking for a <strong>Senior  DevOps Engineer </strong>to enrich its team with a skilled professional.</p><p></p><p><strong>Responsibilities:</strong></p><p>o Design and build resilient Cloud infrastructures that are protected against security threats</p><p>o Develop and as",
+   "socialSharingDescription": "Intetics Inc. is a leading American technology company providing custom software",
+   "employmentType": "Full-time",
+   "benefitsSection": "",
+   "requirementsSection": "<p></p><p>o BSc/MSc in Information Security or any other related field o General experience of not less than 5 years in the DevOps field</p><p>o Minimum 2 years of working experience in Information Security, with a proven focus on Cloud Security<br />o Technical knowledge of Amazon Web Services (AWS",
+   "url": "https://jobs.workable.com/view/nzXHVpwz7fQ9XapEpVAijH/remote-senior-devops-engineer-(short-term)-in-morocco-at-intetics",
+   "language": "en",
+   "locations": [
+    "TELECOMMUTE",
+    "Morocco"
+   ],
+   "location": {
+    "city": "",
+    "subregion": null,
+    "countryName": "Morocco"
+   },
+   "created": "2026-10-28T17:12:38.067Z",
+   "updated": "2026-10-28T17:12:38.067Z",
+   "company": {
+    "title": "Intetics"
+   },
+   "isFeatured": false,
+   "workplace": "remote"
+  }
+ ],
+ "autoAppliedFilters": {}
+}

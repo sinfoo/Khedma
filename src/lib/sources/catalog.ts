@@ -6,7 +6,7 @@ export const PROVIDER_KINDS = [
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
   "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "gem", "rippling", "flatchr", "jobscore", "join", "softgarden", "successfactors", "icims", "rss", "careers",
-  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs",
+  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs", "workablejobs",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -251,6 +251,17 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "lever", name: "Lever", country: "INT", method: "api", site: "https://jobs.lever.co", handle: { type: "slug", placeholder: "qonto" }, keywords: false },
   { kind: "ashby", name: "Ashby", country: "INT", method: "api", site: "https://jobs.ashbyhq.com", handle: { type: "slug", placeholder: "supabase" }, keywords: false },
   { kind: "workable", name: "Workable", country: "INT", method: "api", site: "https://apply.workable.com", handle: { type: "slug", placeholder: "instadeep" }, keywords: false },
+  {
+    kind: "workablejobs",
+    name: "Workable (all employers)",
+    country: "INT",
+    // Countries with few readable boards of their own (Western Europe and North America have plenty).
+    countries: ["TN", "MA", "DZ", "LY", "EG", "AE", "SA", "QA", "KW", "OM", "BH", "SN", "CI", "CM", "RO", "HU", "BG", "GR", "EE", "LV", "LT", "SK", "SI", "HR", "TR", "IN", "MY", "SG", "BR", "MX", "CL"],
+    method: "api",
+    site: "https://jobs.workable.com",
+    handle: { type: "slug", placeholder: "ma,eg" },
+    keywords: true,
+  },
   { kind: "smartrecruiters", name: "SmartRecruiters", country: "INT", method: "api", site: "https://jobs.smartrecruiters.com", handle: { type: "slug", placeholder: "soprasteria" }, keywords: false },
   { kind: "recruitee", name: "Recruitee", country: "INT", method: "api", site: "https://recruitee.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },
   { kind: "personio", name: "Personio", country: "INT", method: "api", site: "https://www.personio.com", handle: { type: "slug", placeholder: "acme" }, keywords: false },

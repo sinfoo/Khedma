@@ -56,7 +56,8 @@ function autoRunnable(e: CatalogEntry, missingEnv?: string[]): boolean {
   if (e.needsEnv?.length && (!missingEnv || missingEnv.includes(e.kind))) return false;
   if (e.handle.type === "none") return true;
   if (e.handle.type === "select") return e.handle.options.some((o) => o.value === "");
-  return e.handle.type === "slug" && e.country !== "INT";
+  // A worldwide slug board needs a handle, unless it is a multi-country board whose handle is the chosen countries.
+  return e.handle.type === "slug" && (e.country !== "INT" || !!e.countries);
 }
 
 export function planSearch(input: {
