@@ -236,6 +236,8 @@ export const CATALOG: CatalogEntry[] = [
         { value: "fr", label: "France" }, { value: "de", label: "Germany" }, { value: "ch", label: "Switzerland" }, { value: "be", label: "Belgium" }, { value: "nl", label: "Netherlands" },
         { value: "it", label: "Italy" }, { value: "es", label: "Spain" }, { value: "at", label: "Austria" }, { value: "pl", label: "Poland" }, { value: "gb", label: "United Kingdom" },
         { value: "ca", label: "Canada" }, { value: "us", label: "United States" },
+        // From Adzuna's API spec (2026-10-31), not run live: no key on hand.
+        { value: "mx", label: "Mexico" }, { value: "br", label: "Brazil" }, { value: "in", label: "India" }, { value: "sg", label: "Singapore" }, { value: "au", label: "Australia" }, { value: "nz", label: "New Zealand" },
       ],
     },
     keywords: true,
