@@ -6,6 +6,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
+import { COUNTRY_FEEDS } from "./catalog";
+import { devbgCompany, devbgUrl, mapDevbg } from "./devbg";
 import { agoDate, drjobUrl, parseDrjobList } from "./drjobpro";
 import { emploiticUrl, parseEmploiticList } from "./emploitic";
 import { pickJsonLdJobPosting } from "./html";
@@ -109,4 +111,22 @@ test("emploitic: search results' JobPostings -> Algerian place, employer, intern
   assert.equal(emploiticUrl(""), "https://emploitic.com/offres-d-emploi");
   const ld = fromJsonLd(pickJsonLdJobPosting(fx("emploitic-detail.html"))!, j.url);
   assert.ok(ld.title && ld.description.length > 300, ld.description.slice(0, 80));
+});
+
+test("dev.bg: job search -> employer from the slug, one offer per company and title with all its cities, intern level", () => {
+  const jobs = mapDevbg(JSON.parse(fx("devbg.json")));
+  assert.deepEqual(jobs.map((j) => [j.title, j.company]), [["Head of AI Engineering (f/m/x)", "Neoshare"], ["Junior Python Developer (with experience)", "Ict Strypes"]]);
+  const [lead, junior] = jobs;
+  assert.equal(lead.location, "Sofia, Bulgaria");
+  assert.equal(countryOf(lead.location), "BG");
+  assert.equal(junior.location, "Plovdiv · Sofia · Burgas · Varna, Bulgaria");
+  assert.equal(junior.remote, true, "one of its posts is remote");
+  assert.equal(junior.type, "stage");
+  assert.equal(junior.url, "https://dev.bg/company/jobads/ict-strypes-junior-python-developer-with-experience-1/");
+  assert.equal(junior.source, "devbg");
+  assert.equal(junior.posted_at, "2026-10-30");
+  assert.ok(lead.description.startsWith("Your mission"));
+  assert.equal(devbgCompany("dsk-bank-ekspert-suotvetstvie", "Експерт Съответствие"), "", "a Cyrillic title is not in the slug");
+  assert.equal(devbgUrl("data engineer"), "https://dev.bg/wp-json/wp/v2/job-listings?per_page=50&_fields=link%2Cslug%2Cdate%2Ctitle%2Ccontent%2Cclass_list&search=data+engineer");
+  assert.ok(!COUNTRY_FEEDS.some((f) => f.handle.includes("dev.bg")), "the provider replaces the plain feed");
 });

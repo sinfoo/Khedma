@@ -37,6 +37,7 @@ import * as startupjobs from "./startupjobs";
 import * as landingjobs from "./landingjobs";
 import * as jobsacuk from "./jobsacuk";
 import * as builtin from "./builtin";
+import * as devbg from "./devbg";
 import * as emploitic from "./emploitic";
 import * as drjobpro from "./drjobpro";
 import * as jobsly from "./jobsly";
@@ -164,6 +165,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   jobsly: { list: jobsly.scan, detail: jobsly.detail, detailGapMs: 500 },
   drjobpro: { list: drjobpro.scan, detail: (j) => more.ldDetail(j), detailGapMs: 1000 },
   emploitic: { list: emploitic.scan, detail: (j) => more.ldDetail(j), detailGapMs: 1000 },
+  devbg: { list: devbg.scan },
   careers: { list: ats.scanCareersPage },
 };
 

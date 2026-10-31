@@ -69,6 +69,7 @@ const PLATFORMS: [RegExp, string][] = [
   [/infojobs\.net/, "InfoJobs"],
   [/jobs\.ac\.uk/, "jobs.ac.uk"],
   [/builtin\.com/, "Built In"],
+  [/(^|\.)dev\.bg$/, "DEV.BG"],
   [/emploitic\.com/, "Emploitic"],
   [/drjobpro\.com/, "Dr.Job"],
   [/(^|\.)jobs\.ly$/, "jobs.ly"],
@@ -80,7 +81,6 @@ const PLATFORMS: [RegExp, string][] = [
   [/dreamjob\.ma/, "Dreamjob.ma"],
   [/tokyodev\.com/, "TokyoDev"],
   [/internsg\.com/, "InternSG"],
-  [/(^|\.)dev\.bg$/, "DEV.BG"],
   [/cvmarket\.(lt|lv)/, "CVMarket"],
   [/cvkeskus\.ee/, "CV Keskus"],
 ];

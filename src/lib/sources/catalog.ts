@@ -6,7 +6,7 @@ export const PROVIDER_KINDS = [
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
   "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "gem", "rippling", "flatchr", "jobscore", "join", "softgarden", "successfactors", "icims", "rss", "careers",
-  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs", "workablejobs", "mycareersfuture", "jobsly", "drjobpro", "emploitic",
+  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs", "workablejobs", "mycareersfuture", "jobsly", "drjobpro", "emploitic", "devbg",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -212,6 +212,8 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "justjoin", name: "Just Join IT", country: "PL", method: "html", site: "https://justjoin.it", handle: none, keywords: true },
   { kind: "nofluff", name: "No Fluff Jobs", country: "PL", method: "html", site: "https://nofluffjobs.com", handle: none, keywords: true },
   { kind: "startupjobs", name: "StartupJobs.cz", country: "CZ", method: "html", site: "https://www.startupjobs.cz", handle: none, keywords: true },
+  // Bulgaria
+  { kind: "devbg", name: "DEV.BG", country: "BG", method: "api", site: "https://dev.bg", handle: none, keywords: true },
   // Portugal, Spain
   { kind: "landingjobs", name: "Landing.jobs", country: "PT", method: "html", site: "https://landing.jobs", handle: none, keywords: true, searchUrl: (q) => `https://landing.jobs/jobs?query=${enc(q)}` },
   { kind: "itjobs", name: "ITJobs.pt", country: "PT", method: "api", site: "https://www.itjobs.pt", handle: none, keywords: true, needsEnv: ["ITJOBS_KEY"] },
@@ -317,7 +319,6 @@ export const COUNTRY_FEEDS: { label: string; handle: string; country: CatalogCou
   { label: "Dreamjob.ma – Emplois et stages PFE", handle: "https://www.dreamjob.ma/feed/", country: "MA" },
   { label: "TokyoDev", handle: "https://www.tokyodev.com/jobs/atom.xml", country: "JP" },
   { label: "InternSG", handle: "https://www.internsg.com/feed/?post_type=job", country: "SG" },
-  { label: "DEV.BG", handle: "https://dev.bg/?feed=job_feed", country: "BG" },
   { label: "CVMarket.lt", handle: "https://www.cvmarket.lt/rss-listings.xml", country: "LT" },
   { label: "CVMarket.lv", handle: "https://www.cvmarket.lv/rss-listings.xml", country: "LV" },
   { label: "CV Keskus", handle: "https://www.cvkeskus.ee/rss-listings.xml", country: "EE" },
