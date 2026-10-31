@@ -544,7 +544,7 @@ async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Om
 }
 
 /**
- * Search: plan the runs from the chosen countries (or the explicit ids), scan 3 boards at a time,
+ * Search: plan the runs from the chosen countries (or the explicit ids), scan 6 boards at a time,
  * filter + rank each offer, stream events, check liveness of the best new offers, sweep, record one
  * scan_runs row. Returns null when another scan is running.
  */
@@ -602,7 +602,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
     let duplicates = 0;
     const gone: number[] = [];
 
-    const detail = await mapLimit(runs, 3, async (run): Promise<RunSourceDetail> => {
+    const scanRun = async (run: PlanRun): Promise<RunSourceDetail> => {
       if (opts.signal?.aborted) return { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: 0, matched: 0, kept: 0, added: 0, known: 0, dropped: {}, ms: 0 };
       emit({ type: "source", key: run.key, id: run.sourceId, status: "running" });
       const t0 = Date.now();
@@ -643,7 +643,15 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, warning, ms: Date.now() - t0 };
       emit({ type: "source", status: error ? "error" : "done", ...d });
       return d;
-    });
+    };
+    // Boards spend most of their time in polite pauses on their own host, so six run at once. LinkedIn's runs
+    // (one per country) share its rate-limited guest search: they go one after another.
+    const groups = [...Map.groupBy(runs, (r) => (r.kind === "linkedin" ? "linkedin" : r.key)).values()];
+    const detail = (await mapLimit(groups, 6, async (g) => {
+      const out: RunSourceDetail[] = [];
+      for (const run of g) out.push(await scanRun(run));
+      return out;
+    })).flat();
 
     // Liveness: the best new offers are opened once; closed ones are archived with the check as the note.
     let closed: number[] = [...gone];
