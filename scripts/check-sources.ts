@@ -44,6 +44,7 @@ const CASES: Record<string, [handle: string, keyword?: string]> = {
   workablejobs: ["ma,eg", "engineer"],
   mycareersfuture: ["", "intern"],
   jobsly: ["", "engineer"],
+  drjobpro: ["eg,sa", "software engineer"],
   rss: ["https://weworkremotely.com/categories/remote-programming-jobs.rss"],
   careers: ["https://vercel.com/careers"],
 };

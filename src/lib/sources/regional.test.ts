@@ -6,8 +6,11 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
+import { agoDate, drjobUrl, parseDrjobList } from "./drjobpro";
+import { pickJsonLdJobPosting } from "./html";
 import { jobslyDetailText, jobslyUrl, mapJobsly } from "./jobsly";
 import { mapMcf, mcfUrl } from "./mycareersfuture";
+import { fromJsonLd } from "./url";
 import { mapWorkableJobs, workableJobsUrl } from "./workablejobs";
 
 const fx = (name: string) => readFileSync(path.join(process.cwd(), "src/lib/sources/fixtures", name), "utf8");
@@ -64,4 +67,27 @@ test("jobs.ly: English titles, Libyan city, salary in dinars, remote mode; every
   assert.equal(jobslyUrl("engineer"), "https://jobs.ly/api/v1/jobs?q=engineer&perPage=50&page=1");
   const body = jobslyDetailText({ data: { description: { en: "Build our web apps.", ar: "" }, requirements: { en: ["React", "Node.js"] } } });
   assert.equal(body, "Build our web apps.\n\nRequirements:\n- React\n- Node.js");
+});
+
+test("dr.job: country listing cards -> employer, place, posting day; JobPosting detail; only covered countries searched", () => {
+  const now = new Date("2026-10-31T21:00:00Z");
+  const jobs = parseDrjobList(fx("drjobpro-list.html"), now);
+  assert.equal(jobs.length, 3);
+  const j = jobs[0];
+  assert.equal(j.title, "Lead Software Engineer Automation & Control");
+  assert.equal(j.company, "Baker Hughes");
+  assert.equal(j.location, "Cairo, Egypt");
+  assert.equal(countryOf(j.location), "EG");
+  assert.equal(j.url, "https://www.drjobpro.com/egypt/jobs/lead-software-engineer-automation-control-cairo-baker-hughes-MVVLUXR027NWSI1");
+  assert.equal(j.posted_at, "2026-10-31", "23 hours ago");
+  assert.ok(j.description.startsWith("Are you an experienced Software Engineer"));
+  assert.equal(agoDate("3 days ago", now), "2026-10-28");
+  assert.equal(agoDate("2 weeks ago", now), "2026-10-17");
+  assert.equal(drjobUrl("saudi-arabia", "Software Engineer"), "https://www.drjobpro.com/saudi-arabia/software-engineer-jobs");
+  assert.equal(drjobUrl("egypt", ""), "https://www.drjobpro.com/egypt/jobs");
+  const ld = fromJsonLd(pickJsonLdJobPosting(fx("drjobpro-detail.html"))!, j.url);
+  assert.equal(ld.title, "Showroom Sales Engineer");
+  assert.ok(ld.description.length > 300);
+  const run = planSearch({ keywords: ["engineer"], countries: ["AE", "SA", "EG"], remote: "no" }).runs.find((r) => r.kind === "drjobpro");
+  assert.equal(run?.handle, "sa,eg", "the UAE has no Dr.Job listing");
 });

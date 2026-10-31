@@ -69,6 +69,7 @@ const PLATFORMS: [RegExp, string][] = [
   [/infojobs\.net/, "InfoJobs"],
   [/jobs\.ac\.uk/, "jobs.ac.uk"],
   [/builtin\.com/, "Built In"],
+  [/drjobpro\.com/, "Dr.Job"],
   [/(^|\.)jobs\.ly$/, "jobs.ly"],
   [/mycareersfuture\.gov\.sg/, "MyCareersFuture"],
   [/(^|\.)jobs\.workable\.com$/, "Workable"],

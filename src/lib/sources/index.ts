@@ -37,6 +37,7 @@ import * as startupjobs from "./startupjobs";
 import * as landingjobs from "./landingjobs";
 import * as jobsacuk from "./jobsacuk";
 import * as builtin from "./builtin";
+import * as drjobpro from "./drjobpro";
 import * as jobsly from "./jobsly";
 import * as mycareersfuture from "./mycareersfuture";
 import * as workablejobs from "./workablejobs";
@@ -160,6 +161,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   workablejobs: { list: workablejobs.scan },
   mycareersfuture: { list: mycareersfuture.scan },
   jobsly: { list: jobsly.scan, detail: jobsly.detail, detailGapMs: 500 },
+  drjobpro: { list: drjobpro.scan, detail: (j) => more.ldDetail(j), detailGapMs: 1000 },
   careers: { list: ats.scanCareersPage },
 };
 
