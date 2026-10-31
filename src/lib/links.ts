@@ -72,6 +72,12 @@ const PLATFORMS: [RegExp, string][] = [
   [/berlinstartupjobs\.com/, "Berlin Startup Jobs"],
   [/jobindex\.dk/, "Jobindex"],
   [/net-empregos\.com/, "Net-Empregos"],
+  [/dreamjob\.ma/, "Dreamjob.ma"],
+  [/tokyodev\.com/, "TokyoDev"],
+  [/internsg\.com/, "InternSG"],
+  [/(^|\.)dev\.bg$/, "DEV.BG"],
+  [/cvmarket\.(lt|lv)/, "CVMarket"],
+  [/cvkeskus\.ee/, "CV Keskus"],
 ];
 
 export const isRealUrl = (url: string) => /^https?:\/\//i.test(url) && !/\.local(\/|$)/i.test(url);

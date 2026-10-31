@@ -281,6 +281,14 @@ export const COUNTRY_FEEDS: { label: string; handle: string; country: CatalogCou
   { label: "Berlin Startup Jobs – Internships", handle: "https://berlinstartupjobs.com/?s=intern&feed=rss2", country: "DE" },
   { label: "Jobindex – Praktikant", handle: "https://www.jobindex.dk/jobsoegning.rss?q=praktikant", country: "DK" },
   { label: "Net-Empregos", handle: "https://www.net-empregos.com/rss.asp", country: "PT" },
+  // Checked live 2026-10-31 with Khedma's RSS reader; robots.txt allows each feed.
+  { label: "Dreamjob.ma – Emplois et stages PFE", handle: "https://www.dreamjob.ma/feed/", country: "MA" },
+  { label: "TokyoDev", handle: "https://www.tokyodev.com/jobs/atom.xml", country: "JP" },
+  { label: "InternSG", handle: "https://www.internsg.com/feed/?post_type=job", country: "SG" },
+  { label: "DEV.BG", handle: "https://dev.bg/?feed=job_feed", country: "BG" },
+  { label: "CVMarket.lt", handle: "https://www.cvmarket.lt/rss-listings.xml", country: "LT" },
+  { label: "CVMarket.lv", handle: "https://www.cvmarket.lv/rss-listings.xml", country: "LV" },
+  { label: "CV Keskus", handle: "https://www.cvkeskus.ee/rss-listings.xml", country: "EE" },
 ];
 export const feedCountry = (handle: string) => COUNTRY_FEEDS.find((f) => f.handle === handle.trim())?.country;
 
