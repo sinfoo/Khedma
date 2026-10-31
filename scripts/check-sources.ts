@@ -42,6 +42,7 @@ const CASES: Record<string, [handle: string, keyword?: string]> = {
   successfactors: ["jobsearch.alstom.com"],
   icims: ["360care"],
   workablejobs: ["ma,eg", "engineer"],
+  mycareersfuture: ["", "intern"],
   rss: ["https://weworkremotely.com/categories/remote-programming-jobs.rss"],
   careers: ["https://vercel.com/careers"],
 };

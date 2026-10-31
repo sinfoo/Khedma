@@ -1,0 +1,394 @@
+{
+ "results": [
+  {
+   "uuid": "6871fc63df8ad951c23cf4096650e6aa",
+   "sourceCode": "Employer Portal",
+   "title": "Production Engineer Intern",
+   "description": "<p>The intern will work in the Production department of Keystone Cable factory. He will report to the Engineers (mentor) and work alongside technicians to identify opportunities for factory operations efficiency and productivity improvement.</p><p><strong>Expected tasks / responsibilities</strong></p><ol><li>Job shadow / On-job training, OJT of Production Engineer to understand cable manufacturing process.</li><li>Problem understanding of current methods of manual production data collection with the intent of improving the process flow and to digitize where possible.</li><li>Data acquisition o",
+   "minimumYearsExperience": 0,
+   "shiftPattern": null,
+   "schemes": [],
+   "skills": [
+    {
+     "skill": "Internships",
+     "uuid": "014a795ebfa17f8dc6e27c476a6ea2cd",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "SQL Database",
+     "uuid": "03449d131c612963b94638abc54563b4",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "on-the-job training",
+     "uuid": "1a30a76666ea6b35b9065fdc588b4464",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "PLC Control Systems",
+     "uuid": "21247ac66c27cf64847275f608153f49",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Efficiency Management",
+     "uuid": "29e965700bb961ec3d97e572bd19525f",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Technical Requirements",
+     "uuid": "5d139e69d45267610377c00c48d95780",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Outcomes Research",
+     "uuid": "78a6081733c5db38556a15863155f2b6",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Enthusiasm to learn",
+     "uuid": "99c653eb68a2a27c09ce3045d587dd33",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Data Collection and Preparation",
+     "uuid": "a788bfc4311aef9adf04109535b608e3",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Python",
+     "uuid": "a7f5f35426b927411fc9231b56382173",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Production Optimisation",
+     "uuid": "b5c73266679acfcd9094ad251f35e5ae",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Team Player",
+     "uuid": "cea2f400864dc5282d8a0af84aa8a100",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Power Systems",
+     "uuid": "dd402e16987d52177ded5211d15d9cf4",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Shop Floor",
+     "uuid": "e1f57ce91c30df9c26456a6fe65e054c",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Factory Automation Project",
+     "uuid": "e2e9263aaeedf626a2000c00dcfac842",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Programming",
+     "uuid": "e6f43c40ab1c07cd29e4e83e4ef6bf85",
+     "confidence": null,
+     "isKeySkill": false
+    }
+   ],
+   "flexibleWorkArrangements": [],
+   "otherRequirements": null,
+   "ssocCode": "35219",
+   "occupationId": "OCC009015",
+   "ssocVersion": "2020v3",
+   "workingHours": null,
+   "numberOfVacancies": 2,
+   "psdUrl": null,
+   "categories": [
+    {
+     "id": 11,
+     "category": "Engineering"
+    }
+   ],
+   "employmentTypes": [
+    {
+     "id": 10,
+     "employmentType": "Internship/Attachment"
+    }
+   ],
+   "positionLevels": [
+    {
+     "id": 12,
+     "position": "Fresh/entry level"
+    }
+   ],
+   "status": {
+    "id": 103,
+    "jobStatus": "Re-open"
+   },
+   "ssecEqa": "31",
+   "ssecFos": null,
+   "postedCompany": {
+    "name": "KEYSTONE CABLE (S) PTE LTD"
+   },
+   "hiringCompany": null,
+   "address": {
+    "overseasCountry": null,
+    "foreignAddress1": null,
+    "foreignAddress2": null,
+    "block": "57",
+    "street": "SENOKO DRIVE",
+    "floor": null,
+    "unit": null,
+    "building": "WOODLANDS EAST INDUSTRIAL ESTATE",
+    "postalCode": "758236",
+    "isOverseas": false,
+    "districts": [
+     {
+      "id": 27,
+      "location": "D27 Sembawang, Yishun",
+      "region": "North",
+      "sectors": [
+       "75",
+       "76"
+      ],
+      "regionId": "North"
+     }
+    ],
+    "lat": 1.46543601111635,
+    "lng": 103.806492798689
+   },
+   "metadata": {
+    "jobPostId": "MCF-2026-1686348",
+    "deletedAt": "2026-10-24T17:15:04.000Z",
+    "createdBy": "c3185de8-ff41-47a4-8988-9916d0a9a41a",
+    "createdAt": "2026-09-24T00:17:08.000Z",
+    "updatedAt": "2026-10-30T03:29:21.000Z",
+    "emailRecipient": "c3185de8-ff41-47a4-8988-9916d0a9a41a",
+    "editCount": 0,
+    "repostCount": 1,
+    "totalNumberOfView": 143,
+    "newPostingDate": "2026-10-30",
+    "originalPostingDate": "2026-09-24",
+    "expiryDate": "2026-11-29",
+    "totalNumberJobApplication": 0,
+    "isJdEnhanced": false,
+    "isPostedOnBehalf": false,
+    "isHideSalary": false,
+    "isHideCompanyAddress": false,
+    "isHideHiringEmployerName": false,
+    "isHideEmployerName": false,
+    "jobDetailsUrl": "https://www.mycareersfuture.gov.sg/job/engineering/production-engineer-intern-keystone-cable-6871fc63df8ad951c23cf4096650e6aa",
+    "matchedSkillsScore": null
+   },
+   "salary": {
+    "maximum": 1100,
+    "minimum": 900,
+    "type": {
+     "id": 4,
+     "salaryType": "Monthly"
+    }
+   },
+   "jobTitles": []
+  },
+  {
+   "uuid": "205d854b94b2a80efd61cfaffe5408a3",
+   "sourceCode": "Employer Portal",
+   "title": "Project Executive Intern",
+   "description": "<h3>Key Job Responsibilities and Functions of a Project Executive Intern at Trinax</h3>\n<p>1. <strong>Project Involvement</strong>:</p>\n<ul>\n  <li>Engage in the full life cycle of 360 projects, from initial conception to final deployment and ongoing support using the proven tools and well-established systems to manage and deliver projects successfully.</li>\n</ul>\n<p>2. <strong>UX Research Workshops and Studies</strong>:</p>\n<ul>\n  <li>Participate in conducting UX research workshops.</li>\n  <li>Synthesise data from UX studies to inform and refine design decisions.</li>\n  <li>Assist in creating ",
+   "minimumYearsExperience": 0,
+   "shiftPattern": null,
+   "schemes": [],
+   "skills": [
+    {
+     "skill": "Liaising with project stakeholders",
+     "uuid": "17a63d152eba2daf8fa2d6a8dd9f46b3",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Microsoft Office",
+     "uuid": "2482944e6048d8f3b76417f0f5af9074",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Microsoft Excel",
+     "uuid": "28392dee72b88a917a72357aea20a3a5",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "WebEx",
+     "uuid": "2f3d7ccb0648306491f0667e25193eea",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Emotional Intelligence",
+     "uuid": "ae0bc5d28c185ff5ac023030334c6f8a",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Writing",
+     "uuid": "af96ab416602c6852b1ba5201feaacf6",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Presentation Skills",
+     "uuid": "c2a974ed87a951bb16ce092a5ea5071f",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Articulate",
+     "uuid": "cfd2360937d8b0cb9d1b70faf469d50d",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Project Management Professional",
+     "uuid": "e6010dfa07a440c4b3999dd6f0f48e6e",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "Able To Work Independently",
+     "uuid": "f3003179e62d8d52170ad7ba00881f2e",
+     "confidence": null,
+     "isKeySkill": false
+    },
+    {
+     "skill": "People Management",
+     "uuid": "f348ff6bfac32a0d81f92e84fbf3691f",
+     "confidence": null,
+     "isKeySkill": false
+    }
+   ],
+   "flexibleWorkArrangements": [],
+   "otherRequirements": null,
+   "ssocCode": "13302",
+   "occupationId": "OCC001960",
+   "ssocVersion": "2020v3",
+   "workingHours": null,
+   "numberOfVacancies": 2,
+   "psdUrl": null,
+   "categories": [
+    {
+     "id": 41,
+     "category": "Others"
+    }
+   ],
+   "employmentTypes": [
+    {
+     "id": 10,
+     "employmentType": "Internship/Attachment"
+    }
+   ],
+   "positionLevels": [
+    {
+     "id": 12,
+     "position": "Fresh/entry level"
+    }
+   ],
+   "status": {
+    "id": 103,
+    "jobStatus": "Re-open"
+   },
+   "ssecEqa": "62",
+   "ssecFos": "0911",
+   "postedCompany": {
+    "name": "TRINAX PRIVATE LIMITED"
+   },
+   "hiringCompany": null,
+   "address": {
+    "overseasCountry": null,
+    "foreignAddress1": null,
+    "foreignAddress2": null,
+    "block": "68",
+    "street": "KALLANG PUDDING ROAD",
+    "floor": null,
+    "unit": null,
+    "building": "SYH LOGISTICS BUILDING",
+    "postalCode": "349327",
+    "isOverseas": false,
+    "districts": [
+     {
+      "id": 13,
+      "location": "D13 Macpherson, Braddell",
+      "region": "Central",
+      "sectors": [
+       "34",
+       "35",
+       "36",
+       "37"
+      ],
+      "regionId": "Central"
+     }
+    ],
+    "lat": 1.32777858031018,
+    "lng": 103.879352919697
+   },
+   "metadata": {
+    "jobPostId": "MCF-2026-1394447",
+    "deletedAt": "2026-10-15T17:15:04.000Z",
+    "createdBy": "4b70667a-f4f5-4fab-871b-4899e1f5827f",
+    "createdAt": "2026-08-13T01:42:29.000Z",
+    "updatedAt": "2026-10-19T09:02:17.000Z",
+    "emailRecipient": "4b70667a-f4f5-4fab-871b-4899e1f5827f",
+    "editCount": 0,
+    "repostCount": 2,
+    "totalNumberOfView": 215,
+    "newPostingDate": "2026-10-19",
+    "originalPostingDate": "2026-08-13",
+    "expiryDate": "2026-11-18",
+    "totalNumberJobApplication": 3,
+    "isJdEnhanced": false,
+    "isPostedOnBehalf": false,
+    "isHideSalary": false,
+    "isHideCompanyAddress": false,
+    "isHideHiringEmployerName": false,
+    "isHideEmployerName": false,
+    "jobDetailsUrl": "https://www.mycareersfuture.gov.sg/job/others/project-executive-intern-trinax-205d854b94b2a80efd61cfaffe5408a3",
+    "matchedSkillsScore": null
+   },
+   "salary": {
+    "maximum": 1000,
+    "minimum": 800,
+    "type": {
+     "id": 4,
+     "salaryType": "Monthly"
+    }
+   },
+   "jobTitles": []
+  }
+ ],
+ "total": 677,
+ "_links": {
+  "next": {
+   "href": "https://api.mycareersfuture.gov.sg/v2/jobs?limit=5&page=1&search=intern&salary=0"
+  },
+  "self": {
+   "href": "https://api.mycareersfuture.gov.sg/v2/jobs?limit=5&search=intern&salary=0"
+  },
+  "first": {
+   "href": "https://api.mycareersfuture.gov.sg/v2/jobs?limit=5&search=intern&salary=0"
+  },
+  "last": {
+   "href": "https://api.mycareersfuture.gov.sg/v2/jobs?limit=5&page=135&search=intern&salary=0"
+  }
+ },
+ "countWithoutFilters": 677
+}

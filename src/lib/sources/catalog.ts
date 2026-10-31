@@ -6,7 +6,7 @@ export const PROVIDER_KINDS = [
   "arbeitnow", "englishjobs_de", "jobsch", "jobup", "jobroom", "englishjobs_ch", "englishjobs_fr", "jobbank", "daijob", "wantedly",
   "remoteok", "jobicy", "himalayas", "remotive", "aijobs", "adzuna", "jooble", "reed", "findwork", "arbeitsagentur", "weworkremotely", "eures", "thehub", "hackernews",
   "greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "pinpoint", "workday", "teamtailor", "bamboohr", "breezy", "gem", "rippling", "flatchr", "jobscore", "join", "softgarden", "successfactors", "icims", "rss", "careers",
-  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs", "workablejobs",
+  "simplify", "jobtech", "francetravail", "getinit", "studysmarter", "iamexpat", "nav", "justjoin", "nofluff", "karriere", "itjobs", "infojobs", "landingjobs", "jobsacuk", "builtin", "startupjobs", "workablejobs", "mycareersfuture",
 ] as const;
 export type ProviderKind = (typeof PROVIDER_KINDS)[number];
 export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS as readonly unknown[]).includes(k);
@@ -190,6 +190,8 @@ export const CATALOG: CatalogEntry[] = [
   link("careercross", "CareerCross", "JP", "https://www.careercross.com", (q) => `https://www.careercross.com/en/job-search/result?keyword=${enc(q)}`),
   link("mynavi", "Mynavi (マイナビ転職)", "JP", "https://tenshoku.mynavi.jp", (q) => `https://tenshoku.mynavi.jp/list/kw${enc(q)}/`),
   link("rikunabi", "Rikunabi NEXT", "JP", "https://next.rikunabi.com", (q) => `https://next.rikunabi.com/rnc/docs/cp_s01880.jsp?kw=${enc(q)}`),
+  // Singapore
+  { kind: "mycareersfuture", name: "MyCareersFuture", country: "SG", method: "api", site: "https://www.mycareersfuture.gov.sg", handle: none, keywords: true },
   // United Kingdom
   { kind: "reed", name: "Reed", country: "GB", method: "api", site: "https://www.reed.co.uk", handle: none, keywords: true, needsEnv: ["REED_KEY"] },
   { kind: "jobsacuk", name: "jobs.ac.uk", country: "GB", method: "html", site: "https://www.jobs.ac.uk", handle: none, keywords: true },

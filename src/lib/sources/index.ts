@@ -37,6 +37,7 @@ import * as startupjobs from "./startupjobs";
 import * as landingjobs from "./landingjobs";
 import * as jobsacuk from "./jobsacuk";
 import * as builtin from "./builtin";
+import * as mycareersfuture from "./mycareersfuture";
 import * as workablejobs from "./workablejobs";
 import { fitsPlaces } from "../geo";
 import { dropBucket, type Decision } from "../search/filter";
@@ -156,6 +157,7 @@ const PROVIDERS: Record<ProviderKind, Provider> = {
   jobsacuk: { list: jobsacuk.scan, detail: jobsacuk.detail, detailGapMs: 1000 },
   builtin: { list: builtin.scan, detail: builtin.detail, detailGapMs: 1000 },
   workablejobs: { list: workablejobs.scan },
+  mycareersfuture: { list: mycareersfuture.scan },
   careers: { list: ats.scanCareersPage },
 };
 
