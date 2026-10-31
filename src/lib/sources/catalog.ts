@@ -210,7 +210,7 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "nav", name: "NAV arbeidsplassen", country: "NO", method: "html", site: "https://arbeidsplassen.nav.no", handle: none, keywords: true },
   // Poland, Czechia
   { kind: "justjoin", name: "Just Join IT", country: "PL", method: "html", site: "https://justjoin.it", handle: none, keywords: true },
-  { kind: "nofluff", name: "No Fluff Jobs", country: "PL", method: "html", site: "https://nofluffjobs.com", handle: none, keywords: true },
+  { kind: "nofluff", name: "No Fluff Jobs", country: "PL", countries: ["PL", "HU"], method: "html", site: "https://nofluffjobs.com", handle: { type: "slug", placeholder: "pl,hu" }, keywords: true },
   { kind: "startupjobs", name: "StartupJobs.cz", country: "CZ", method: "html", site: "https://www.startupjobs.cz", handle: none, keywords: true },
   // Bulgaria
   { kind: "devbg", name: "DEV.BG", country: "BG", method: "api", site: "https://dev.bg", handle: none, keywords: true },

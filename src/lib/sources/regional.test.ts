@@ -13,6 +13,7 @@ import { emploiticUrl, parseEmploiticList } from "./emploitic";
 import { pickJsonLdJobPosting } from "./html";
 import { jobslyDetailText, jobslyUrl, mapJobsly } from "./jobsly";
 import { mapMcf, mcfUrl } from "./mycareersfuture";
+import { nofluffUrl, parseNofluffList } from "./nofluff";
 import { fromJsonLd } from "./url";
 import { mapWorkableJobs, workableJobsUrl } from "./workablejobs";
 
@@ -111,6 +112,21 @@ test("emploitic: search results' JobPostings -> Algerian place, employer, intern
   assert.equal(emploiticUrl(""), "https://emploitic.com/offres-d-emploi");
   const ld = fromJsonLd(pickJsonLdJobPosting(fx("emploitic-detail.html"))!, j.url);
   assert.ok(ld.title && ld.description.length > 300, ld.description.slice(0, 80));
+});
+
+test("no fluff jobs: the Hungarian list gives Budapest offers in forints, and a Hungary search runs its /hu list", () => {
+  const jobs = parseNofluffList(fx("nofluff-hu-list.html"), "hu");
+  assert.equal(jobs.length, 3);
+  const j = jobs[1];
+  assert.deepEqual([j.title, j.company, j.location, j.remote], ["Experienced Developer", "Deutsche Telekom IT Solutions Hungary", "Budapest, Hungary", false]);
+  assert.equal(countryOf(j.location), "HU");
+  assert.equal(j.url, "https://nofluffjobs.com/hu/job/experienced-developer-deutsche-telekom-it-solutions-hungary-budapest");
+  assert.ok(j.description.startsWith("Salary: 850k – 1.5M HUF"));
+  assert.equal(parseNofluffList(fx("nofluff-hu-list.html")).length, 0, "the Polish parser does not take Hungarian cards");
+  assert.equal(nofluffUrl("backend", "hu"), "https://nofluffjobs.com/hu/backend?criteria=seniority%3Dtrainee,junior&page=2");
+  const run = (countries: string[]) => planSearch({ keywords: ["java"], countries, remote: "no" }).runs.find((r) => r.kind === "nofluff")?.handle;
+  assert.equal(run(["HU", "SK"]), "hu", "its Slovak list holds Polish offers");
+  assert.equal(run(["PL", "HU"]), "pl,hu");
 });
 
 test("dev.bg: job search -> employer from the slug, one offer per company and title with all its cities, intern level", () => {
