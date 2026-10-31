@@ -15,7 +15,7 @@ export const isProviderKind = (k: unknown): k is ProviderKind => (PROVIDER_KINDS
 export const LINK_KINDS = [
   "indeed", "google", "stepstone", "xing", "glassdoor", "ziprecruiter", "wellfound",
   "hellowork", "apec", "wttj", "bayt", "eluta", "workopolis", "gaijinpot", "careercross", "mynavi", "rikunabi",
-  "emploitunisie",
+  "emploitunisie", "rekrute", "emploima", "wuzzuf", "gulftalent", "naukrigulf", "kariera", "profesia", "naukri", "jobstreet", "seek", "catho", "computrabajo",
 ] as const;
 export type LinkKind = (typeof LINK_KINDS)[number];
 
@@ -48,7 +48,7 @@ export interface CatalogEntry {
 
 const enc = encodeURIComponent;
 const slug = (s: string) => s.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const INDEED_HOSTS: Record<string, string> = { TN: "tn", DE: "de", CH: "ch", US: "www", FR: "fr", CA: "ca", JP: "jp", GB: "uk", BE: "be", NL: "nl", IT: "it", ES: "es", MA: "ma", AE: "ae", SA: "sa", QA: "qa", PT: "pt", IE: "ie", SE: "se", LU: "lu", AU: "au", SG: "sg", KR: "kr", DZ: "dz", NO: "no", DK: "dk", FI: "fi", AT: "at", CZ: "cz", PL: "pl", TR: "tr" };
+const INDEED_HOSTS: Record<string, string> = { TN: "tn", DE: "de", CH: "ch", US: "www", FR: "fr", CA: "ca", JP: "jp", GB: "uk", BE: "be", NL: "nl", IT: "it", ES: "es", MA: "ma", AE: "ae", SA: "sa", QA: "qa", PT: "pt", IE: "ie", SE: "se", LU: "lu", AU: "au", SG: "sg", KR: "kr", DZ: "dz", NO: "no", DK: "dk", FI: "fi", AT: "at", CZ: "cz", PL: "pl", TR: "tr", EG: "eg", KW: "kw", OM: "om", BH: "bh", RO: "ro", HU: "hu", GR: "gr", BR: "br", MX: "mx", CL: "cl", IN: "in", NZ: "nz", MY: "malaysia" };
 const none = { type: "none" } as const;
 const link = (kind: LinkKind, name: string, country: CatalogCountry, site: string, searchUrl: CatalogEntry["searchUrl"]): CatalogEntry => ({
   kind, name, country, method: "link", site, handle: none, keywords: true, linkOnly: true, searchUrl,
@@ -271,6 +271,19 @@ export const CATALOG: CatalogEntry[] = [
   { kind: "hackernews", name: "Hacker News – Who is hiring?", country: "INT", method: "api", site: "https://news.ycombinator.com", handle: none, keywords: false },
   link("wttj", "Welcome to the Jungle", "FR", "https://www.welcometothejungle.com", (q, loc) => `https://www.welcometothejungle.com/fr/jobs?query=${enc(q)}&aroundQuery=${enc(loc)}`),
   link("bayt", "Bayt", "INT", "https://www.bayt.com", (q) => `https://www.bayt.com/en/international/jobs/${slug(q) || "internship"}-jobs/`),
+  // Big regional boards behind Cloudflare, CAPTCHAs or robots rules (checked 2026-10-31): search links only.
+  link("rekrute", "ReKrute", "MA", "https://www.rekrute.com", (q) => `https://www.rekrute.com/offres.html?s=1&p=1&o=1&query=${enc(q)}`),
+  link("emploima", "Emploi.ma", "MA", "https://www.emploi.ma", (q) => `https://www.emploi.ma/recherche-jobs-maroc${q.trim() ? `/${enc(q.trim().toLowerCase())}` : ""}`),
+  link("wuzzuf", "Wuzzuf", "EG", "https://wuzzuf.net", (q) => `https://wuzzuf.net/search/jobs/?q=${enc(q)}`),
+  link("gulftalent", "GulfTalent", "AE", "https://www.gulftalent.com", (q) => `https://www.gulftalent.com/jobs/search?keywords=${enc(q)}`),
+  link("naukrigulf", "Naukrigulf", "AE", "https://www.naukrigulf.com", (q) => `https://www.naukrigulf.com/${slug(q) || "fresher"}-jobs-in-uae`),
+  link("kariera", "Kariera.gr", "GR", "https://www.kariera.gr", (q) => `https://www.kariera.gr/en/jobs?keyword=${enc(q)}`),
+  link("profesia", "Profesia.sk", "SK", "https://www.profesia.sk", (q) => `https://www.profesia.sk/praca/?search_anywhere=${enc(q)}`),
+  link("naukri", "Naukri", "IN", "https://www.naukri.com", (q) => `https://www.naukri.com/${slug(q) || "internship"}-jobs`),
+  link("jobstreet", "JobStreet", "MY", "https://my.jobstreet.com", (q) => `https://my.jobstreet.com/${slug(q) || "internship"}-jobs`),
+  link("seek", "SEEK", "AU", "https://www.seek.com.au", (q) => `https://www.seek.com.au/${slug(q) || "graduate"}-jobs`),
+  link("catho", "Catho", "BR", "https://www.catho.com.br", (q) => `https://www.catho.com.br/vagas/${slug(q) || "estagio"}/`),
+  link("computrabajo", "Computrabajo", "MX", "https://mx.computrabajo.com", (q) => `https://mx.computrabajo.com/trabajo-de-${slug(q) || "practicante"}`),
   { kind: "rss", name: "RSS / Atom", country: "INT", method: "rss", site: "", handle: { type: "url", placeholder: "https://…/jobs.rss" }, keywords: false },
   { kind: "careers", name: "Page carrières", country: "INT", method: "html", site: "", handle: { type: "url", placeholder: "https://…/careers" }, keywords: false },
 ];

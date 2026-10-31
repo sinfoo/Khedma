@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
-import { CATALOG, COUNTRY_FEEDS, EURES_COUNTRIES, type CatalogEntry } from "./catalog";
+import { CATALOG, COUNTRY_FEEDS, EURES_COUNTRIES, platformLinks, type CatalogEntry } from "./catalog";
 import { euresBody, mapEures } from "./eures";
 import { parseRss } from "./rss";
 
@@ -87,6 +87,15 @@ test("plan: a saved country feed runs only for its country", () => {
   assert.ok(!tn.runs.some((r) => r.handle === feed.handle));
   assert.deepEqual(tn.skipped, [{ label: feed.label, reason: "country" }]);
   assert.ok(tn.runs.some((r) => r.handle === "https://acme.example/jobs.rss"), "other feeds still always run");
+});
+
+test("links: Egypt and Malaysia get their own boards' searches and Indeed's local site", () => {
+  const urls = platformLinks(["data engineer"], ["EG", "MY"]).map((l) => l.url);
+  assert.ok(urls.includes("https://wuzzuf.net/search/jobs/?q=data%20engineer"));
+  assert.ok(urls.includes("https://my.jobstreet.com/data-engineer-jobs"));
+  assert.ok(urls.includes("https://eg.indeed.com/jobs?q=data%20engineer&l=Egypt"));
+  assert.ok(urls.includes("https://malaysia.indeed.com/jobs?q=data%20engineer&l=Malaysia"));
+  assert.ok(!urls.some((u) => u.includes("rekrute")), "Moroccan boards stay out of an Egypt search");
 });
 
 test("catalog: every new country has at least one readable board", () => {
