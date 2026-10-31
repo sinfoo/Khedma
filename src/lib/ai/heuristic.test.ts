@@ -122,3 +122,16 @@ test("language: French job titles with accents are French; a tie keeps the fallb
   assert.equal(detectLanguage("Software Engineering Internship 2027"), "en");
   assert.equal(detectLanguage("Full Stack Developer", "fr"), "fr");
 });
+
+test("offline tailoring adds no placeholder, no second summary and no spoken language as a role skill", async () => {
+  const { heuristicTailorCv } = await import("./heuristic");
+  const profile = { cv_md: "# Ana\n\n## Summary\n\nStudent.\n\n## Skills\n\n- Python, Django, English, GitHub", headline: "Élève ingénieur à l'ENIT", skills: ["Python", "Django", "English", "GitHub"], target_roles: [], target_types: [] } as never;
+  const job = { title: "Backend Intern", description: "Python, Django, English, GitHub required.", tags: [], type: "stage" } as never;
+  const out = heuristicTailorCv(job, profile, "en");
+  assert.equal((out.match(/^## Summary/gm) ?? []).length, 1);
+  assert.match(out, /Skills relevant to this role: Python, Django\./);
+  assert.ok(!/\[|English, GitHub\./.test(out.split("## Skills")[0]), out);
+  assert.ok(!out.includes("Élève"), "a French headline stays out of an English CV");
+  const none = heuristicTailorCv({ ...(job as object), description: "Sales." } as never, { ...(profile as object), skills: [] } as never, "en");
+  assert.ok(!none.includes("[key skills]"));
+});

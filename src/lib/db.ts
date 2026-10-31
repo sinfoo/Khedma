@@ -155,6 +155,17 @@ function normalizeSettings(s: Partial<Settings>): Settings {
 /** Shared tables several areas read (pipeline writes them, calendar/dashboard read them). */
 function runCoreMigrations(d: DatabaseSync) {
   void d;
+  // The CV review's "Apply" used to paste its rewrite template, placeholder included, into the CV itself
+  // ("— result: [number, e.g. 200 users, 30% faster]"). Take that exact text back out of saved CVs, once.
+  const T_EN = "result: [number, e.g. 200 users, 30% faster]";
+  const T_FR = "résultat : [chiffre, ex. 200 utilisateurs, -30 % de temps]";
+  const strip = (col: string) =>
+    [`. , ${T_EN}`, `. , ${T_FR}`].reduce((e, s) => `REPLACE(${e}, '${s}', '.')`, [` — ${T_EN}`, ` — ${T_FR}`, `, ${T_EN}`, `, ${T_FR}`].reduce((e, s) => `REPLACE(${e}, '${s}', '')`, col));
+  migrate(
+    "core:cv-strip-review-templates",
+    `UPDATE profile SET cv_md = ${strip("cv_md")} WHERE cv_md LIKE '%[number, e.g.%' OR cv_md LIKE '%[chiffre, ex.%';
+     UPDATE applications SET cv_md = ${strip("cv_md")} WHERE cv_md LIKE '%[number, e.g.%' OR cv_md LIKE '%[chiffre, ex.%';`,
+  );
   migrate(
     "core:001-shared",
     `ALTER TABLE jobs ADD COLUMN starred INTEGER NOT NULL DEFAULT 0;

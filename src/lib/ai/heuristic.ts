@@ -1,6 +1,7 @@
 // Offline, deterministic fallbacks. No network, no randomness.
 import type { Evaluation, InterviewPrep, Job, Locale, Profile, SkillGap, UpskillPlan } from "../types";
 import { inTargetPlaces } from "../geo";
+import { isRoleSkill } from "../search/cv-keywords";
 
 // ---------- skills ----------
 // "Canonical|alias|alias". Aliases chosen to avoid plain English/French words
@@ -224,19 +225,24 @@ export function heuristicEvaluate(job: Job, profile: Profile): Omit<Evaluation, 
 export function heuristicTailorCv(job: Job, profile: Profile, locale: Locale): string {
   const cv = profile.cv_md.trim();
   if (!cv) return "";
-  const matched = splitSkills(job, profile).matched.slice(0, 5);
+  // Technical skills only: "relevant to this role" never names English, teamwork or GitHub.
+  const matched = splitSkills(job, profile).matched.filter(isRoleSkill).slice(0, 5);
   const fr = locale === "fr";
-  const skillsTxt = matched.length ? matched.join(", ") : fr ? "[compétences clés]" : "[key skills]";
-  const summary = fr
-    ? `## Profil\n\n${profile.headline ? profile.headline + ". " : ""}Compétences en lien avec le poste : ${skillsTxt}.\n`
-    : `## Summary\n\n${profile.headline ? profile.headline + ". " : ""}Skills relevant to this role: ${skillsTxt}.\n`;
+  // Nothing to say without a matched skill: no "[key skills]" placeholder ever lands in a CV.
+  const line = matched.length ? (fr ? `Compétences en lien avec le poste : ${matched.join(", ")}.` : `Skills relevant to this role: ${matched.join(", ")}.`) : "";
+  // The headline is kept only when it is written in the CV's language for this offer.
+  const head = profile.headline && detectLanguage(profile.headline, locale) === locale ? `${profile.headline.replace(/[.\s]+$/, "")}. ` : "";
 
   // Split into "## " sections; keep the preamble (name / contact) first.
   const parts = cv.split(/^(?=## )/m);
   const preamble = parts[0].startsWith("## ") ? "" : parts.shift() ?? "";
+  // A CV that already has a summary gets the line added to it, not a second summary section.
+  const own = parts.findIndex((s) => /^## .*(summary|profil|about|objecti|à propos|a propos)/i.test(s));
+  if (own >= 0 && line) parts[own] = `${parts[own].trimEnd()}\n\n${line}\n`;
+  const summary = own < 0 && (head || line) ? `${fr ? "## Profil" : "## Summary"}\n\n${head}${line}`.trim() : "";
   const i = parts.findIndex((s) => /^## .*(skills|compétences|competences|technolog|stack)/i.test(s) && matched.some((m) => s.toLowerCase().includes(m.toLowerCase())));
-  if (i > 0) parts.unshift(...parts.splice(i, 1));
-  return [preamble.trim(), summary.trim(), ...parts.map((p) => p.trim())].filter(Boolean).join("\n\n") + "\n";
+  if (i > 0 && i !== own) parts.unshift(...parts.splice(i, 1));
+  return [preamble.trim(), summary, ...parts.map((p) => p.trim())].filter(Boolean).join("\n\n") + "\n";
 }
 
 // ---------- cover letter ----------

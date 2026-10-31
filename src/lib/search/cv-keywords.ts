@@ -37,6 +37,12 @@ const ROLES: RoleDef[] = [
 
 /** Tools nearly every CV lists: as board queries they match any job. */
 export const EVERYDAY_TOOLS: ReadonlySet<string> = new Set(["git", "github", "gitlab", "jira", "trello", "notion", "slack", "office", "microsoft office", "word", "excel", "powerpoint", "windows", "linux", "vs code", "vscode", "google workspace"]);
+/** Spoken languages, listed as skills by many profiles. */
+export const LANGUAGE_WORDS: ReadonlySet<string> = new Set(["arabic", "arabe", "french", "francais", "français", "english", "anglais", "german", "allemand", "spanish", "espagnol", "italian", "italien"]);
+/** Soft skills sit in most CVs and most postings: as board queries or relevance boosts they match everything. */
+export const SOFT_SKILLS: ReadonlySet<string> = new Set(["communication", "creativity", "créativité", "creativite", "teamwork", "team work", "travail en équipe", "travail en equipe", "leadership", "autonomy", "autonomie", "rigueur", "curiosity", "curiosité", "adaptability", "adaptabilité", "problem solving", "problem-solving", "esprit d'équipe", "organisation", "time management"]);
+/** A skill worth naming as "relevant to this role": not a spoken language, a soft skill or an everyday tool. */
+export const isRoleSkill = (s: string) => !LANGUAGE_WORDS.has(s.toLowerCase()) && !SOFT_SKILLS.has(s.toLowerCase()) && !EVERYDAY_TOOLS.has(s.toLowerCase());
 
 export interface CvKeywords {
   /** Board queries, at most 6: roles first, then skills. */

@@ -4,6 +4,7 @@ import type { Locale, Profile } from "../types";
 import { aiJSON, aiText } from "./index";
 import { cvHealth, type Finding } from "../cv/health";
 import { extractSkills } from "./heuristic";
+import { parseCv } from "../cv/sectionize";
 
 export interface CvReview {
   score: number; // 0-100
@@ -130,8 +131,10 @@ export function heuristicReview(cv: string, profile: Profile, locale: Locale): C
     const m = msg[f.id]?.[fr ? "fr" : "en"] ?? ["style", f.id, ""];
     return { area: AREA[m[0]]?.[fr ? "fr" : "en"] ?? m[0], issue: m[1], fix: m[2], priority: sev(f) };
   });
-  // Bullet rewrites: long bullets without a verb or a number get a template upgrade.
-  const rewrites = cv
+  // Bullet rewrites: long bullets without a verb or a number get a template upgrade. Only experience and project
+  // bullets: a measurable result means nothing on a coursework or admission line.
+  const work = parseCv(cv).sections.filter((s) => s.key === "experience" || s.key === "projects").map((s) => s.body).join("\n");
+  const rewrites = work
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter((l) => /^[-*•]\s+/.test(l))

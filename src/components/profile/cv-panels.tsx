@@ -398,7 +398,8 @@ export function ReviewPanel({
                       <span className="font-semibold">{r.why}:</span> {w.why}
                     </p>
                     <div className="mt-2 flex gap-2">
-                      {cvMd.trim() && (
+                      {/* A rewrite with a [placeholder] is a template to fill in: copy it, never paste it into the CV. */}
+                      {cvMd.trim() && !/\[[^\]]+\]/.test(w.after) && (
                         <button
                           type="button"
                           className="btn btn-secondary btn-sm"
