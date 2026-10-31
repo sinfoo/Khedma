@@ -7,6 +7,7 @@ import path from "node:path";
 import { countryOf } from "../geo";
 import { planSearch } from "../search/plan";
 import { agoDate, drjobUrl, parseDrjobList } from "./drjobpro";
+import { emploiticUrl, parseEmploiticList } from "./emploitic";
 import { pickJsonLdJobPosting } from "./html";
 import { jobslyDetailText, jobslyUrl, mapJobsly } from "./jobsly";
 import { mapMcf, mcfUrl } from "./mycareersfuture";
@@ -90,4 +91,22 @@ test("dr.job: country listing cards -> employer, place, posting day; JobPosting 
   assert.ok(ld.description.length > 300);
   const run = planSearch({ keywords: ["engineer"], countries: ["AE", "SA", "EG"], remote: "no" }).runs.find((r) => r.kind === "drjobpro");
   assert.equal(run?.handle, "sa,eg", "the UAE has no Dr.Job listing");
+});
+
+test("emploitic: search results' JobPostings -> Algerian place, employer, internship type; full posting from the detail page", () => {
+  const jobs = parseEmploiticList(fx("emploitic-list.html"));
+  assert.equal(jobs.length, 3);
+  const j = jobs[1];
+  assert.equal(j.title, "Stage Commercial(e)");
+  assert.equal(j.company, "LIFE BOX");
+  assert.equal(j.location, "Alger, Alger, Algeria");
+  assert.equal(countryOf(j.location), "DZ");
+  assert.equal(j.url, "https://emploitic.com/entreprises/life-box/offres-d-emploi/services/stage-commerciale-pysmg");
+  assert.equal(j.type, "stage");
+  assert.equal(j.posted_at, "2026-09-06");
+  assert.equal(j.source, "emploitic");
+  assert.equal(emploiticUrl("Développeur web"), "https://emploitic.com/offres-d-emploi/q-developpeur-web");
+  assert.equal(emploiticUrl(""), "https://emploitic.com/offres-d-emploi");
+  const ld = fromJsonLd(pickJsonLdJobPosting(fx("emploitic-detail.html"))!, j.url);
+  assert.ok(ld.title && ld.description.length > 300, ld.description.slice(0, 80));
 });
