@@ -19,6 +19,18 @@ test("geo: Nordic, Central European and Turkish places resolve to their country"
   assert.notEqual(countryOf("Long Island"), "IS", "no bare 'island' alias for Iceland");
 });
 
+test("geo: Africa, Eastern Europe, Asia and Latin America places resolve, and look-alike names stay with their country", () => {
+  const cases: [string, string][] = [
+    ["Bucharest, Romania", "RO"], ["Cluj-Napoca", "RO"], ["Budapest", "HU"], ["Sofia, Bulgaria", "BG"], ["Athens", "GR"], ["Tallinn", "EE"], ["Riga", "LV"],
+    ["Vilnius", "LT"], ["Bratislava", "SK"], ["Ljubljana", "SI"], ["Split, Croatia", "HR"], ["Le Caire", "EG"], ["Benghazi", "LY"], ["Kuwait City", "KW"],
+    ["Muscat", "OM"], ["Manama", "BH"], ["Dakar", "SN"], ["Abidjan, Côte d'Ivoire", "CI"], ["Côte d’Ivoire", "CI"], ["Douala", "CM"],
+    ["Kuala Lumpur", "MY"], ["Auckland", "NZ"], ["Bengaluru, Karnataka, India", "IN"], ["São Paulo", "BR"], ["Ciudad de México", "MX"], ["Santiago", "CL"],
+    ["Fès", "MA"], ["Sétif", "DZ"], ["Ajman", "AE"], ["Riyadh, KSA", "SA"], ["Brisbane", "AU"], ["Esch-sur-Alzette", "LU"],
+    ["Albuquerque, New Mexico", "US"], ["Santiago de Compostela", "ES"], ["Porto Alegre", "BR"], ["Porto", "PT"],
+  ];
+  for (const [place, code] of cases) assert.equal(countryOf(place), code, place);
+});
+
 test("eures: the new EU/EEA countries are searchable", () => {
   for (const c of ["NO", "DK", "FI", "IS", "AT", "CZ", "PL"]) assert.ok(EURES_COUNTRIES.has(c), c);
   const p = planSearch({ keywords: ["software"], countries: ["AT", "PL"], remote: "no" });

@@ -23,7 +23,7 @@ export type LinkKind = (typeof LINK_KINDS)[number];
 export const EURES_COUNTRIES: ReadonlySet<string> = new Set(["FR", "DE", "BE", "CH", "NL", "IT", "ES", "LU", "SE", "IE", "PT", "NO", "DK", "FI", "IS", "AT", "CZ", "PL"]);
 
 /** ISO country code of the board, or "INT" for worldwide boards. */
-export type CatalogCountry = "TN" | "DE" | "CH" | "US" | "FR" | "CA" | "JP" | "GB" | "NL" | "AT" | "SE" | "NO" | "DK" | "FI" | "IS" | "PL" | "CZ" | "PT" | "ES" | "TR" | "INT";
+export type CatalogCountry = "TN" | "FR" | "DE" | "CA" | "BE" | "CH" | "NL" | "GB" | "US" | "AE" | "QA" | "SA" | "MA" | "DZ" | "IT" | "ES" | "LU" | "SE" | "NO" | "DK" | "FI" | "IS" | "IE" | "PT" | "AT" | "CZ" | "PL" | "TR" | "JP" | "KR" | "SG" | "AU" | "LY" | "EG" | "KW" | "OM" | "BH" | "SN" | "CI" | "CM" | "RO" | "HU" | "BG" | "GR" | "EE" | "LV" | "LT" | "SK" | "SI" | "HR" | "MY" | "NZ" | "IN" | "BR" | "MX" | "CL" | "INT";
 
 export interface CatalogEntry {
   kind: ProviderKind | LinkKind;

@@ -13,7 +13,7 @@ import { countryByCode } from "@/lib/geo";
 import { addProviderSource } from "@/app/actions/sources";
 
 // Display order; a catalog country missing here is appended rather than hidden.
-const COUNTRY_ORDER: CatalogCountry[] = [...new Set<CatalogCountry>([...(["TN", "FR", "DE", "CH", "GB", "NL", "AT", "ES", "PT", "SE", "NO", "DK", "FI", "IS", "PL", "CZ", "TR", "CA", "US", "JP"] as const), ...CATALOG.map((e) => e.country).filter((c) => c !== "INT"), "INT"])];
+const COUNTRY_ORDER: CatalogCountry[] = [...new Set<CatalogCountry>([...(["TN", "FR", "DE", "CH", "GB", "NL", "AT", "ES", "PT", "SE", "NO", "DK", "FI", "IS", "PL", "CZ", "TR", "MA", "DZ", "LY", "EG", "AE", "SA", "QA", "KW", "OM", "BH", "SN", "CI", "CM", "BE", "LU", "IT", "IE", "RO", "HU", "BG", "GR", "EE", "LV", "LT", "SK", "SI", "HR", "CA", "US", "BR", "MX", "CL", "JP", "KR", "SG", "MY", "IN", "AU", "NZ"] as const), ...CATALOG.map((e) => e.country).filter((c) => c !== "INT"), "INT"])];
 
 /** Provider catalog grouped by country: Tunisian boards first, worldwide boards and feeds last. `missingEnv` = kinds whose API key is not set. */
 export function Catalog({ existing, keywords = [], missingEnv = [], countries, onAdded }: { existing: string[]; keywords?: string[]; missingEnv?: string[]; /** Target countries: their boards and worldwide ones show first, the rest fold away. */ countries?: string[]; onAdded: (id: number, name: string) => void }) {
