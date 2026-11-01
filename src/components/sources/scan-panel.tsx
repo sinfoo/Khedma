@@ -312,7 +312,10 @@ export function ScanPanel({
               const v = e.target.value;
               const region = REGIONS.find((r) => `region:${r.key}` === v);
               const add = region ? region.codes : v ? [v] : [];
-              if (add.length) setCountries((cs) => [...new Set([...cs, ...add])]);
+              if (!add.length) return;
+              setCountries((cs) => [...new Set([...cs, ...add])]);
+              // New picks join the end of the list: unfold it so they show.
+              setAllCountries(true);
             }}
           >
             <option value="">{m.addCountryPh}</option>

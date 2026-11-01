@@ -65,7 +65,7 @@ export function WorkspaceHeader({
           </p>
         </div>
         <div className="col-span-full flex min-w-0 flex-wrap items-center gap-2">
-          <ol aria-label={s.stepperLabel} className="seg seg-sm max-w-full overflow-x-auto">
+          <ol aria-label={s.stepperLabel} className="seg seg-sm min-w-0 max-w-full overflow-x-auto max-sm:flex-1">
             {STEPS.map((st, i) => {
               const done = !closed && i < idx;
               const here = st === cur;
