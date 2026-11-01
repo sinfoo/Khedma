@@ -169,7 +169,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   // The e-mail goes to the employer: written in the posting's language, and it only mentions a letter that exists.
   const PF = dicts[postingLocale(job, locale)].apps2.flow;
   const missingDocs = [...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(letterDone ? [] : ["letter" as const])];
-  const sentButton = (className?: string) => (
+  // One "I've sent it" button, in the step footer: a second copy in "How to apply" split the action in two.
+  const sentButton = () => (
     <MarkSentButton
       id={app.id}
       status={app.status}
@@ -180,7 +181,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
       unfilled={review?.saved.filter((x) => PLACEHOLDER.test(x.answer)).length ?? 0}
       unfilledDocs={(["cv", "letter"] as const).filter((k) => PLACEHOLDER.test((k === "cv" ? app.cv_md : app.cover_letter_md) ?? ""))}
-      className={className}
     />
   );
   const offer = getOffer(app.id);
@@ -308,12 +308,6 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                   </span>
                 )}
               </div>
-              {!applied && (
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line pt-3">
-                  <p className="min-w-0 flex-1 basis-60 text-[0.8rem] text-muted">{F.sentPrompt}</p>
-                  {sentButton("btn btn-outline btn-sm")}
-                </div>
-              )}
             </div>
             {review && (
               <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
