@@ -85,19 +85,19 @@ export function Catalog({ existing, keywords = [], missingEnv = [], countries, o
                       </p>
                     </div>
                   </div>
-                  <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-2">{s2.desc[c.kind]}</p>
+                  <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-2 [overflow-wrap:anywhere]">{s2.desc[c.kind]}</p>
                   {searchHref && <p className="mt-2 text-xs text-muted">{s2.linkOnly}</p>}
                   <div className="mt-4 flex items-center justify-between gap-2">
                     {c.site ? (
-                      <a href={c.site} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center gap-1 text-xs text-muted hover:text-ink">
-                        {new URL(c.site).hostname.replace(/^www\./, "")} <ExternalLink size={12} aria-hidden="true" />
+                      <a href={c.site} target="_blank" rel="noreferrer" className="inline-flex min-h-6 min-w-0 items-center gap-1 text-xs text-muted hover:text-ink" title={new URL(c.site).hostname.replace(/^www\./, "")}>
+                        <span className="truncate">{new URL(c.site).hostname.replace(/^www\./, "")}</span> <ExternalLink size={12} aria-hidden="true" className="shrink-0" />
                         <span className="sr-only">({fmt(s2.visit, { name: c.name })})</span>
                       </a>
                     ) : (
                       <span />
                     )}
                     {searchHref ? (
-                      <a href={searchHref} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" aria-label={`${s2.openSearch} – ${c.name}`}>
+                      <a href={searchHref} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm shrink-0" aria-label={`${s2.openSearch} – ${c.name}`}>
                         <ExternalLink size={14} aria-hidden="true" /> {s2.openSearch}
                       </a>
                     ) : missingEnv.includes(c.kind) ? (

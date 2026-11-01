@@ -377,7 +377,11 @@ select.input { padding-right: 2rem; }
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--ink-2);
-  white-space: nowrap;
+  /* One line while it fits; a chip longer than its row (a long skill name on a phone) wraps instead of pushing
+     the page sideways. flex-shrink 0 keeps short chips whole in rows that do not wrap. */
+  max-width: 100%;
+  flex-shrink: 0;
+  overflow-wrap: anywhere;
 }
 .chip-accent { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 .chip-saffron { background: var(--saffron-soft); color: var(--saffron); border-color: transparent; }
