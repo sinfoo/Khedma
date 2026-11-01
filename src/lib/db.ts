@@ -226,6 +226,12 @@ function runCoreMigrations(d: DatabaseSync) {
      ALTER TABLE contacts_new RENAME TO contacts;
      CREATE INDEX IF NOT EXISTS contacts_app ON contacts(application_id);`,
   );
+  // The offers list reads one archived bucket newest first; the source list and filter group by board.
+  migrate(
+    "core:003-jobs-indexes",
+    `CREATE INDEX IF NOT EXISTS jobs_bucket ON jobs(archived, created_at DESC, id DESC);
+     CREATE INDEX IF NOT EXISTS jobs_source ON jobs(source);`,
+  );
 }
 
 // ---------- helpers ----------
