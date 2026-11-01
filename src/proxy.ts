@@ -7,7 +7,7 @@ import { isLoopbackHost, isSameOrigin } from "@/lib/sources/http";
  * exempt from the same-site rule: the extension's requests are cross-site, and its own token guards it.
  */
 export function proxy(req: NextRequest) {
-  if (!isLoopbackHost(req.headers.get("host"))) return new NextResponse("Khedma only answers on this computer (http://localhost:3000).", { status: 403 });
+  if (!isLoopbackHost(req.headers.get("host"))) return new NextResponse("Khedma only answers on this computer: open it at http://localhost.", { status: 403 });
   const path = req.nextUrl.pathname;
   if (path.startsWith("/api/") && !path.startsWith("/api/extension/") && !isSameOrigin(req)) return NextResponse.json({ error: "Cross-site request refused" }, { status: 403 });
   return NextResponse.next();
