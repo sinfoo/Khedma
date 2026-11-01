@@ -100,6 +100,8 @@ export function ScanPanel({
   const [types, setTypes] = useState<JobType[]>(saved.types);
   const [negatives, setNegatives] = useState(saved.negatives.join(", "));
   const [options, setOptions] = useState(false);
+  // A long country list buried the scan form (30 chips on a phone): show a few, the rest behind "+N".
+  const [allCountries, setAllCountries] = useState(false);
   const [searches, setSearches] = useState(initialSearches);
   const [preparing, startPrepare] = useTransition();
   const [done, setDone] = useState<ScanDone | null>(null);
@@ -267,6 +269,8 @@ export function ScanPanel({
     toast.success(fmt(m.widened, { n: r.length }));
   };
 
+  // The profile's countries, plus any picked for this scan.
+  const countryChips = [...new Set([...places.countries, ...countries])];
   const searchForm = (
     <form
       action="/app/sources"
@@ -278,15 +282,14 @@ export function ScanPanel({
       }}
     >
       <label htmlFor="scan-kw" className="label !text-[0.75rem]">{m.searchFor}</label>
-      <div className="flex gap-1.5">
-        <input ref={kwRef} id="scan-kw" name="q" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} aria-describedby="scan-kw-hint" className="input !h-10 min-w-0 flex-1 !py-0 text-[0.95rem]" />
-        <button type="submit" className="btn btn-saffron !h-10" disabled={busy || preview.runs.length === 0}>
+      <div className="flex flex-wrap gap-1.5">
+        <input ref={kwRef} id="scan-kw" name="q" value={kw} onChange={(e) => setKw(e.target.value)} disabled={busy} placeholder={m.keywordsPh} aria-describedby="scan-kw-hint" className="input !h-10 min-w-0 flex-1 basis-64 !py-0 text-[0.95rem]" />
+        <button type="submit" className="btn btn-saffron !h-10 grow sm:grow-0" disabled={busy || preview.runs.length === 0}>
           <Radar size={15} aria-hidden="true" /> {m.scan}
         </button>
       </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted" role="group" aria-label={m.countries}>
-        {/* The profile's countries, plus any picked for this scan below. */}
-        {[...new Set([...places.countries, ...countries])].map((code) => {
+        {countryChips.slice(0, allCountries || countryChips.length <= 8 ? undefined : 6).map((code) => {
           const on = countries.includes(code);
           return (
             <button key={code} type="button" aria-pressed={on} disabled={busy} className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`} onClick={() => setCountries((cs) => (on ? (cs.length > 1 ? cs.filter((x) => x !== code) : cs) : [...cs, code]))}>
@@ -294,10 +297,15 @@ export function ScanPanel({
             </button>
           );
         })}
-        <label className="ml-1 inline-flex items-center">
+        {countryChips.length > 8 && (
+          <button type="button" className="chip !h-6 cursor-pointer !py-0 text-[0.7rem] font-semibold" aria-expanded={allCountries} onClick={() => setAllCountries((v) => !v)}>
+            {allCountries ? m.fewerCountries : fmt(m.moreCountries, { n: countryChips.length - 6 })}
+          </button>
+        )}
+        <label className="ml-1 inline-flex max-w-full items-center">
           <span className="sr-only">{m.addCountryPh}</span>
           <select
-            className="input !h-6 !w-auto !py-0 !pl-2 !pr-6 text-[0.7rem]"
+            className="input !h-6 !w-auto max-w-full !py-0 !pl-2 !pr-6 text-[0.7rem]"
             value=""
             disabled={busy}
             onChange={(e) => {
@@ -431,7 +439,7 @@ export function ScanPanel({
             // Reads the profile CV: its roles and main skills become the keywords, shown in the box, then scans.
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-outline"
               disabled={!cvKeywords.length || preview.runs.length === 0}
               title={cvKeywords.length ? fmt(m.autoCvTitle, { kw: cvKeywords.join(", ") }) : m.autoCvNone}
               onClick={() => {
