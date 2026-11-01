@@ -1,6 +1,6 @@
 // Real PDF files for the CV and letter: the installed Chrome or Edge prints our own /print page headlessly.
 // No PDF library: the print page is the single layout, so the preview, the PDF and the browser print all match.
-import { execFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,25 +32,45 @@ export async function printToPdf(url: string): Promise<Uint8Array | null> {
   const dir = await mkdtemp(path.join(tmpdir(), "khedma-pdf-"));
   const out = path.join(dir, "doc.pdf");
   try {
-    await new Promise<void>((resolve, reject) =>
-      execFile(
-        browser,
-        [
-          "--headless=new",
-          "--disable-gpu",
-          "--no-first-run",
-          "--no-default-browser-check",
-          "--no-pdf-header-footer",
-          "--run-all-compositor-stages-before-draw",
-          "--virtual-time-budget=4000",
-          `--user-data-dir=${path.join(dir, "profile")}`,
-          `--print-to-pdf=${out}`,
-          url,
-        ],
-        { timeout: 45_000, windowsHide: true },
-        (err) => (err && !existsSync(out) ? reject(err) : resolve()),
-      ),
+    // Some Chrome builds write the PDF and then never exit, and their helpers kept execFile's pipes open, so
+    // the export hung. No pipes now; done as soon as the file is complete, then the browser is killed.
+    const child = spawn(
+      browser,
+      [
+        "--headless=new",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw",
+        "--virtual-time-budget=4000",
+        `--user-data-dir=${path.join(dir, "profile")}`,
+        `--print-to-pdf=${out}`,
+        url,
+      ],
+      { stdio: "ignore", windowsHide: true },
     );
+    try {
+      await new Promise<void>((resolve, reject) => {
+        // A finished PDF ends with its %%EOF marker; a half-written one does not.
+        const tick = setInterval(async () => {
+          const bytes = await readFile(out).catch(() => null);
+          if (bytes?.subarray(-32).includes("%%EOF")) done();
+        }, 300);
+        const limit = setTimeout(() => done(new Error("pdf-timeout")), 45_000);
+        const done = (err?: Error) => {
+          clearInterval(tick);
+          clearTimeout(limit);
+          if (err) reject(err);
+          else resolve();
+        };
+        child.on("error", done);
+        child.on("exit", () => setTimeout(() => (existsSync(out) ? done() : done(new Error("pdf-failed"))), 300));
+      });
+    } finally {
+      // Its helper processes quit on their own once the browser process is gone.
+      if (child.exitCode === null) child.kill("SIGKILL");
+    }
     return new Uint8Array(await readFile(out));
   } finally {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
