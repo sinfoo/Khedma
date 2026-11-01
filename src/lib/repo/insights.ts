@@ -1,6 +1,10 @@
 // Data access + pure analytics for Today, Calendar, Insights and Skills.
 // Pure helpers (dates, buckets, funnel math) are exported for tests; DB readers sit below them.
-import { db, getProfile, kvGet, kvSet, listApplications, listJobs, type ApplicationWithJob, type JobWithMeta } from "@/lib/db";
+import { cache } from "react";
+import { db, getProfile, kvGet, kvSet, listApplications, listJobs as listAllJobs, type ApplicationWithJob, type JobWithMeta } from "@/lib/db";
+
+// Read once per page render: the calendar and the dashboard ask for every offer more than once.
+const listJobs = cache(() => listAllJobs());
 import { computeSkillGaps } from "@/lib/ai";
 import { detectField } from "@/lib/recommend/profile-model";
 import { BENCHMARKS, calibrationBands, silentApps } from "@/lib/reports/digest";
