@@ -28,7 +28,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
   const c = 2 * Math.PI * r;
 
   return (
-    <li className="card grid grid-cols-[auto_1fr] items-center gap-3.5 px-4 py-3.5 sm:grid-cols-[auto_1fr_auto] rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
+    <li className="card grid grid-cols-[auto_1fr] items-center gap-3.5 px-4 py-3.5 rise" style={{ ["--i" as string]: Math.min(i, 8) }}>
       {evaluation ? (
         <ScoreRing dec={t.a11y.decimal} value={evaluation.global} size={52} label={scoreLabel(t, evaluation.global)} animate={false} />
       ) : (
@@ -59,7 +59,7 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
           </p>
         )}
       </div>
-      <div className="col-start-2 flex flex-wrap items-center gap-1.5 sm:col-start-3">
+      <div className="col-start-2 flex flex-wrap items-center gap-1.5">
         <button type="button" className="btn btn-primary btn-sm" disabled={applying} aria-busy={applying} aria-label={`${t.offers2.apply}: ${offer.title}`} onClick={() => startApply(async () => await applyTo(offer.id))}>
           {applying ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Send size={13} aria-hidden="true" />} {t.offers2.apply}
         </button>
