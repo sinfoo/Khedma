@@ -15,14 +15,29 @@ import { saveKeys, testKeys, type KeyGroup } from "@/app/actions/keys";
 export function ApiKeys({ groups: initial }: { groups: KeyGroup[] }) {
   const { t } = useT();
   const [groups, setGroups] = useState(initial);
+  // A card stays out of the fold once any of its keys is set (it keeps its place after saving, no jump).
+  const [open] = useState(() => new Set(initial.filter((g) => g.id === "ai" || g.keys.some((x) => x.source)).map((g) => g.id)));
+  const shown = groups.filter((g) => open.has(g.id));
+  const rest = groups.filter((g) => !open.has(g.id));
   return (
     <>
       <p id="keys-hint" className="hint -mt-1 mb-3">{t.sources2.settings.keys.hidden}</p>
       <ul className="space-y-3">
-        {groups.map((g) => (
+        {shown.map((g) => (
           <KeyCard key={g.id} group={g} onSaved={setGroups} />
         ))}
       </ul>
+      {/* Boards with no key yet are optional: fold them so the page is not eight stacked cards. */}
+      {rest.length > 0 && (
+        <details className="group mt-3">
+          <summary className="btn btn-outline btn-sm cursor-pointer list-none">{fmt(t.sources2.settings.keys.moreProviders, { n: rest.length })}</summary>
+          <ul className="mt-3 space-y-3">
+            {rest.map((g) => (
+              <KeyCard key={g.id} group={g} onSaved={setGroups} />
+            ))}
+          </ul>
+        </details>
+      )}
     </>
   );
 }
