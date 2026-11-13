@@ -532,7 +532,8 @@ function ApplyButton(p: RowProps) {
   return (
     <button
       type="button"
-      className="btn btn-primary btn-sm"
+      // A wall of identical blue buttons buries the best matches: only strong ones (4+/5) get the filled style.
+      className={`btn btn-sm ${p.r.score !== null && p.r.score >= 4 ? "btn-primary" : "btn-outline"}`}
       onClick={(e) => {
         e.stopPropagation();
         p.onApply();
