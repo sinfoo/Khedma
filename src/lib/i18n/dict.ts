@@ -239,11 +239,12 @@ import apply from "./messages/apply";
 import about from "./messages/about";
 import abroad from "./messages/abroad";
 import learn from "./messages/learn";
+import bourses from "./messages/bourses";
 
 type CoreDict = DeepString<typeof en>;
 
 // Feature message modules, each owned by one area of the app and namespaced under its key.
-const MODULES = { landing2: landing, offers2: offers, apps2: apps, coach2: coach, profile2: profileMsgs, insights2: insights, sources2: sourcesMsgs, shell2: shell, discover2: discover, company2: company, apply2: apply, about2: about, abroad2: abroad, learn2: learn };
+const MODULES = { landing2: landing, offers2: offers, apps2: apps, coach2: coach, profile2: profileMsgs, insights2: insights, sources2: sourcesMsgs, shell2: shell, discover2: discover, company2: company, apply2: apply, about2: about, abroad2: abroad, learn2: learn, bourses2: bourses };
 type Modules = typeof MODULES;
 export type Dict = CoreDict & { [K in keyof Modules]: DeepString<Modules[K]["en"]> };
 
