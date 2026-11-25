@@ -5,13 +5,13 @@ import { getText } from "./http";
 
 // Regex RSS 2.0 / Atom reader. Enough for job feeds; not a general XML parser.
 
-function tag(xml: string, name: string): string | undefined {
+export function tag(xml: string, name: string): string | undefined {
   const m = new RegExp(`<${name}\\b[^>]*>([\\s\\S]*?)<\\/${name}>`, "i").exec(xml);
   if (!m) return undefined;
   return decodeEntities(m[1].replace(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/, "$1")).trim();
 }
 
-function link(xml: string): string | undefined {
+export function link(xml: string): string | undefined {
   const plain = tag(xml, "link");
   if (plain && /^https?:\/\//i.test(plain)) return plain;
   // Atom: <link rel="alternate" href="..."/>. Prefer alternate, fall back to any href.
