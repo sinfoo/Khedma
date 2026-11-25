@@ -13,7 +13,7 @@ export function LangToggle() {
     <button
       type="button"
       className="btn btn-ghost btn-sm mono"
-      aria-label={`FR / EN — ${t.a11y.langToggle}: ${next.toUpperCase()}`}
+      aria-label={`FR / EN, ${t.a11y.langToggle}: ${next.toUpperCase()}`}
       aria-busy={pending}
       onClick={() => start(() => setLocale(next))}
     >

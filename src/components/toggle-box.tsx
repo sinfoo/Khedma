@@ -3,7 +3,7 @@
 import { useOptimistic, useTransition } from "react";
 import { toggleSource } from "@/app/actions/sources";
 
-/** Accessible on/off switch (button role="switch"), 24px+ target. */
+/** Accessible on/off switch (button role="switch"). The track is 34x20; an invisible pad makes the target 54x40. */
 export function Switch({
   checked,
   onChange,
@@ -29,7 +29,7 @@ export function Switch({
       aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="switch focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-50"
+      className="switch before:absolute before:-inset-2.5 before:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)] disabled:opacity-50"
     >
       <span aria-hidden="true" className="sr-only" />
     </button>

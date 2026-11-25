@@ -68,7 +68,12 @@ export function DataTools({ file, size, jobs, applications }: { file: string; si
     startApply(async () => {
       if (!raw) return;
       if (mode === "replace" && !window.confirm(`${d.replace}: ${d.replaceHint}`)) return;
-      const res = await post(raw, mode);
+      // A dropped connection is a message in the dialog's place, not a crashed page: the backup stays loaded for a retry.
+      const res = await post(raw, mode).catch(() => null);
+      if (!res) {
+        toast.error(t.common.error);
+        return;
+      }
       const j = (await res.json().catch(() => ({}))) as { inserted?: number; error?: string };
       if (!res.ok) {
         toast.error(d.invalid, j.error);
@@ -204,8 +209,12 @@ export function DataTools({ file, size, jobs, applications }: { file: string; si
               aria-busy={resetting}
               onClick={() =>
                 startReset(async () => {
-                  const r = await resetData(typed);
-                  if (!r.ok) return;
+                  const r = await resetData(typed).catch(() => ({ ok: false }));
+                  if (!r.ok) {
+                    // Nothing was said before when the reset did not go through.
+                    toast.error(t.common.error);
+                    return;
+                  }
                   setResetOpen(false);
                   setTyped("");
                   toast.success(d.resetDone);
@@ -218,6 +227,10 @@ export function DataTools({ file, size, jobs, applications }: { file: string; si
           </>
         }
       >
+        {/* Last exit before the point of no return: take a backup from here. */}
+        <a href="/api/backup/export" download className="btn btn-outline btn-sm mb-4">
+          <Download size={14} aria-hidden="true" /> {d.export}
+        </a>
         <label className="label" htmlFor="reset-confirm">
           {d.resetType}
         </label>

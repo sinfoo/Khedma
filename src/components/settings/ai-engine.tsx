@@ -52,6 +52,9 @@ export function AiEngine({
   const a = t.sources2.settings.ai;
   const toast = useToast();
   const [form, setForm] = useState(settings);
+  // What the server holds: the choice below only applies once "Save" is pressed, so say when it differs.
+  const [saved, setSaved] = useState(settings);
+  const dirty = form.provider !== saved.provider || form.claude_model !== saved.claude_model;
   const [current, setCurrent] = useState(engine);
   const [test, setTest] = useState<{ engine: string; ms: number; text: string } | null>(null);
   const [saving, startSave] = useTransition();
@@ -119,9 +122,14 @@ export function AiEngine({
           aria-busy={saving}
           onClick={() =>
             startSave(async () => {
-              const r = await saveEngineSettings(form);
-              setCurrent(r.engine);
-              toast.success(a.saved, fmt(a.current, { engine: r.engine }));
+              try {
+                const r = await saveEngineSettings(form);
+                setCurrent(r.engine);
+                setSaved(form);
+                toast.success(a.saved, fmt(a.current, { engine: r.engine }));
+              } catch {
+                toast.error(t.common.error);
+              }
             })
           }
         >
@@ -135,12 +143,21 @@ export function AiEngine({
           onClick={() =>
             startTest(async () => {
               setTest(null);
-              setTest(await testEngine(form));
+              try {
+                setTest(await testEngine(form));
+              } catch {
+                toast.error(t.common.error);
+              }
             })
           }
         >
           {testing ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Play size={16} aria-hidden="true" />} {testing ? a.testing : a.test}
         </button>
+        {dirty && (
+          <span className="chip chip-saffron" role="status">
+            {t.profile2.status.unsaved}
+          </span>
+        )}
         <span className="ml-auto inline-flex items-center gap-2 text-sm text-muted">
           {fmt(a.current, { engine: "" })}
           <EngineChip engine={current} t={t} />

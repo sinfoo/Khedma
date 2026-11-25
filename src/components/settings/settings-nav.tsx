@@ -38,7 +38,7 @@ export function SettingsNav({ label, items }: { label: string; items: { id: stri
               href={`#${i.id}`}
               aria-current={active === i.id ? "location" : undefined}
               onClick={() => setActive(i.id)}
-              className={`flex items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 py-[9px] text-[0.85rem] transition-colors ${
+              className={`flex items-center gap-2.5 whitespace-nowrap rounded-[10px] px-2.5 py-[9px] text-[0.85rem] transition-colors pointer-coarse:py-2.5 ${
                 active === i.id ? "bg-accent-soft font-semibold text-ink" : "font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
               }`}
             >

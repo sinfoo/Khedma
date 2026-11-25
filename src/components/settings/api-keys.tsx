@@ -56,10 +56,15 @@ function KeyCard({ group: g, onSaved }: { group: KeyGroup; onSaved: (g: KeyGroup
 
   const save = (v: Record<string, string>) =>
     startSave(async () => {
-      onSaved(await saveKeys(v));
-      setValues({});
-      setResult(null);
-      toast.success(Object.values(v).some((x) => x.trim()) ? k.saved : k.removed, g.name);
+      try {
+        onSaved(await saveKeys(v));
+        setValues({});
+        setResult(null);
+        toast.success(Object.values(v).some((x) => x.trim()) ? k.saved : k.removed, g.name);
+      } catch {
+        // The typed key stays in the field for another try.
+        toast.error(t.common.error, g.name);
+      }
     });
 
   return (
@@ -67,7 +72,7 @@ function KeyCard({ group: g, onSaved }: { group: KeyGroup; onSaved: (g: KeyGroup
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-base" style={{ fontFamily: "var(--font-sans)" }}>{g.name}</h3>
         {g.site && (
-          <a href={g.site} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-accent-text">
+          <a href={g.site} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-accent-text pointer-coarse:-my-3 pointer-coarse:py-3">
             {k.getKey} <ExternalLink size={12} aria-hidden="true" />
             <span className="sr-only">({g.name})</span>
           </a>
@@ -116,7 +121,7 @@ function KeyCard({ group: g, onSaved }: { group: KeyGroup; onSaved: (g: KeyGroup
             onClick={() =>
               startTest(async () => {
                 setResult(null);
-                const r = await testKeys(g.id);
+                const r = await testKeys(g.id).catch(() => ({ ok: false, error: undefined, n: undefined }));
                 setResult(r.ok ? { ok: true, text: r.n ? fmt(k.testOkN, { n: r.n }) : k.testOk } : { ok: false, text: fmt(k.testFail, { reason: errorReason(t, r.error) }) });
               })
             }
