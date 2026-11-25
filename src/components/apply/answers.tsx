@@ -43,6 +43,13 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
       },
     );
 
+  // One way in for the Enter key and the button: no duplicate (it was also the list key), never past the cap.
+  const addCustom = () => {
+    const q = customInput.trim();
+    if (q.length < 3) return;
+    setCustom((c) => [...new Set([...c, q])].slice(0, MAX_CUSTOM));
+    setCustomInput("");
+  };
   const toggle = (qid: string) => setSelected((s) => { const n = new Set(s); if (n.has(qid)) n.delete(qid); else n.add(qid); return n; });
   const count = selected.size + custom.length;
 
@@ -104,8 +111,8 @@ export function AnswersStep({ id, questions, saved, fields, hasCv, formSource }:
             <div className="flex gap-2">
               <input id="custom-q" className="input" value={customInput} placeholder={a.customPlaceholder} maxLength={320}
                 onChange={(e) => setCustomInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && customInput.trim().length >= 3) { e.preventDefault(); setCustom((c) => [...c, customInput.trim()].slice(0, MAX_CUSTOM)); setCustomInput(""); } }} />
-              <button type="button" className="btn btn-secondary" disabled={customInput.trim().length < 3 || custom.length >= MAX_CUSTOM} onClick={() => { setCustom((c) => [...c, customInput.trim()]); setCustomInput(""); }}>
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }} />
+              <button type="button" className="btn btn-secondary" disabled={customInput.trim().length < 3 || custom.length >= MAX_CUSTOM} onClick={addCustom}>
                 <Plus size={16} aria-hidden="true" />{a.add}
               </button>
             </div>
