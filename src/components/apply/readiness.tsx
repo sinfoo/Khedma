@@ -25,6 +25,8 @@ export function SafetyCard({ id, safety, company, manual, checked = null }: { id
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const danger = safety.knockouts.some((k) => k.level === "danger");
+  // Nothing found: one green line under the title, not a paragraph explaining risks that are not there.
+  const clean = safety.knockouts.length === 0 && safety.repeat.n === 0;
 
   const koText = (k: ApplySafety["knockouts"][number]) =>
     k.key === "gate" && k.gate ? fmt(sf.gate, { label: fmt(gateLabel[k.gate.key], { lang: k.gate.lang ?? "" }) }) : fmt(sf[k.key === "gate" ? "visa" : k.key], k.vars);
@@ -36,7 +38,7 @@ export function SafetyCard({ id, safety, company, manual, checked = null }: { id
           <h2 id="ko-h" className="flex items-center gap-2 text-[1.15rem] tracking-[-0.01em]">
             <ShieldAlert size={16} className={safety.knockouts.length ? "text-danger" : "text-muted"} aria-hidden="true" /> {sf.knockouts}
           </h2>
-          <p className="text-[0.82rem] text-muted">{sf.knockoutsHint}</p>
+          <p className={`text-[0.82rem] ${clean ? "text-success" : "text-muted"}`}>{clean ? sf.none : sf.knockoutsHint}</p>
         </div>
         {!manual && (
           <button type="button" className={`btn btn-outline btn-sm ${live?.alive === false ? "!border-danger/50 text-danger" : ""}`} disabled={pending} aria-busy={pending} onClick={check} title={r.checkLink}>
@@ -45,9 +47,7 @@ export function SafetyCard({ id, safety, company, manual, checked = null }: { id
           </button>
         )}
       </div>
-      {safety.knockouts.length === 0 && safety.repeat.n === 0 ? (
-        <p className="mt-3 text-sm text-success">{sf.none}</p>
-      ) : (
+      {!clean && (
         <ul className="mt-3 space-y-2.5" aria-live="polite">
           {safety.knockouts.map((k, i) => (
             <li key={`${k.key}-${i}`} className="flex items-start gap-3">

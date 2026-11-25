@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CircleCheck, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, ExternalLink, FileText, GraduationCap, Mail, MessageSquare, Mic, Minus, NotebookPen, Sparkles, StickyNote, UserRound } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { dicts, fmt, type Dict } from "@/lib/i18n/dict";
 import { postingLocale } from "@/lib/ai/heuristic";
@@ -38,7 +38,7 @@ import { MarkSentButton } from "@/components/pipeline/mark-sent";
 import { ApplyFormCard } from "@/components/pipeline/apply-form-card";
 import { PackButton } from "@/components/pipeline/pack-button";
 import { ContactSuggestions, ContactsPanel, InterviewsPanel, NoteForm, RemindersPanel } from "@/components/pipeline/panels";
-import { daysSince, relTime, shortDate } from "@/components/pipeline/format";
+import { daysAgo, daysSince, relTime, shortDate } from "@/components/pipeline/format";
 import { generateDoc, generatePrep, saveDoc, skipLetter } from "@/app/actions/applications";
 import { listStories } from "@/lib/repo/coach";
 import { mapStories } from "@/lib/coach/logic";
@@ -90,7 +90,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const today = localDate(now);
   const applied = !!app.applied_at || PAST_APPLIED.includes(app.status);
   const extras = getExtras(app.id);
-  const defaultTab: Tab = applied ? "messages" : !app.cv_md?.trim() ? "documents" : !app.cover_letter_md?.trim() && !extras.checklist.includes(LETTER_SKIPPED) ? "documents" : "overview";
+  // Closed: nothing left to send or chase, so the page opens on what happened.
+  const closed = app.status === "rejected" || app.status === "discarded";
+  const defaultTab: Tab = closed ? "timeline" : applied ? "messages" : !app.cv_md?.trim() ? "documents" : !app.cover_letter_md?.trim() && !extras.checklist.includes(LETTER_SKIPPED) ? "documents" : "overview";
   const defaultDoc = app.cv_md?.trim() ? "letter" : "cv";
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : defaultTab;
   const doc = sp.doc === "letter" || sp.doc === "cv" ? sp.doc : tab === "documents" && !sp.tab ? defaultDoc : "cv";
@@ -107,6 +109,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   const employerUrl = employerLink(job.url, job.description ?? "");
   const applyEmail = contactEmail ?? (job.description?.match(EMAIL) ?? []).find((e) => !/no-?reply/i.test(e)) ?? null;
   const interviews = listInterviews(app.id);
+  // The next planned interview goes in the header: at that stage it is the answer to "what is next".
+  const nextInterview = interviews.find((i) => i.starts_at.slice(0, 10) >= today);
   const reminders = listReminders(app.id);
   const events = listEvents(app.id);
   const openReminders = reminders.filter((r) => !r.done);
@@ -169,6 +173,12 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
   // The e-mail goes to the employer: written in the posting's language, and it only mentions a letter that exists.
   const PF = dicts[postingLocale(job, locale)].apps2.flow;
   const missingDocs = [...(app.cv_md?.trim() ? [] : ["cv" as const]), ...(letterDone ? [] : ["letter" as const])];
+  const stepDone = (k: Step) => (k === "tailor" ? !!app.cv_md?.trim() : k === "letter" ? letterDone : k === "review" ? applied : false);
+  // The one thing to do now, marked on the rail whatever step is open. Once sent, the follow-up banner says what is next.
+  const todo = applied || closed ? null : STEPS.find((k) => !stepDone(k));
+  const cm = a.cadence;
+  // The footer never shows a date that has passed: a follow-up that is due reads "due".
+  const nextText = !cadence ? "" : cadence.urgency === "overdue" ? cm.due[cadence.angle] : cadence.urgency === "urgent" ? cm.urgency.urgent : cadence.urgency === "waiting" && cadence.nextDue ? fmt(F.nextTouch, { date: shortDate(cadence.nextDue, locale) }) : "";
   // One "I've sent it" button, in the step footer: a second copy in "How to apply" split the action in two.
   const sentButton = () => (
     <MarkSentButton
@@ -181,6 +191,7 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       answers={review?.saved.filter((x) => x.answer.trim()).length ?? 0}
       unfilled={review?.saved.filter((x) => PLACEHOLDER.test(x.answer)).length ?? 0}
       unfilledDocs={(["cv", "letter"] as const).filter((k) => PLACEHOLDER.test((k === "cv" ? app.cv_md : app.cover_letter_md) ?? ""))}
+      className="btn btn-saffron !h-10 max-sm:flex-1"
     />
   );
   const offer = getOffer(app.id);
@@ -195,7 +206,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         status={app.status}
         title={job.title}
         company={job.company}
-        meta={[t.jobTypes[job.type], job.location, app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), n: daysSince(app.applied_at, nowMs) }) : a.overview.notApplied, !applied && job.deadline ? `${t.common.deadline} ${shortDate(job.deadline, locale)}` : ""].filter(Boolean).join(" · ")}
+        // Dates first: on a phone the line is cut after two rows, and the type and the place are what can go. "Not applied yet" is the stepper's job.
+        meta={[nextInterview ? fmt(a.board.interviewOn, { date: shortDate(nextInterview.starts_at, locale, true) }) : "", app.applied_at ? fmt(a.overview.appliedOn, { date: shortDate(app.applied_at, locale), ago: daysAgo(app.applied_at, locale, nowMs) }) : "", !applied && job.deadline ? `${t.common.deadline} ${shortDate(job.deadline, locale)}${job.deadline.slice(0, 10) < today ? ` · ${t.offers2.expired}` : ""}` : "", job.archived ? a.ws.archived : "", t.jobTypes[job.type], job.location].filter(Boolean).join(" · ")}
         jobId={job.id}
         postingUrl={/^https?:\/\//.test(job.url) ? job.url : null}
         missing={missingDocs}
@@ -205,7 +217,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
       {/* Step rail: the application is a path, not a set of tabs */}
       <ol aria-label={F.stepsLabel} className="card mb-[18px] grid grid-cols-2 gap-1 p-1.5 no-print lg:grid-cols-4">
         {STEPS.map((k, i) => {
-          const done = k === "tailor" ? !!app.cv_md?.trim() : k === "letter" ? letterDone : k === "review" ? applied : false;
+          const done = stepDone(k);
+          // Sent without it: nothing is left to do there, so it no longer reads as a step to take.
+          const moot = !done && applied && k !== "after";
           const current = k === step;
           return (
             <li key={k}>
@@ -215,14 +229,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-left transition-colors ${current ? "bg-accent-soft" : "hover:bg-surface-2"}`}
               >
                 <span className={`mono grid size-[26px] shrink-0 place-items-center rounded-full text-[0.72rem] font-bold ${done ? "bg-success text-white" : current ? "bg-accent text-accent-ink" : "bg-surface-3 text-ink-2"}`}>
-                  {done ? <Check size={13} aria-hidden="true" /> : i + 1}
+                  {done ? <Check size={13} aria-hidden="true" /> : moot ? <Minus size={13} aria-hidden="true" /> : i + 1}
                 </span>
                 <span className="min-w-0">
                   <span className={`block whitespace-nowrap text-[0.85rem] font-semibold ${current ? "text-ink" : "text-ink-2"}`}>
                     {F.steps[k].label}
-                    {done && <span className="sr-only"> ({k === "letter" && letterSkipped ? F.stepSkipped : F.stepDone})</span>}
+                    {(done || moot) && <span className="sr-only"> ({moot || (k === "letter" && letterSkipped) ? F.stepSkipped : F.stepDone})</span>}
                   </span>
-                  <span className="block truncate text-[0.7rem] text-muted">{F.steps[k].hint}</span>
+                  <span className={`block truncate text-[0.7rem] ${k === todo ? "font-semibold text-saffron" : "text-muted"}`}>{k === todo ? F.stepTodo : F.steps[k].hint}</span>
                 </span>
               </Link>
             </li>
@@ -310,21 +324,34 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
               </div>
             </div>
             {review && (
-              <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
+              // Optional preparation, a screen and a half long: folded until something is saved or the employer's form can be read.
+              <details open={review.saved.length > 0 || !!review.fields || formReadable(job.url)}>
+                <summary className="card cursor-pointer px-[18px] py-3.5">
+                  <span className="font-semibold">{F.formPrep}</span>
+                  {review.saved.length > 0 && <span className="chip ml-2 !py-0 text-[0.72rem]">{review.saved.length}</span>}
+                  <span className="mt-0.5 block text-[0.82rem] text-muted">{F.formPrepHint}</span>
+                </summary>
+                <div className="mt-3 flex flex-col gap-3">
+                  {/* The employer's real questions first: they are what the answers below are for. */}
+                  <Suspense fallback={null}>
+                    <ApplyFormCard url={job.url} />
+                  </Suspense>
+                  <AnswersStep id={app.id} questions={review.questions} saved={review.saved} fields={review.fields} hasCv={hasCv || !!app.cv_md?.trim()} formSource={formReadable(job.url)} />
+                </div>
+              </details>
             )}
-            <Suspense fallback={null}>
-              <ApplyFormCard url={job.url} />
-            </Suspense>
             <NotesCard id={app.id} initialNotes={app.notes} nextAction={app.next_action_at} overdue={overdue} />
           </section>
           <aside className="flex flex-col gap-3.5">
             <ContactSuggestions appId={app.id} company={job.company} people={known} school={getProfileExtra().school.trim() || "ENIT"} />
             <Checklist id={app.id} items={checklist.items} />
-            <section className="card p-4">
-              <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
-              <p className="text-[0.78rem] leading-relaxed text-muted">{F.afterApplyText}</p>
-
-            </section>
+            {/* What "I've sent it" will do: no longer news once it is sent. */}
+            {!applied && (
+              <section className="card p-4">
+                <h2 className="card-title mb-1.5 text-[0.9rem]">{F.afterApply}</h2>
+                <p className="text-[0.78rem] leading-relaxed text-muted">{F.afterApplyText}</p>
+              </section>
+            )}
           </aside>
         </div>
       )}
@@ -386,23 +413,14 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
       {AFTER_TABS.includes(tab) && (
         <>
-          {applied && (
-            <div className="mb-3.5 flex flex-wrap items-center gap-3 rounded-xl bg-success-soft px-3.5 py-3 text-success" style={{ animation: "pop .3s ease both" }}>
-              <CircleCheck size={18} aria-hidden="true" />
-              <p className="min-w-0 flex-1 text-sm">
-                <span className="font-semibold">{fmt(F.appliedOn, { date: shortDate(app.applied_at ?? app.updated_at, locale) })}</span>
-                {app.status === "applied" && app.next_action_at && <span className="block text-[0.8rem] text-ink-2">{fmt(F.appliedNext, { date: shortDate(app.next_action_at, locale) })}</span>}
-              </p>
-              {pack && <OutcomeButton id={app.id} pack={pack} />}
-              <Link href="/app/pipeline" className="text-[0.8rem] font-semibold text-success">{F.seePipeline}</Link>
-            </div>
-          )}
           {(app.status === "offer" || app.status === "hired" || hasOffer(offer)) && (
             <div className="mb-3.5">
               <OfferCard id={app.id} initial={offer} />
             </div>
           )}
-          <div role="tablist" aria-label={a.ws.tabsLabel} className="seg mb-3.5 max-w-full overflow-x-auto no-print">
+          {/* The sent date is in the header and the next step in the banner above: this row only adds "record the outcome". */}
+          <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2 no-print">
+          <div role="tablist" aria-label={a.ws.tabsLabel} className="seg max-w-full overflow-x-auto">
             {AFTER_TABS.map((k) => {
               const n = k === "interviews" ? interviews.length : k === "contacts" ? contacts.length : k === "reminders" ? openReminders.length : 0;
               return (
@@ -412,6 +430,8 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
                 </Link>
               );
             })}
+          </div>
+          {applied && pack && <OutcomeButton id={app.id} pack={pack} />}
           </div>
         </>
       )}
@@ -496,12 +516,13 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
 
       {/* Flow bar: always know where you are and what is next */}
       <div className="sticky bottom-0 z-10 -mx-4 mt-[22px] flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-line bg-bg/90 px-4 py-3 backdrop-blur-md no-print sm:-mx-8 sm:px-8">
-        <p className="min-w-0 text-[0.82rem] text-muted">
+        {/* On a phone the rail above already says where you are: the bar keeps to its buttons, on one row. */}
+        <p className="min-w-0 text-[0.82rem] text-muted max-sm:hidden">
           {step === "after" ? (
             // After sending, the stage and the next date matter, not "step 4 of 4".
             <>
               <span className="font-semibold text-ink">{t.states[app.status]}</span>
-              {cadence?.nextDue && ` · ${fmt(F.nextTouch, { date: shortDate(cadence.nextDue, locale) })}`}
+              {nextText && ` · ${nextText}`}
             </>
           ) : (
             <>
@@ -509,10 +530,10 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
             </>
           )}
         </p>
-        <span className="flex-1" />
+        <span className="flex-1 max-sm:hidden" />
         {STEPS.indexOf(step) > 0 && (
           <Link href={stepHref(STEPS[STEPS.indexOf(step) - 1])} className="btn btn-outline !h-10">
-            <ArrowLeft size={14} aria-hidden="true" /> {F.back}
+            <ArrowLeft size={14} aria-hidden="true" /> <span className="max-sm:sr-only">{F.back}</span>
           </Link>
         )}
         {step === "letter" && !hasLetter && (
@@ -523,9 +544,9 @@ export default async function ApplicationPage({ params, searchParams }: PageProp
         {step === "review" && !applied ? (
           sentButton()
         ) : step === "after" ? (
-          <Link href="/app/pipeline" className="btn btn-primary !h-10">{F.toPipeline}</Link>
+          <Link href="/app/pipeline" className="btn btn-primary !h-10 max-sm:flex-1">{F.toPipeline}</Link>
         ) : (
-          <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>
+          <Link href={stepHref(STEPS[STEPS.indexOf(step) + 1])} className={`btn !h-10 max-sm:flex-1 ${step === "review" ? "btn-saffron" : "btn-primary"}`}>
             {step === "review" ? F.steps.after.label : F.next} <ArrowRight size={14} aria-hidden="true" />
           </Link>
         )}

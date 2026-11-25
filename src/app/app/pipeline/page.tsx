@@ -35,7 +35,8 @@ export default async function PipelinePage({ searchParams }: PageProps<"/app/pip
     type: x.job.type,
     score: x.evaluation?.global ?? null,
     updated_at: x.updated_at,
-    stageDays: daysSince(entered.get(x.id) ?? x.updated_at, nowMs),
+    // No stage event on record: count from when it was tracked. updated_at restarts at every saved note.
+    stageDays: daysSince(entered.get(x.id) ?? x.created_at, nowMs),
     next_action_at: x.next_action_at,
     overdue: !!x.next_action_at && x.next_action_at.slice(0, 10) < today,
     interviewAt: nextInterview.get(x.id) ?? null,

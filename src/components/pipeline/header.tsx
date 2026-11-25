@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useOptimistic } from "react";
+import { useEffect, useOptimistic, useRef } from "react";
 import { ArrowLeft, Check, ExternalLink, GraduationCap, MoreHorizontal, XCircle } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
@@ -40,6 +40,13 @@ export function WorkspaceHeader({
   const [cur, setCur] = useOptimistic(status);
   const { move, node, pending } = useStageMove((_, st) => setCur(st));
   const idx = STEPS.indexOf(cur);
+  // On a phone the stepper scrolls sideways and "Interview" starts off-screen: centre the current stage in it (the page itself does not move).
+  const curBtn = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const el = curBtn.current;
+    const box = el?.closest("ol");
+    if (el && box) box.scrollLeft += el.getBoundingClientRect().left - box.getBoundingClientRect().left - (box.clientWidth - el.offsetWidth) / 2;
+  }, [cur]);
   const go = (to: AppState) => {
     const F = t.apps2.flow;
     // One stray click must not jump to "Hired" or mark an empty pack as sent.
@@ -60,7 +67,8 @@ export function WorkspaceHeader({
         <CompanyAvatar name={company} size={48} />
         <div className="min-w-0">
           <h1 className="line-clamp-2 text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{title}</h1>
-          <p className="mt-0.5 truncate text-[0.85rem] text-muted">
+          {/* Two lines on a phone: one line cut the sent date and the deadline off. */}
+          <p className="mt-0.5 line-clamp-2 text-[0.85rem] text-muted">
             {company} · {meta}
           </p>
         </div>
@@ -72,6 +80,7 @@ export function WorkspaceHeader({
               return (
                 <li key={st}>
                   <button
+                    ref={here ? curBtn : undefined}
                     type="button"
                     disabled={pending}
                     aria-current={here ? "step" : undefined}
