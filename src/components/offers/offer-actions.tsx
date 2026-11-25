@@ -61,9 +61,11 @@ export function OfferMenu({ id, archived }: { id: number; archived: boolean }) {
         ? {
             label: o.undo,
             onClick: async () => {
-              await undoDelete(token);
-              toast.success(o.toastUndone);
-              router.push(`/app/jobs/${id}`);
+              // 0 = another delete took the single undo slot: say so instead of opening a page that is gone.
+              if (await undoDelete(token)) {
+                toast.success(o.toastUndone);
+                router.push(`/app/jobs/${id}`);
+              } else toast.error(o.undoExpired);
             },
           }
         : undefined);

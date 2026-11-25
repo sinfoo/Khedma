@@ -75,7 +75,8 @@ export async function editJob(id: number, fd: FormData): Promise<SaveResult> {
   const j = jobFromForm(fd);
   if ("error" in j) return { error: j.error };
   try {
-    updateJob(id, j);
+    // The form has no posting-date field: keep the board's date instead of wiping it on every edit.
+    updateJob(id, { ...j, posted_at: getJob(id)?.posted_at ?? null });
   } catch {
     return { error: "url" }; // UNIQUE(url) clash with another offer
   }

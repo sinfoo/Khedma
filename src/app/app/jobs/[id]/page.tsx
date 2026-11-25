@@ -94,6 +94,8 @@ export default async function JobPage({ params, searchParams }: PageProps<"/app/
                 {job.deadline ? `${t.common.deadline} ${fmtDate(job.deadline, locale)}${d !== null && d >= 0 ? ` · ${d === 0 ? o.dToday : fmt(o.dMinus, { n: d })}` : d !== null ? ` · ${o.expired}` : ""}` : o.noDeadline}
               </span>
               <span>{o.list2.via} {sourceName(t, job.source)}</span>
+              {/* The verdict next to the score ring, not only in the side card that sits under the whole description on a phone. */}
+              {ev && <VerdictChip verdict={ev.verdict} t={t} />}
               {job.application && <StateChip state={job.application.status} t={t} />}
               {job.archived && <span className="chip">{o.archived}</span>}
               {dup && (

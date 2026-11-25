@@ -25,6 +25,7 @@ export function JobForm({
   const router = useRouter();
   const f = t.jobs.fields;
   const [values, setValues] = useState<FormValues>(initial ?? {});
+  const [tags, setTags] = useState((initial?.tags ?? []).join(", "));
   const [state, formAction, pending] = useActionState(action, null);
   const shown = useRef<SaveResult>(null);
 
@@ -80,7 +81,8 @@ export function JobForm({
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="tags">{f.tags}</label>
-          <input id="tags" name="tags" className="input" value={(values.tags ?? []).join(", ")} onChange={(e) => setValues((v) => ({ ...v, tags: e.target.value.split(",").map((s) => s.trimStart()) }))} />
+          {/* Kept as typed: re-joining a parsed list on every key put the ", " back and made a comma impossible to backspace over. */}
+          <input id="tags" name="tags" className="input" value={tags} onChange={(e) => setTags(e.target.value)} />
         </div>
         <div className="sm:col-span-2">
           <label className="label" htmlFor="description">{f.description}</label>

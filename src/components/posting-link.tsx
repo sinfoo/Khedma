@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { ExternalLink, Search } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { postingLinks } from "@/lib/links";
@@ -20,6 +21,7 @@ export function PostingLink({
   iconOnly?: boolean;
 }) {
   const { locale } = useT();
+  const uid = useId();
   const { primary, search } = postingLinks(job);
   const cls = `btn btn-${variant} ${size === "sm" ? "btn-sm" : ""} ${iconOnly ? "btn-icon" : ""}`;
   const fr = locale === "fr";
@@ -32,7 +34,9 @@ export function PostingLink({
       </a>
     );
   }
-  const id = `find-${job.title.slice(0, 12).replace(/\W+/g, "")}-${job.company.slice(0, 8).replace(/\W+/g, "")}`;
+  // A generated id: one built from the title and company collided for two offers of the same company with similar
+  // titles, and the button then opened the other offer's menu.
+  const id = `find-${uid.replace(/:/g, "")}`;
   const label = fr ? "Chercher l'annonce" : "Find the posting";
   return (
     <>
