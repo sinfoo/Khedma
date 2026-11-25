@@ -23,7 +23,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const isThisMonth = today.startsWith(month);
 
   const inMonth = items.filter((i) => i.day.startsWith(month));
-  const n = (k: string) => inMonth.filter((i) => i.kind === k).length;
+  // Reminders already ticked are not things left to do this month.
+  const n = (k: string) => inMonth.filter((i) => i.kind === k && !i.done).length;
   const lead = fmt(m.monthLead, { i: n("interview"), r: n("reminder"), d: n("deadline") });
   const iconBtn = "grid size-9 place-items-center rounded-[10px] border border-line bg-surface text-ink hover:bg-surface-2";
 

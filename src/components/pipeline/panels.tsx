@@ -228,7 +228,7 @@ export function ContactsPanel({ appId, contacts, title }: { appId: number | null
                   <p className="font-semibold">{p.name}</p>
                   {(p.role || p.company) && <p className="text-sm text-muted">{[p.role, p.company].filter(Boolean).join(" · ")}</p>}
                   {appId === null && p.application_id !== null && (
-                    <Link href={`/app/pipeline/${p.application_id}?tab=overview`} className="text-sm text-accent-text hover:underline">
+                    <Link href={`/app/pipeline/${p.application_id}?tab=contacts`} className="text-sm text-accent-text hover:underline">
                       {fmt(c.metVia, { offer: p.job_title ?? `#${p.application_id}` })}
                     </Link>
                   )}
