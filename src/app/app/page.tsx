@@ -56,8 +56,14 @@ export default async function TodayPage() {
     { label: m.kpis.fit, value: d.kpis.avgFit ? d.kpis.avgFit.toLocaleString(locale === "fr" ? "fr-FR" : "en-GB", { maximumFractionDigits: 1, minimumFractionDigits: 1 }) : "—", trend: d.kpis.fit },
   ];
   const pipeTotal = d.pipeline.reduce((s, p) => s + p.n, 0);
-  const untracked = d.topMatches.slice(0, 4);
-  const week = d.upcoming.slice(0, 6);
+  // An interview today or tomorrow is the one thing that cannot move: it leads the list.
+  const focus = [...d.focus.filter((f) => f.kind === "interview"), ...d.focus.filter((f) => f.kind !== "interview")];
+  // Each thing shows once. A deadline card already offers the offer; a reminder due by today and an interview by
+  // tomorrow already have their card in "Up next" (or the follow-up card of the same application).
+  const carded = new Set(focus.flatMap((f) => (f.kind === "deadline" ? [f.jobId] : [])));
+  const untracked = d.topMatches.filter((j) => !carded.has(j.id)).slice(0, 4);
+  const later = d.upcoming.filter((u) => (u.kind === "reminder" ? u.day > d.today : u.kind === "interview" ? daysBetween(d.today, u.day) > 1 : true));
+  const week = later.slice(0, 6);
   const followed = followedCompanyNews();
 
   return (
@@ -82,13 +88,16 @@ export default async function TodayPage() {
 
           <div className="mb-3 flex items-baseline justify-between">
             <h2 id="next-h" className="text-[1.25rem] tracking-[-0.015em]">{m.upNext}</h2>
-            <span className="text-[0.8rem] text-muted">{d.focus.length === 1 ? m.rankedOne : fmt(m.ranked, { n: d.focus.length })}</span>
+            {focus.length > 0 && <span className="text-[0.8rem] text-muted">{focus.length === 1 ? m.rankedOne : fmt(m.ranked, { n: focus.length })}</span>}
           </div>
-          {d.focus.length === 0 ? (
-            <p className="card p-5 text-sm text-muted">{m.focusEmpty}</p>
+          {focus.length === 0 ? (
+            <div className="card p-5">
+              <p className="text-sm text-muted">{m.focusEmpty}</p>
+              <Link href="/app/jobs" className="btn btn-outline btn-sm mt-3">{m.seeOffers} <ArrowRight size={14} aria-hidden="true" /></Link>
+            </div>
           ) : (
             <ol className="flex flex-col gap-3">
-              {d.focus.map((f, i) => (
+              {focus.map((f, i) => (
                 <FocusCard key={focusKey(f)} f={f} t={t} locale={locale} today={d.today} i={i} online={engine.online} />
               ))}
             </ol>
@@ -134,10 +143,10 @@ export default async function TodayPage() {
           <section className="card p-[18px] rise" style={{ ["--i" as string]: 2 }} aria-labelledby="week-h">
             <div className="mb-3 flex items-baseline justify-between gap-2">
               <h2 id="week-h" className="card-title">{m.thisWeek}</h2>
-              {d.upcoming.length > 0 && <span className="text-[0.78rem] text-muted tabular">{fmt(m.dueCount, { n: d.upcoming.length })}</span>}
+              <Link href="/app/calendar" className="text-[0.78rem] font-semibold">{m.openCalendar}</Link>
             </div>
-            {d.upcoming.length === 0 ? (
-              <p className="text-sm text-muted">{m.upcomingEmpty}</p>
+            {later.length === 0 ? (
+              <p className="text-sm text-muted">{d.upcoming.length ? m.upcomingRest : m.upcomingEmpty}</p>
             ) : (
               <ol className="relative flex flex-col gap-3.5">
                 <span aria-hidden="true" className="absolute bottom-2.5 left-[19px] top-2.5 w-px bg-line" />
@@ -159,8 +168,8 @@ export default async function TodayPage() {
                 ))}
               </ol>
             )}
-            {d.upcoming.length > week.length && (
-              <Link href="/app/calendar" className="mt-3 inline-block text-[0.78rem] font-semibold">{fmt(m.more, { n: d.upcoming.length - week.length })}</Link>
+            {later.length > week.length && (
+              <Link href="/app/calendar" className="mt-3 inline-block text-[0.78rem] font-semibold">{fmt(m.more, { n: later.length - week.length })}</Link>
             )}
           </section>
 
@@ -211,7 +220,10 @@ export default async function TodayPage() {
           </section>
 
           <section className="card p-[18px] rise" style={{ ["--i" as string]: 4 }} aria-labelledby="kpi-h">
-            <h2 id="kpi-h" className="card-title mb-2.5">{m.last8}</h2>
+            <div className="mb-2.5 flex items-baseline justify-between gap-2">
+              <h2 id="kpi-h" className="card-title">{m.last8}</h2>
+              <Link href="/app/insights" className="shrink-0 text-[0.78rem] font-semibold">{t.shell2.nav.insights}</Link>
+            </div>
             {/* A list, not <dl>: each item also holds a sparkline, which a definition list does not allow. */}
             <ul className="grid grid-cols-2 gap-3">
               {kpis.map((k) => (
@@ -368,8 +380,8 @@ function FocusCard({ f, t, locale, today, i, online }: { f: FocusItem; t: T; loc
   const dashed = f.kind === "unevaluated";
   return (
     <li
-      className={`grid grid-cols-[auto_1fr] items-start gap-4 rounded-[14px] border bg-surface px-5 py-4 sm:grid-cols-[auto_1fr_auto] ${dashed ? "border-dashed border-line-strong" : "border-line card-shadow"}`}
-      style={{ animation: `rise .5s cubic-bezier(.2,.7,.2,1) ${i * 60}ms both` }}
+      className={`rise grid grid-cols-[auto_1fr] items-start gap-4 rounded-[14px] border bg-surface px-5 py-4 sm:grid-cols-[auto_1fr_auto] ${dashed ? "border-dashed border-line-strong" : "border-line card-shadow"}`}
+      style={{ ["--i" as string]: i }}
     >
       <span className={`tile tone-${tone}`}>{icon}</span>
       <div className="min-w-0">

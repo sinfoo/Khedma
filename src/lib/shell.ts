@@ -2,6 +2,9 @@ import { db, getProfile, stats } from "./db";
 import { getEngine } from "./ai";
 import { getWeeklyGoal, weekAgenda, weeklyCounts } from "./repo/insights";
 import { drillStates } from "./repo/coach";
+import { profileStrength as strengthChecklist } from "./cv/completeness";
+import { getProfileExtra } from "./cv/profile-extra";
+import { getUpload } from "./cv/source";
 import type { NavBadgeKey } from "@/components/shell/nav-items";
 
 export interface ShellData {
@@ -18,14 +21,9 @@ export interface ShellData {
 const initialsOf = (name: string) =>
   (name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "K").toUpperCase();
 
+/** The profile page's own checklist (cv/completeness), so the sidebar never says 100 % while the page says 62. */
 export function profileStrength(p: ReturnType<typeof getProfile>): number {
-  let n = 0;
-  if (p.cv_md.trim().length >= 50) n += 40;
-  if (p.skills.length > 0) n += 20;
-  if (p.target_roles.length > 0) n += 20;
-  if (p.target_locations.length > 0) n += 10;
-  if (p.headline.trim()) n += 10;
-  return n;
+  return strengthChecklist({ ...p, ...getProfileExtra(), cvText: p.cv_md.trim() ? p.cv_md : (getUpload()?.text ?? "") }).score;
 }
 
 /** Everything the sidebar and top bar need, in one DB pass. */
@@ -49,7 +47,8 @@ export async function getShellData(): Promise<ShellData> {
   );
   // Pipeline: tracked offers still to send, the step that needs the student.
   const toSend = s.byStatus.evaluated ?? 0;
-  // The same list as Today's "This week" card, so the two always agree.
+  // Everything due this week. Today shows the same list in two parts: what is due now under "Up next", the rest
+  // in its "This week" card.
   const agenda = weekAgenda(now);
   const overdue = agenda.some((x) => x.overdue);
   let drills = 0;
