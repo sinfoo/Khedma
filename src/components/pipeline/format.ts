@@ -32,8 +32,14 @@ export function relTime(s: string | null | undefined, locale: Locale, now: numbe
   return rtf.format(Math.round(sec / (86400 * 365)), "year");
 }
 
-/** Whole days from `from` to now (never negative). */
+const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** Calendar days from `from` to now, local time (never negative): sent last night is "1 day ago" this morning, as the date beside it says. */
 export function daysSince(s: string | null | undefined, now: number): number {
   const d = parseWhen(s);
-  return d ? Math.max(0, Math.floor((now - d.getTime()) / 86400000)) : 0;
+  // round: a day is 23 or 25 hours long when the clocks change
+  return d ? Math.max(0, Math.round((midnight(new Date(now)) - midnight(d)) / 86400000)) : 0;
 }
+
+/** "today", "yesterday", "43 days ago": the same count in words, with the plural each language needs ("1 days ago" otherwise). */
+export const daysAgo = (s: string | null | undefined, locale: Locale, now: number) => new Intl.RelativeTimeFormat(tag(locale), { numeric: "auto" }).format(-daysSince(s, now), "day");
