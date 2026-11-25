@@ -1,13 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CornerDownLeft, Plus, RefreshCw, Sparkles, MessagesSquare, FileText, Moon, Languages, Keyboard, Briefcase, KanbanSquare } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { searchEverything, type SearchHit } from "@/app/actions/shell";
 import { setLocale, setTheme } from "@/app/actions/prefs";
 import { NAV_ITEMS } from "./nav-items";
+import { NAV_START } from "./nav-progress";
 import { fold } from "@/lib/sources/classify";
+
+/** Pages one level below a sidebar item: reachable from the palette by name (titles from t.shell2.titles). */
+const SUB_PAGES = [
+  { key: "manageSources", href: "/app/sources/manage", parent: "sources" },
+  { key: "searchPrefs", href: "/app/sources/preferences", parent: "sources" },
+  { key: "stories", href: "/app/coach/stories", parent: "coach" },
+  { key: "drill", href: "/app/coach/drill", parent: "coach" },
+  { key: "debriefs", href: "/app/coach/debrief", parent: "coach" },
+  { key: "cv", href: "/app/profile/cv", parent: "profile" },
+] as const;
 
 interface Cmd {
   id: string;
@@ -44,6 +55,15 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
     if (!open && d.open) d.close();
   }, [open]);
 
+  const push = useCallback(
+    (href: string) => {
+      // Not when already there: the URL would not change, and the bar ends on a URL change.
+      if (href !== location.pathname + location.search) window.dispatchEvent(new Event(NAV_START));
+      router.push(href);
+    },
+    [router],
+  );
+
   // Global shortcuts.
   useEffect(() => {
     let gPending = false;
@@ -62,7 +82,7 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
         const item = NAV_ITEMS.find((i) => i.g === e.key.toLowerCase());
         if (item) {
           e.preventDefault();
-          router.push(item.href);
+          push(item.href);
         }
         return;
       }
@@ -71,7 +91,7 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
         setOpen(true);
       } else if (e.key === "n") {
         e.preventDefault();
-        router.push("/app/jobs/new");
+        push("/app/jobs/new");
       } else if (e.key === "?") {
         e.preventDefault();
         onHelp();
@@ -88,7 +108,7 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("khedma:palette", onOpen);
     };
-  }, [router, onHelp]);
+  }, [push, onHelp]);
 
   // Debounced offer search.
   useEffect(() => {
@@ -106,13 +126,16 @@ export function CommandPalette({ theme, onHelp }: { theme: "light" | "dark" | "s
   };
   const go = (href: string) => {
     close();
-    router.push(href);
+    push(href);
   };
 
   const cmds = useMemo<Cmd[]>(() => {
     const p = t.shell2.palette;
     const a = t.shell2.actions;
-    const pages: Cmd[] = NAV_ITEMS.map((i) => ({ id: `p-${i.key}`, group: p.pages, label: t.shell2.nav[i.key], Icon: i.Icon, run: () => go(i.href) }));
+    const pages: Cmd[] = [
+      ...NAV_ITEMS.map((i) => ({ id: `p-${i.key}`, group: p.pages, label: t.shell2.nav[i.key], Icon: i.Icon, run: () => go(i.href) })),
+      ...SUB_PAGES.map((x) => ({ id: `p-${x.key}`, group: p.pages, label: t.shell2.titles[x.key], sub: t.shell2.nav[x.parent], Icon: NAV_ITEMS.find((i) => i.key === x.parent)!.Icon, run: () => go(x.href) })),
+    ];
     const actions: Cmd[] = [
       { id: "a-add", group: p.actions, label: a.addOffer, Icon: Plus, run: () => go("/app/jobs/new") },
       // ?scan=1 opens the scan form with the keywords focused; nothing starts until the student presses Scan.

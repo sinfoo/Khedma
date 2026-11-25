@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import Link from "next/link";
 
 /**
  * Dropdown menu on the native Popover API (light dismiss, Esc, top layer for free).
@@ -52,9 +53,17 @@ export function Menu({
 
 export function MenuItem({ children, onClick, danger, href }: { children: React.ReactNode; onClick?: () => void; danger?: boolean; href?: string }) {
   const cls = `menu-item ${danger ? "!text-danger" : ""}`;
+  // A page of the app navigates without a reload; another site opens in a new tab, like every posting link, so the
+  // app stays open. Anything else (an /api download) is a plain link.
+  if (href?.startsWith("/app"))
+    return (
+      <Link href={href} className={cls} data-close>
+        {children}
+      </Link>
+    );
   if (href)
     return (
-      <a href={href} className={cls} data-close>
+      <a href={href} className={cls} data-close {...(/^https?:/.test(href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
         {children}
       </a>
     );

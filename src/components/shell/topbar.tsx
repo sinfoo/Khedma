@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { Bell, Menu as MenuIcon, Search, CalendarClock, AlarmClock, Flag, Radar, ChevronRight, Moon, Sun, Monitor } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
+import { fmt as fill } from "@/lib/i18n/dict";
 import { Dialog } from "@/components/kit/dialog";
 import { Wordmark } from "@/components/logo";
 import type { Notice } from "@/lib/notices";
@@ -13,7 +14,7 @@ import { setLocale, setTheme } from "@/app/actions/prefs";
 import { CommandPalette } from "./command-palette";
 import { NavList } from "./sidebar";
 import { NavProgress } from "./nav-progress";
-import { NAV_ITEMS, isActive } from "./nav-items";
+import { FOOTER_ITEMS, NAV_ITEMS, isActive } from "./nav-items";
 
 const subscribeTitle = (cb: () => void) => {
   const el = document.querySelector("title");
@@ -83,7 +84,7 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
           <Wordmark size={26} className="[&>span:last-child]:hidden sm:[&>span:last-child]:inline" />
         </Link>
 
-        <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-1.5 text-[0.85rem] text-muted lg:flex">
+        <nav aria-label={s.breadcrumb} className="hidden min-w-0 items-center gap-1.5 text-[0.85rem] text-muted lg:flex">
           <span className="font-semibold text-ink">{crumb}</span>
           {crumb2 && (
             <>
@@ -164,12 +165,12 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
             </div>
           </div>
 
-          <button type="button" className={`${iconBtn} hidden sm:inline-flex`} aria-label={`${t.a11y.themeToggle}: ${t.common[nextTheme]}`} title={t.common[theme]} onClick={() => start(() => setTheme(nextTheme))}>
+          <button type="button" className={`${iconBtn} max-sm:hidden`} aria-label={`${t.a11y.themeToggle}: ${t.common[nextTheme]}`} title={t.common[theme]} onClick={() => start(() => setTheme(nextTheme))}>
             <ThemeIcon size={18} aria-hidden="true" />
           </button>
           <button
             type="button"
-            className={`${iconBtn} hidden text-[0.78rem] font-bold text-ink-2 sm:inline-flex`}
+            className={`${iconBtn} text-[0.78rem] font-bold text-ink-2 max-sm:hidden`}
             aria-label={s.actions.toggleLang}
             title={s.actions.toggleLang}
             onClick={() => start(() => setLocale(nextLocale))}
@@ -186,23 +187,34 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
 
       <CommandPalette theme={theme} onHelp={openHelp} />
 
-      <Dialog open={navOpen} onClose={() => setNavOpen(false)} title="Khedma" variant="drawer">
+      <Dialog open={navOpen} onClose={() => setNavOpen(false)} title="Khedma" variant="drawer" side="left">
         <nav aria-label={t.a11y.navMain}>
           <NavList onNavigate={() => setNavOpen(false)} badges={data.badges} />
+          <ul className="mt-4 flex flex-col gap-px border-t border-line pt-4">
+            {FOOTER_ITEMS.map((item) => {
+              const active = isActive(path, item);
+              return (
+                <li key={item.key}>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm ${active ? "bg-accent-soft font-semibold text-ink" : "font-medium text-ink-2 hover:bg-surface-2"}`}
+                    onClick={() => setNavOpen(false)}
+                  >
+                    <item.Icon size={17} aria-hidden="true" className={`shrink-0 ${active ? "text-accent-text" : "text-muted"}`} />
+                    {s.nav[item.key]}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </nav>
-        <div className="mt-5 flex flex-col gap-0.5 border-t border-line pt-4">
-          <Link href="/app/profile" className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2" onClick={() => setNavOpen(false)}>
-            {s.nav.profile}
-          </Link>
-          <Link href="/app/settings" className="flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm font-medium text-ink-2 hover:bg-surface-2" onClick={() => setNavOpen(false)}>
-            {s.nav.settings}
-          </Link>
-        </div>
         <div className="mt-4 flex items-center gap-1 border-t border-line pt-4 sm:hidden">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => start(() => setTheme(nextTheme))}>
-            <ThemeIcon size={16} aria-hidden="true" /> {t.common[nextTheme]}
+          {/* Icon and label both say the current theme; pressing moves to the next one, as on desktop. */}
+          <button type="button" className="btn btn-ghost btn-sm" aria-label={`${t.a11y.themeToggle}: ${t.common[nextTheme]}`} onClick={() => start(() => setTheme(nextTheme))}>
+            <ThemeIcon size={16} aria-hidden="true" /> {t.common[theme]}
           </button>
-          <button type="button" className="btn btn-ghost btn-sm mono" onClick={() => start(() => setLocale(nextLocale))}>
+          <button type="button" className="btn btn-ghost btn-sm mono" aria-label={s.actions.toggleLang} onClick={() => start(() => setLocale(nextLocale))}>
             {nextLocale.toUpperCase()}
           </button>
         </div>
@@ -214,9 +226,7 @@ export function Topbar({ theme, notices, data }: { theme: "light" | "dark" | "sy
             [["Ctrl", "K"], s.shortcuts.palette],
             [["/"], s.shortcuts.palette],
             [["N"], s.shortcuts.newOffer],
-            [["G", "T"], s.shortcuts.goToday],
-            [["G", "O"], s.shortcuts.goOffers],
-            [["G", "P"], s.shortcuts.goPipeline],
+            ...NAV_ITEMS.filter((i) => i.g).map((i) => [["G", i.g!.toUpperCase()], fill(s.shortcuts.goTo, { page: s.nav[i.key] })]),
             [["?"], s.shortcuts.help],
           ].map(([keys, label], i) => (
             <div key={i} className="contents">

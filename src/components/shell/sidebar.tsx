@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
@@ -23,13 +23,18 @@ const BADGE_TONE = {
 export function NavList({ onNavigate, badges, rail = false }: { onNavigate?: () => void; badges?: ShellData["badges"]; rail?: boolean }) {
   const path = usePathname();
   const { t } = useT();
+  const id = useId();
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-3">
       {NAV_GROUPS.map((g) => (
         <div key={g.key}>
-          <p className="rail-hide px-2.5 pb-1.5 text-[0.66rem] font-bold uppercase tracking-[0.14em] text-muted">{t.shell2.groups[g.key]}</p>
-          {rail && <span aria-hidden="true" className="mx-2.5 mb-2 mt-1 block h-px bg-line" />}
-          <ul className="flex flex-col gap-px">
+          {g.key !== "top" && (
+            <>
+              <p id={`${id}-${g.key}`} className="rail-hide px-2.5 pb-1 text-[0.66rem] font-bold uppercase tracking-[0.14em] text-muted">{t.shell2.groups[g.key]}</p>
+              {rail && <span aria-hidden="true" className="mx-2.5 mb-2 mt-1 block h-px bg-line" />}
+            </>
+          )}
+          <ul aria-labelledby={g.key !== "top" && !rail ? `${id}-${g.key}` : undefined} className="flex flex-col gap-px">
             {g.items.map((item) => {
               const active = isActive(path, item);
               const b = item.badge ? badges?.[item.badge] : undefined;
@@ -41,11 +46,11 @@ export function NavList({ onNavigate, badges, rail = false }: { onNavigate?: () 
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     title={t.shell2.nav[item.key]}
-                    className={`group relative flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm transition-colors ${
+                    className={`group relative flex items-center gap-2.5 rounded-[10px] px-2.5 py-2 text-sm transition-colors lg:py-1.5 ${
                       active ? "bg-accent-soft font-semibold text-ink" : "font-medium text-ink-2 hover:bg-surface-2 hover:text-ink"
                     }`}
                   >
-                    {active && <span aria-hidden="true" className="absolute -left-2.5 top-2 bottom-2 w-[3px] rounded-r-[3px] bg-accent" />}
+                    {active && <span aria-hidden="true" className="absolute -left-2.5 top-2 bottom-2 w-[3px] rounded-r-[3px] bg-accent lg:top-1.5 lg:bottom-1.5" />}
                     <item.Icon size={17} aria-hidden="true" className={`shrink-0 ${active ? "text-accent-text" : "text-muted group-hover:text-ink"}`} />
                     <span className="rail-hide flex-1 whitespace-nowrap">{t.shell2.nav[item.key]}</span>
                     {b && b.n > 0 && tone && (
@@ -132,11 +137,16 @@ export function Sidebar({ data }: { data: ShellData }) {
         </button>
       </div>
 
-      {/* This week, at a glance (Today shows the same goal in full, so not there). */}
+      <nav aria-label={t.a11y.navMain} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2.5">
+        <NavList badges={data.badges} rail={rail} />
+      </nav>
+
+      {/* This week, at a glance (Today shows the same goal in full, so not there). Below the list, so the list never
+          moves when the card comes and goes; on a short window the list gets the room instead. */}
       {path !== "/app" && <Link
         href="/app"
         aria-label={s.thisWeek}
-        className="rail-hide mx-3 mb-2.5 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5 text-ink transition-colors hover:border-line-strong"
+        className="rail-hide mx-3 mb-2.5 mt-1 flex items-center gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5 text-ink transition-colors hover:border-line-strong [@media(max-height:939px)]:hidden"
       >
         <span role="img" aria-label={fmt(s.weekGoal, { done: data.goal.done, n: data.goal.target })} className="relative grid size-[34px] shrink-0 place-items-center">
           <svg viewBox="0 0 34 34" width="34" height="34" className="-rotate-90" aria-hidden="true">
@@ -162,10 +172,6 @@ export function Sidebar({ data }: { data: ShellData }) {
           <span className="block truncate text-[0.7rem] text-muted">{weekLine}</span>
         </span>
       </Link>}
-
-      <nav aria-label={t.a11y.navMain} className="flex-1 overflow-y-auto overflow-x-hidden px-2.5 pb-2.5">
-        <NavList badges={data.badges} rail={rail} />
-      </nav>
 
       <div className="flex flex-col gap-0.5 border-t border-line px-2.5 pb-3 pt-2.5">
         <Link

@@ -16,6 +16,7 @@ export function Dialog({
   children,
   footer,
   variant = "modal",
+  side = "right",
   wide = false,
 }: {
   open: boolean;
@@ -25,6 +26,8 @@ export function Dialog({
   children: React.ReactNode;
   footer?: React.ReactNode;
   variant?: "modal" | "drawer";
+  /** Drawers only: "left" for navigation (opens under its menu button), "right" for detail panels. */
+  side?: "left" | "right";
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -40,7 +43,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className={`modal ${variant === "drawer" ? "drawer" : ""}`}
+      className={`modal ${variant === "drawer" ? `drawer ${side === "left" ? "drawer-left" : ""}` : ""}`}
       style={wide && variant === "modal" ? { width: "min(860px, calc(100vw - 2rem))" } : undefined}
       aria-labelledby="dlg-title"
       aria-describedby={description ? "dlg-desc" : undefined}

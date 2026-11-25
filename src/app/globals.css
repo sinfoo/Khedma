@@ -155,7 +155,7 @@
   --shadow-card: var(--shadow);
   --shadow-pop: var(--shadow-lg);
 
-  --animate-rise: rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-rise: rise 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   --animate-fade: fade 0.3s ease both;
   --animate-shimmer: shimmer 1.4s linear infinite;
 }
@@ -206,13 +206,14 @@ h1, h2, h3, .display {
 }
 
 /* ---------- motion ---------- */
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 @keyframes draw { from { stroke-dashoffset: var(--dash, 300); } to { stroke-dashoffset: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
 @keyframes radar-sweep { to { transform: rotate(360deg); } }
 @keyframes slide-in-right { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes slide-in-left { from { transform: translateX(-100%); } to { transform: none; } }
 @keyframes orbit { to { transform: rotate(360deg); } }
 @keyframes sweep { to { transform: rotate(360deg); } }
 @keyframes ping { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.6); opacity: 0; } }
@@ -225,9 +226,12 @@ h1, h2, h3, .display {
 @keyframes collapse { to { opacity: 0; transform: scale(.96) translateY(-8px); } }
 @keyframes ring-in { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 
-/* Page enter (template.tsx re-mounts per navigation) + cross-fade via View Transitions. */
-@keyframes page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.page-enter { animation: page-enter 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* Page enter (template.tsx re-mounts per navigation): one short fade for the whole page. Opacity only, so the page
+   never shifts and sticky or fixed children keep their containing block. */
+@keyframes page-enter { from { opacity: 0; } to { opacity: 1; } }
+.page-enter { animation: page-enter 0.16s ease-out both; }
+/* Route skeleton (loading.tsx): hidden for the first 150 ms, so a page that answers fast never flashes it. */
+.skeleton-page { animation: fade 0.2s ease-out 0.15s both; }
 ::view-transition-old(.vt-page) { animation: 140ms ease-out both fade-out; }
 ::view-transition-new(.vt-page) { animation: 220ms ease-in both fade; }
 @keyframes fade-out { to { opacity: 0; } }
@@ -242,9 +246,10 @@ h1, h2, h3, .display {
 @keyframes pulse-soft { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 45%, transparent); } 70% { box-shadow: 0 0 0 8px transparent; } }
 .pulse-soft { animation: pulse-soft 1.8s ease-out infinite; }
 
-/* Staggered entrance: set --i on the element. */
-.rise { animation: var(--animate-rise); animation-delay: calc(var(--i, 0) * 50ms); }
-.fade { animation: var(--animate-fade); animation-delay: calc(var(--i, 0) * 50ms); }
+/* Staggered entrance: set --i on the element. The stagger stops growing after six steps, so a long page (fifteen
+   cards) is settled in half a second instead of trickling in for more than one. */
+.rise { animation: var(--animate-rise); animation-delay: calc(min(var(--i, 0), 6) * 30ms); }
+.fade { animation: var(--animate-fade); animation-delay: calc(min(var(--i, 0), 6) * 30ms); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -428,6 +433,9 @@ dialog.drawer {
   border-width: 0 0 0 1px;
 }
 dialog.drawer[open] { animation: slide-in-right 0.22s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+/* Navigation drawer: on the side of its menu button, narrow enough that the page stays visible behind it. */
+dialog.drawer.drawer-left { margin: 0 auto 0 0; width: min(320px, 86vw); border-width: 0 1px 0 0; }
+dialog.drawer.drawer-left[open] { animation-name: slide-in-left; }
 dialog::backdrop { background: rgb(5 8 12 / 0.55); backdrop-filter: blur(3px); }
 
 /* Popover menus (native popover API). */
@@ -538,8 +546,12 @@ dialog::backdrop { background: rgb(5 8 12 / 0.55); backdrop-filter: blur(3px); }
 /* App shell: sidebar rail collapses to 72px (html[data-rail]) */
 .app-shell { display: grid; grid-template-columns: 256px minmax(0, 1fr); transition: grid-template-columns 0.25s cubic-bezier(0.2, 0.7, 0.2, 1); }
 html[data-rail] .app-shell { grid-template-columns: 72px minmax(0, 1fr); }
-html[data-rail] .rail-hide { display: none !important; }
+/* Only inside the desktop sidebar: the mobile drawer reuses the same list and must keep its labels. */
+html[data-rail] .app-shell > aside .rail-hide { display: none !important; }
 @media (max-width: 1023px) { .app-shell { display: flex; flex-direction: column; } }
+
+/* <main> takes focus from the skip link and after each navigation: a ring around the whole page says nothing. */
+#main:focus-visible { outline: none; }
 
 /* Skip link: parked above the viewport, slides in on focus. */
 .skip-link {

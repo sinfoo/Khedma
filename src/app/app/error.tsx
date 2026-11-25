@@ -4,9 +4,12 @@ import Link from "next/link";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 
-export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+/** `retry` fetches the page again; `reset` would only re-render the same failed server result. */
+export default function AppError({ error, retry }: { error: unknown; retry: () => void }) {
   const { t } = useT();
   const e = t.shell2.error;
+  // A client component can throw anything, not only an Error.
+  const err = error instanceof Error ? (error as Error & { digest?: string }) : null;
   return (
     <div role="alert" className="page-enter mx-auto mt-[8vh] max-w-[560px] text-center">
       <span className="tile tone-danger mx-auto !size-14 !rounded-2xl">
@@ -17,12 +20,12 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
       <details className="mt-3 text-[0.78rem] text-muted">
         <summary className="cursor-pointer">{e.details}</summary>
         <p className="mono mt-1.5 break-all">
-          {error.message}
-          {error.digest ? ` · digest ${error.digest}` : ""}
+          {err ? err.message : String(error)}
+          {err?.digest ? ` · digest ${err.digest}` : ""}
         </p>
       </details>
       <div className="mt-5 flex justify-center gap-2">
-        <button type="button" className="btn btn-primary h-10" onClick={reset}>
+        <button type="button" className="btn btn-primary h-10" onClick={retry}>
           <RefreshCw size={15} aria-hidden="true" /> {e.retry}
         </button>
         <Link href="/app" className="btn btn-outline h-10">
