@@ -308,7 +308,7 @@ export function weekAgenda(now = new Date()): AgendaItem[] {
     .all(today, end) as Row[])
     out.push({ key: `i${i.id}`, kind: "interview", day: String(i.starts_at).slice(0, 10), time: String(i.starts_at).slice(11, 16), title: i.title as string, sub: i.company as string, href: `/app/pipeline/${i.application_id}?tab=interviews`, overdue: false });
   for (const a of d
-    .prepare("SELECT a.id, j.title, j.company, j.deadline FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'evaluated' AND a.applied_at IS NULL AND j.deadline BETWEEN ? AND ?")
+    .prepare("SELECT a.id, j.title, j.company, j.deadline FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.status = 'evaluated' AND a.applied_at IS NULL AND substr(j.deadline, 1, 10) BETWEEN ? AND ?")
     .all(today, end) as Row[])
     out.push({ key: `d${a.id}`, kind: "deadline", day: String(a.deadline).slice(0, 10), time: "", title: a.title as string, sub: a.company as string, href: `/app/pipeline/${a.id}?tab=overview`, overdue: false });
   return out.sort((a, b) => (a.day + a.time).localeCompare(b.day + b.time));
@@ -398,7 +398,7 @@ export function getToday(now = new Date()) {
   const open = (j: { deadline: string | null }) => !j.deadline || j.deadline.slice(0, 10) >= today;
   apps
     .filter((a) => a.status === "evaluated" && !a.applied_at && open(a.job))
-    .map((a) => ({ a, score: jobs.find((j) => j.id === a.job_id)?.evaluation?.global ?? null }))
+    .map((a) => ({ a, score: a.evaluation?.global ?? null }))
     .sort((x, y) => (x.a.job.deadline ?? "9").localeCompare(y.a.job.deadline ?? "9") || (y.score ?? 0) - (x.score ?? 0))
     .slice(0, 3)
     .forEach(({ a, score }) => focus.push({ kind: "toApply", appId: a.id, title: a.job.title, sub: a.job.company, day: a.job.deadline?.slice(0, 10) ?? null, score, href: `/app/pipeline/${a.id}?tab=overview` }));
@@ -645,9 +645,10 @@ export function skillMatrix(jobs: JobWithMeta[]) {
   const profile = getProfile();
   const all = computeSkillGaps(jobs, profile).slice(0, 40);
   const types = [...new Set(jobs.map((j) => j.type))] as JobType[];
-  const perType = new Map(types.map((ty) => [ty, new Map(computeSkillGaps(jobs.filter((j) => j.type === ty), profile).map((g) => [g.skill, g.demand]))]));
+  // Each gap lists the offers asking for it: count those per type instead of reading every posting a second time.
+  const typeOf = new Map(jobs.map((j) => [j.id, j.type]));
   return {
     types,
-    rows: all.map((g) => ({ skill: g.skill, have: g.have, total: g.demand, byType: Object.fromEntries(types.map((ty) => [ty, perType.get(ty)!.get(g.skill) ?? 0])) as Record<string, number> })),
+    rows: all.map((g) => ({ skill: g.skill, have: g.have, total: g.demand, byType: Object.fromEntries(types.map((ty) => [ty, g.jobs.filter((id) => typeOf.get(id) === ty).length])) as Record<string, number> })),
   };
 }

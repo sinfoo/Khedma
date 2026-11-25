@@ -128,23 +128,29 @@ export function db(): DatabaseSync {
   return d;
 }
 
+/** Migration ids known applied in this process: feature modules ask before nearly every query, and the lookup cost 0.15 ms each time. */
+const migrated = new Set<string>();
+
 /**
  * Run a schema change exactly once, keyed by a unique id ("offers:001-starred").
  * Feature modules call this lazily before their first query; it is cheap after the first run.
  */
 export function migrate(id: string, sql: string): void {
+  if (migrated.has(id)) return;
   const d = db();
   d.exec("CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')))");
-  if (d.prepare("SELECT 1 FROM _migrations WHERE id = ?").get(id)) return;
-  d.exec("BEGIN");
-  try {
-    d.exec(sql);
-    d.prepare("INSERT INTO _migrations (id) VALUES (?)").run(id);
-    d.exec("COMMIT");
-  } catch (e) {
-    d.exec("ROLLBACK");
-    throw e;
+  if (!d.prepare("SELECT 1 FROM _migrations WHERE id = ?").get(id)) {
+    d.exec("BEGIN");
+    try {
+      d.exec(sql);
+      d.prepare("INSERT INTO _migrations (id) VALUES (?)").run(id);
+      d.exec("COMMIT");
+    } catch (e) {
+      d.exec("ROLLBACK");
+      throw e;
+    }
   }
+  migrated.add(id);
 }
 
 /** Stored settings over the defaults. Any engine choice other than "offline" (older ones included) means "auto". */
