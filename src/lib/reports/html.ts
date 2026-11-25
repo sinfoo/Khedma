@@ -23,6 +23,8 @@ export interface ReportRow {
 }
 
 export interface ReportData {
+  /** Language of the labels, for the document's lang attribute (screen readers pick their voice from it). */
+  lang?: "fr" | "en";
   title: string;
   subtitle: string;
   generated: string;
@@ -59,7 +61,7 @@ export function reportHtml(d: ReportData): string {
           .join("")}</tbody></table>`
       : `<p class="muted">${e(empty)}</p>`;
   return `<!doctype html>
-<html lang="fr">
+<html lang="${d.lang ?? "fr"}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

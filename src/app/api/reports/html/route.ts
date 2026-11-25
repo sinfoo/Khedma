@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
   const subtitle =
     range.kind === "week" ? fmt(r.report.range.week, { from: date(range.from), to: date(range.to) }) : range.kind === "days" ? fmt(r.report.range.days, { n: sp.get("range")! }) : r.report.range.all;
   const rd: ReportData = {
+    lang: locale,
     title: r.report.title,
     subtitle,
     generated: fmt(r.report.generated, { d: date(new Date().toISOString()) }),

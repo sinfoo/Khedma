@@ -92,6 +92,7 @@ const report = (): ReportData => ({
 
 test("reportHtml escapes every user-provided string and stays self-contained", () => {
   const html = reportHtml(report());
+  assert.ok(html.includes('<html lang="fr">') && reportHtml({ ...report(), lang: "en" }).includes('<html lang="en">'), "the page says which language it is in");
   assert.ok(!html.includes("<script>alert"), "script tag must be escaped");
   assert.ok(html.includes("&lt;script&gt;alert(1)&lt;/script&gt;"));
   assert.ok(html.includes("Rapport &lt;jury&gt;") && html.includes("A &amp; B") && html.includes("Amine &amp; Co"));

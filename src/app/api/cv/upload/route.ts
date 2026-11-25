@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { CvImportError, MAX_CV_BYTES, getUpload, saveUploadedCv, sectionizeToMarkdown, setCvSourcePref } from "@/lib/cv/source";
 import { getProfile, updateProfile } from "@/lib/db";
 import { extractSkills } from "@/lib/ai/heuristic";
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
       updateProfile({ cv_md: markdown, skills });
       setCvSourcePref("markdown");
     }
+    revalidatePath("/app", "layout"); // the CV and skills feed every page that matches or scores offers
     return Response.json({ ok: true, text, markdown, skills, skillsAdded, fileName: up?.fileName ?? file.name, uploadedAt: up?.uploadedAt ?? new Date().toISOString(), size: up?.size ?? file.size });
   } catch (e) {
     if (e instanceof CvImportError) return Response.json({ ok: false, code: e.code, error: e.message }, { status: STATUS[e.code] });
