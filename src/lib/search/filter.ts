@@ -5,6 +5,7 @@ import type { NewJob } from "../db";
 import type { JobType, Profile } from "../types";
 import { COUNTRIES, countryOf, REMOTE_CODE } from "../geo";
 import { tokenize } from "../recommend/similarity";
+import { INTERN_WORDS } from "../sources/classify";
 import type { SearchPrefs } from "./prefs";
 
 export interface Decision {
@@ -120,7 +121,8 @@ export const SALES_NEGATIVES = [
   "word:vendeur", "word:vendeuse", "televente", "teleconseiller", "teleconseillere", "word:telesales", "word:comptable", "word:recruteur", "word:recruiter",
   "ressources humaines", "word:marketing", "word:juriste", "customer success", "word:caissier", "word:caissiere",
 ];
-export const INTERN_TITLE = /\b(stage|stagiaire|intern|internship|pfe|alternan|apprenti|werkstudent|praktik)/;
+// "intern" as a whole word: "International" and "Internal tools" are not internships and must not skip the senior check.
+export const INTERN_TITLE = new RegExp(String.raw`${INTERN_WORDS}|\bpfe\b|\balternan|\bapprenti`);
 const BIZDEV = /(sales|business)\s+develop/;
 // "5+ ans", "7 years", "3 ans minimum" in a title; in a body only when framed as a requirement of experience
 // ("plus de 10 ans" about the company does not count). A range starting at 0-2 ("0 à 3 ans", "1-3 years") is junior.

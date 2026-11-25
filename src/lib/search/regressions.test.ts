@@ -2,7 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildFilter, titleMatch, compilePositives } from "./filter";
-import { guessRemote, guessType, matchesKeywords, normalizeDate } from "../sources/classify";
+import { guessRemote, guessType, matchesKeywords, normalizeDate, placeholderCompany } from "../sources/classify";
+import { buildTiers } from "./tiers";
 import { extractSkills } from "../ai/heuristic";
 import { matchBreakdown, jobLevel } from "../match";
 import { countryOf, inTargetPlaces } from "../geo";
@@ -123,4 +124,34 @@ test("every known country can be picked through a region, and regions only hold 
   const inRegion = new Set<string>(REGIONS.flatMap((r) => r.codes));
   assert.deepEqual(COUNTRIES.map((c) => c.code).filter((c) => !inRegion.has(c)), []);
   for (const r of REGIONS) for (const c of r.codes) assert.ok(COUNTRIES.some((x) => x.code === c), c);
+});
+
+test("\"early-stage\" and \"International\" are not internships, estágio and prácticas are", () => {
+  for (const t of ["Founding Engineer (Early-Stage Startup)", "Senior Engineer, Growth Stage Products", "International Sales Developer", "Internal Tools Engineer"]) assert.equal(guessType(t), "emploi", t);
+  for (const t of ["Stage développeur web", "Customer Retention stage", "Software Engineer Intern", "Estágio em Desenvolvimento Web", "Prácticas desarrollo backend", "Becario de datos", "Tirocinio sviluppatore"]) assert.equal(guessType(t), "stage", t);
+  // A senior title that merely contains "intern…" or "…-stage" still meets the senior check.
+  const f = buildFilter({ keywords: ["engineer"], profile: { target_roles: [], target_types: [] }, places: { countries: [], remote: "yes" } });
+  for (const title of ["Senior Internal Tools Engineer", "Lead Engineer, Early-Stage Team", "Principal International Platform Engineer"]) assert.ok(!f.decide({ ...base, title }).keep, title);
+  assert.ok(f.decide({ ...base, title: "Senior Engineer Intern" }).keep, "a real internship title keeps its pass");
+});
+
+test("month-first dates keep the day they show", () => {
+  assert.equal(normalizeDate("October 21, 2026"), "2026-10-21");
+  assert.equal(normalizeDate("Oct 1st 2026"), "2026-10-01");
+  assert.equal(normalizeDate("Posted on Nov 3, 2026"), "2026-11-03");
+  assert.equal(normalizeDate("21 octobre 2026"), "2026-10-21");
+  assert.equal(normalizeDate("Sometime 3, 2026"), null);
+});
+
+test("an internship-only search asks a board for internship words before wider job titles", () => {
+  const t = buildTiers(["développeur"], [], ["stage", "pfe"]);
+  assert.deepEqual([t[1], t[2], t[3], t.gate], [["développeur"], ["stage", "internship", "pfe"], [], "matched"]);
+  assert.equal(buildTiers(["développeur"], [], ["stage", "emploi"]).gate, undefined, "jobs accepted too: the usual tiers");
+  assert.equal(buildTiers(["développeur"], []).gate, undefined);
+});
+
+test("an offer with no employer name is not a duplicate of another one with the same title", () => {
+  for (const [company, source] of [["Tanitjobs", "tanitjobs"], ["Entreprise anonyme", "keejob"], ["jobs.ac.uk", "jobsacuk"], ["Workable", "workablejobs"], ["Just Join IT", "justjoin"], ["", "rss"], ["Confidentiel", "farojob"]])
+    assert.ok(placeholderCompany(company, source), company);
+  for (const [company, source] of [["Vermeg", "tanitjobs"], ["Navico", "nav"], ["Sofrecom Tunisie", "keejob"], ["Reedsy", "reed"]]) assert.ok(!placeholderCompany(company, source), company);
 });

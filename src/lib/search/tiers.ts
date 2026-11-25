@@ -3,7 +3,10 @@
 import { fold } from "./filter";
 
 export type Tier = 1 | 2 | 3;
-export type Tiers = Record<Tier, string[]>;
+export type Tiers = Record<Tier, string[]> & {
+  /** What "the board answered enough" counts before the next tier: offers listed (default) or offers that passed the filter. */
+  gate?: "total" | "matched";
+};
 
 // Adjacent titles per role head word (folded). Both languages, because Tunisian boards mix them.
 const ADJACENT: Record<string, string[]> = {
@@ -47,10 +50,16 @@ const ADJACENT: Record<string, string[]> = {
   industriel: ["industrial", "production", "lean"],
 };
 const BROAD = ["stage", "internship", "pfe"];
+const INTERN_TYPES = new Set(["stage", "pfe", "alternance"]);
 
 const headOf = (s: string) => fold(s).trim().split(/\s+/)[0] ?? "";
 
-export function buildTiers(keywords: string[], roles: string[]): Tiers {
+/**
+ * `types`: the contract types the search accepts. When they are all internship kinds, a board that lists plenty of
+ * jobs for "développeur" but few internships is asked for the internship words next (tier 2), and the wider
+ * adjacent titles are skipped: they would bring more jobs, not more internships.
+ */
+export function buildTiers(keywords: string[], roles: string[], types: string[] = []): Tiers {
   const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()).filter(Boolean))];
   const t1 = uniq(keywords.length ? keywords : roles.map((r) => headOf(r)).filter((w) => w.length >= 3)).slice(0, 6);
   const used = new Set(t1.map(fold));
@@ -65,5 +74,6 @@ export function buildTiers(keywords: string[], roles: string[]): Tiers {
     }
   }
   const t3 = BROAD.filter((b) => !used.has(b));
+  if (types.length && types.every((t) => INTERN_TYPES.has(t))) return { 1: t1, 2: t3, 3: [], gate: "matched" };
   return { 1: t1, 2: t2.slice(0, 6), 3: t3 };
 }

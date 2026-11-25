@@ -18,6 +18,13 @@ export function fold(s: string): string {
 // "completed at least one internship", "ayant réalisé son PFE", "vous encadrerez un stagiaire".
 const NOT_CONTRACT = /[^.\n;!?]*\b(experience|completed|realise|ayant|encadr|mentor|supervis|previous|deja effectue|au moins un|at least one)[^.\n;!?]*/g;
 
+/**
+ * Internship words in a title (lowercase, accent-free). "Early-stage" and "growth stage" describe the company, not
+ * the contract; estágio / prácticas / becario / tirocinio are what Portuguese, Spanish and Italian boards write.
+ */
+export const INTERN_WORDS = String.raw`(?<!\b(?:early|late|mid|seed|growth|multi)[- ])\bstage|\bstagiaire|\bintern(ship)?s?\b|\bwerkstudent|\bpraktik(um|ant)|\bworking student\b|\bco-op\b|\bestagi(o|ario|aria)s?\b|\bpracticas\b|\bbecari[oa]s?\b|\btirocini`;
+const INTERN_TITLE = new RegExp(INTERN_WORDS);
+
 export function guessType(title: string, description = ""): JobType {
   const t = fold(title);
   const all = `${t} ${fold(description).replace(NOT_CONTRACT, " ")}`;
@@ -26,7 +33,7 @@ export function guessType(title: string, description = ""): JobType {
   if (pfe.test(t) || /fin d'?etudes?/.test(t)) return "pfe";
   if (/\balternan|apprenti|apprenticeship|work-?study/.test(t)) return "alternance";
   // werkstudent / praktikum / working student / co-op: freehire's internship vocabulary.
-  if (/\bstage|\bstagiaire|\bintern(ship)?s?\b|\bwerkstudent|\bpraktik(um|ant)|\bworking student\b|\bco-op\b/.test(t)) return pfe.test(all) ? "pfe" : "stage";
+  if (INTERN_TITLE.test(t)) return pfe.test(all) ? "pfe" : "stage";
   if (/\bfreelance|\bfreelancer|\bindependant/.test(t)) return "freelance";
   // Title was not decisive; look at the body with the same priorities.
   // Bare "stage" is skipped here: in English bodies it usually means "early-stage".
@@ -107,6 +114,10 @@ export function normalizeDate(s?: string | number | null): string | null {
   const named = /\b(\d{1,2})(?:er)?\s+([a-zéû]{3,9})\.?,?\s+(\d{4})\b/i.exec(str.normalize("NFD").replace(/[̀-ͯ]/g, ""));
   const mon = named && MONTH_NUM[named[2].toLowerCase()];
   if (named && mon) return ymd(+named[3], mon, +named[1]);
+  // "October 21, 2026", "Oct 21st 2026": the day as written, not shifted by this machine's time zone.
+  const mdy = /\b([a-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i.exec(str);
+  const mdyMon = mdy && MONTH_NUM[mdy[1].toLowerCase()];
+  if (mdy && mdyMon) return ymd(+mdy[3], mdyMon, +mdy[2]);
   const dmy = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b/.exec(str);
   if (dmy) return ymd(+dmy[3], +dmy[2], +dmy[1]);
   const d = new Date(str);
@@ -177,4 +188,17 @@ export function dedupeKey(company: string, title: string): string {
       .replace(/\s+/g, " ")
       .trim();
   return `${clean(company)}|${clean(title)}`;
+}
+
+/**
+ * The board gave no employer: providers then write the board's own name ("Tanitjobs", "Job Bank"), and Keejob
+ * writes "Entreprise anonyme". Two such offers with the same title are two employers, not one role posted twice.
+ */
+export function placeholderCompany(company: string, source = ""): boolean {
+  const c = fold(company).replace(/[^a-z0-9]+/g, "");
+  if (!c || /^(entreprise)?anonym|^confidenti/.test(c)) return true;
+  const s = source.replace(/[^a-z0-9]+/g, "");
+  if (!s) return false;
+  // "jobs.ac.uk" on jobsacuk, "Workable" on workablejobs, "Just Join IT" on justjoin.
+  return c === s || (Math.min(c.length, s.length) >= 6 && (c.startsWith(s) || s.startsWith(c)));
 }
