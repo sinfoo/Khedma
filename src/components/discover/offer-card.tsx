@@ -41,7 +41,8 @@ export function OfferCard({ offer, i }: { offer: OfferReco; i: number }) {
         </span>
       )}
       <div className="min-w-0">
-        <Link href={`/app/jobs/${offer.id}`} className="block truncate text-[0.95rem] font-semibold text-ink hover:text-accent-text">
+        {/* Two lines: one truncated line hid the half of the title that tells two offers of the same company apart. */}
+        <Link href={`/app/jobs/${offer.id}`} className="line-clamp-2 text-[0.95rem] font-semibold leading-snug text-ink hover:text-accent-text">
           {offer.title}
         </Link>
         <p className="mt-px truncate text-[0.78rem] text-muted">

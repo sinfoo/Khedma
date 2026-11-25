@@ -10,7 +10,7 @@ export function WhyPopover({ label, title, items, className = "btn btn-ghost btn
   if (!items.length) return null;
   return (
     <>
-      <button type="button" className={className} popoverTarget={`why-${id}`} style={{ anchorName: anchor } as React.CSSProperties}>
+      <button type="button" className={className} popoverTarget={`why-${id}`} aria-label={title ? `${label} ${title}` : undefined} style={{ anchorName: anchor } as React.CSSProperties}>
         <HelpCircle size={14} aria-hidden="true" /> {label}
       </button>
       <div
