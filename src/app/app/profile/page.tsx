@@ -43,9 +43,10 @@ export default async function ProfilePage() {
         initialReview={kvGet<CvReview | null>("cv_review", null)}
         sourcePref={getCvSourcePref()}
       />
-      <section className="card mt-6 p-5" aria-labelledby="li-h">
-        <h2 id="li-h" className="card-title">{L.title}</h2>
-        <p className="mt-1 max-w-[70ch] text-sm text-muted">{L.lead}</p>
+      {/* A by-product of the profile, not something to fill in: folded, below everything that feeds matching. */}
+      <details className="card mt-6 p-5">
+        <summary className="card-title cursor-pointer pointer-coarse:py-2">{L.title}</summary>
+        <p className="mt-2 max-w-[70ch] text-sm text-muted">{L.lead}</p>
         {p.skills.length || p.target_roles.length ? (
           <dl className="mt-4 grid gap-4">
             {([["headline", li.headline], ["about", li.about]] as const).map(([k, text]) => (
@@ -61,10 +62,10 @@ export default async function ProfilePage() {
         ) : (
           <p className="mt-3 text-sm text-muted">{L.empty}</p>
         )}
-      </section>
+      </details>
       {/* "Skip setup" is never a dead end: the wizard stays one click away. */}
-      <p className="mt-6 text-center text-sm">
-        <Link href="/app/welcome" className="text-muted hover:text-ink">{t.profile2.onb.again}</Link>
+      <p className="mt-4 text-center text-sm">
+        <Link href="/app/welcome" className="inline-block py-2.5 text-muted hover:text-ink">{t.profile2.onb.again}</Link>
       </p>
     </>
   );

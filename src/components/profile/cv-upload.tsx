@@ -7,6 +7,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
 import { fmtDate } from "@/components/ui";
 import { wordCount } from "@/lib/cv/sectionize";
+import type { adaptToCv } from "@/app/actions/profile";
 import { CvAdapt } from "./cv-adapt";
 
 export interface UploadMeta {
@@ -25,7 +26,22 @@ const size = (n: number, locale: string) =>
     : new Intl.NumberFormat(locale, { style: "unit", unit: "kilobyte", maximumFractionDigits: 0 }).format(Math.max(1, n / 1024));
 
 /** Drag & drop / file picker for the profile CV. Posts to /api/cv/upload with progress. */
-export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadMeta | null; onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void; /** Run the adapt phase after an upload; the onboarding wizard does its own, without a scan. */ adapt?: boolean }) {
+export function CvUpload({
+  upload,
+  onUploaded,
+  adapt = true,
+  onAdapted,
+  confirmReplace,
+}: {
+  upload: UploadMeta | null;
+  onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void;
+  /** Run the adapt phase after an upload; the onboarding wizard does its own, without a scan. */
+  adapt?: boolean;
+  /** Skills and roles the adapt phase wrote on the server. */
+  onAdapted?: (a: Awaited<ReturnType<typeof adaptToCv>>) => void;
+  /** Asked before a new file is read, when it would replace a Markdown CV the student may have edited by hand. */
+  confirmReplace?: string;
+}) {
   const { t, locale } = useT();
   const c = t.profile2.cv;
   const toast = useToast();
@@ -51,8 +67,11 @@ export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadM
       const { ocrPdf } = await import("@/lib/cv/ocr");
       const text = await ocrPdf(file, (done, total) => setOcrStep(done < total ? fmt(c.ocrPage, { n: done + 1, total }) : c.reading));
       setScanned(null);
-      send(file, text);
+      // OCR that reads nothing would only bring the same "run OCR" offer back.
+      if (text.trim()) send(file, text);
+      else fail("empty");
     } catch {
+      setErr(c.ocrFailed);
       toast.error(t.common.error, c.ocrFailed);
     } finally {
       setOcrStep(null);
@@ -92,6 +111,11 @@ export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadM
   };
 
   const busy = progress !== null || ocrStep !== null;
+  const pick = (f: File | undefined) => {
+    if (!f || busy) return;
+    if (confirmReplace && !window.confirm(confirmReplace)) return;
+    send(f);
+  };
   return (
     <div
       className={`relative rounded-xl border border-dashed p-4 transition-colors ${over ? "border-accent bg-accent-soft" : "border-line-strong bg-surface-2/50"}`}
@@ -103,8 +127,7 @@ export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadM
       onDrop={(e) => {
         e.preventDefault();
         setOver(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f && !busy) send(f);
+        pick(e.dataTransfer.files?.[0]);
       }}
     >
       <input
@@ -117,7 +140,7 @@ export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadM
         onChange={(e) => {
           const f = e.target.files?.[0];
           e.target.value = "";
-          if (f) send(f);
+          pick(f);
         }}
       />
       {upload ? (
@@ -159,7 +182,7 @@ export function CvUpload({ upload, onUploaded, adapt = true }: { upload: UploadM
         {c.formats}
       </p>
       {err && <p className="mt-2 text-sm text-danger" role="alert">{err}</p>}
-      {adapt && adaptRun > 0 && <CvAdapt key={adaptRun} />}
+      {adapt && adaptRun > 0 && <CvAdapt key={adaptRun} onAdapted={onAdapted} />}
       {scanned && !ocrStep && (
         <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-sm" role="status">
           <p className="font-semibold">{c.scannedTitle}</p>

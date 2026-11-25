@@ -15,8 +15,9 @@ type Adapted = Awaited<ReturnType<typeof adaptToCv>>;
  * The phase after a new or replaced CV: profile (skills, target roles) and offer ranking follow the CV. The first
  * CV also scans the sources with its keywords; a replaced CV (a typo fixed) only offers "Scan with this CV", since a
  * scan is minutes of requests to outside sites. The scan runs on the server: leaving the page does not stop it.
+ * `onAdapted` hands the new skills and roles to an open editor, so its next autosave does not write the old ones back.
  */
-export function CvAdapt() {
+export function CvAdapt({ onAdapted }: { onAdapted?: (a: Adapted) => void }) {
   const { t } = useT();
   const c = t.profile2.cv;
   const { start, attach, running, total, finished, jobs } = useScan();
@@ -38,6 +39,7 @@ export function CvAdapt() {
     Promise.all([adaptToCv(), getAutoScanState()])
       .then(async ([a, s]) => {
         setAdapted(a);
+        onAdapted?.(a);
         // No scan ever ran: this is the first CV, so the first scan starts on its own.
         if (!s.lastRunAt) await scan(a.keywords);
       })

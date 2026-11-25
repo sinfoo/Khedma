@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, Loader2, Monitor, Moon, RefreshCw, Sun, WifiOff, Wand2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, ExternalLink, Loader2, Monitor, Moon, RefreshCw, Sun, WifiOff, Wand2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -54,16 +54,15 @@ export function OnboardingWizard({
   const [theme, setThemeState] = useState<Theme>(initialTheme);
   const [pending, start] = useTransition();
   const heading = useRef<HTMLHeadingElement>(null);
-  const firstRender = useRef(true);
+  const shownStep = useRef(step);
   const scan = useScan();
   // Roles and keywords read from the CV uploaded in this wizard. The scan waits for "Finish", once countries are chosen.
   const [adapted, setAdapted] = useState<{ roles: string[]; keywords: string[]; skillsAdded: number } | null>(null);
 
+  // Focus the new step's heading when the step changes, never on first load (also true when effects run twice in dev).
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
+    if (shownStep.current === step) return;
+    shownStep.current = step;
     heading.current?.focus();
   }, [step]);
 
@@ -71,18 +70,29 @@ export function OnboardingWizard({
   const update = (patch: Partial<DraftState>) => setD((x) => ({ ...x, ...patch }));
   const updateExtra = (patch: Partial<DraftState["extra"]>) => setD((x) => ({ ...x, extra: { ...x.extra, ...patch } }));
 
-  const go = (n: number, persist: boolean) =>
+  /** Continue, Back, Skip and the step list all save: "your progress is saved" holds whichever button was pressed. */
+  const go = (n: number) =>
     start(async () => {
-      if (persist) await saveProfileDraft(d);
-      await setOnboardingStep(n);
-      setStep(n);
+      try {
+        if (!(await saveProfileDraft(d)).ok) throw new Error("not saved");
+        await setOnboardingStep(n);
+        setStep(n);
+      } catch {
+        // Stay on the step: what was typed is still on screen.
+        toast.error(t.common.error, p2.status.error);
+      }
     });
 
   /** "Finish" saves and starts the first scan with the chosen countries; "Skip setup" keeps what was typed, without a scan. */
   const finish = (scanNow: boolean) =>
     start(async () => {
-      await saveProfileDraft(d);
-      await finishOnboarding();
+      try {
+        if (!(await saveProfileDraft(d)).ok) throw new Error("not saved");
+        await finishOnboarding();
+      } catch {
+        toast.error(t.common.error, p2.status.error);
+        return;
+      }
       if (!scanNow) return router.push("/app");
       // The scan runs on the server: the radar on Sources follows it.
       void scan.start(adapted ? { keywords: adapted.keywords } : {});
@@ -99,7 +109,7 @@ export function OnboardingWizard({
       <aside className="lg:sticky lg:top-[84px] lg:self-start">
         <p className="eyebrow mb-1.5 text-accent-text">{o.welcome}</p>
         <h1 className="text-[1.6rem] leading-[1.15] tracking-[-0.02em]">{o.title}</h1>
-        <ol aria-label={o.progress} className="mt-[22px] flex flex-col gap-1">
+        <ol aria-label={o.progress} className="mt-[22px] flex gap-1 lg:flex-col">
           {STEPS.map((s, i) => {
             const n = i + 1;
             const state = n < step ? "done" : n === step ? "current" : "todo";
@@ -109,8 +119,8 @@ export function OnboardingWizard({
                   type="button"
                   disabled={n > step || pending}
                   aria-current={state === "current" ? "step" : undefined}
-                  onClick={() => go(n, false)}
-                  className={`flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2 text-left disabled:cursor-default ${state === "current" ? "bg-accent-soft" : "enabled:hover:bg-surface-2"}`}
+                  onClick={() => go(n)}
+                  className={`flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-left disabled:cursor-default lg:w-full ${state === "current" ? "bg-accent-soft" : "enabled:hover:bg-surface-2"}`}
                 >
                   <span
                     aria-hidden="true"
@@ -120,7 +130,7 @@ export function OnboardingWizard({
                   >
                     {state === "done" ? <Check size={13} /> : n}
                   </span>
-                  <span className="min-w-0">
+                  <span className="min-w-0 max-lg:sr-only">
                     <span className={`block text-sm ${state === "current" ? "font-semibold text-ink" : state === "done" ? "font-medium text-ink-2" : "font-medium text-muted"}`}>
                       {o.steps[s]}
                       {state === "done" && <span className="sr-only"> ({p2.onb.stepDone})</span>}
@@ -135,7 +145,7 @@ export function OnboardingWizard({
         <div className="bar mt-[18px] !h-1" role="progressbar" aria-label={o.progress} aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step}>
           <span style={{ width: `${((step - 1) / (STEPS.length - 1)) * 100}%` }} />
         </div>
-        <button type="button" className="mt-3.5 text-[0.8rem] text-muted hover:text-ink" disabled={pending} onClick={() => finish(false)} title={o.skipAllHint}>
+        <button type="button" className="mt-1 py-3 text-[0.8rem] text-muted hover:text-ink" disabled={pending} onClick={() => finish(false)} title={o.skipAllHint}>
           {o.skipAll}
         </button>
       </aside>
@@ -146,12 +156,12 @@ export function OnboardingWizard({
         aria-labelledby="step-h"
         onSubmit={(e) => {
           e.preventDefault();
-          if (step < STEPS.length) go(step + 1, true);
+          if (step < STEPS.length) go(step + 1);
           else finish(true);
         }}
       >
         <p className="text-[0.75rem] font-semibold text-muted">{step} / {STEPS.length}</p>
-        <h2 id="step-h" ref={heading} tabIndex={-1} className="mt-1.5 text-[1.5rem] leading-tight tracking-[-0.02em] outline-none">
+        <h2 id="step-h" ref={heading} tabIndex={-1} className="mt-1.5 text-[1.5rem] leading-tight tracking-[-0.02em] !outline-none">
           {o.steps[key]}
         </h2>
         <p className="mt-1.5 mb-5 text-muted">{key === "prefs" ? o.prefs.intro : key === "you" ? o.you.intro : key === "cv" ? o.cv.intro : key === "targets" ? o.targets.intro : o.ai.intro}</p>
@@ -210,7 +220,7 @@ export function OnboardingWizard({
         {key === "you" && (
           <div className="grid gap-4 sm:grid-cols-2">
             <F id="w-name" label={p2.f.name}>
-              <input id="w-name" className="input" autoComplete="name" value={d.name} onChange={(e) => update({ name: e.target.value })} />
+              <input id="w-name" className="input" autoComplete="name" maxLength={120} value={d.name} onChange={(e) => update({ name: e.target.value })} />
             </F>
             <F id="w-email" label={p2.f.email}>
               <input id="w-email" type="email" className="input" autoComplete="email" value={d.email} onChange={(e) => update({ email: e.target.value })} />
@@ -238,7 +248,7 @@ export function OnboardingWizard({
             </div>
             <div className="sm:col-span-2">
               <F id="w-headline" label={p2.f.headline}>
-                <textarea id="w-headline" className="input !min-h-20" placeholder={p2.f.headlinePh} value={d.headline} onChange={(e) => update({ headline: e.target.value })} />
+                <textarea id="w-headline" className="input !min-h-20" maxLength={300} placeholder={p2.f.headlinePh} value={d.headline} onChange={(e) => update({ headline: e.target.value })} />
               </F>
               {suggestion && suggestion !== d.headline && (
                 <div className="mt-2 flex items-start gap-2 rounded-lg bg-surface-2 p-2.5 text-sm" aria-live="polite">
@@ -272,9 +282,14 @@ export function OnboardingWizard({
               setD((x) => ({ ...x, name: x.name.trim() || c.name, email: x.email.trim() || c.email, extra: { ...x.extra, phone: x.extra.phone.trim() || c.phone } }));
               // Roles and skills follow the CV, and go back into the draft so "Continue" keeps them. No scan yet.
               start(async () => {
-                const a = await adaptToCv();
-                setAdapted(a);
-                update({ skills: a.skills, ...(a.roles.length ? { target_roles: a.roles } : {}) });
+                try {
+                  const a = await adaptToCv();
+                  setAdapted(a);
+                  update({ skills: a.skills, ...(a.roles.length ? { target_roles: a.roles } : {}) });
+                } catch {
+                  // The CV itself is saved; roles and skills can still be set by hand on the next step.
+                  toast.error(t.common.error, p2.cv.adaptFailed);
+                }
               });
             }}
             skills={d.skills}
@@ -313,8 +328,8 @@ export function OnboardingWizard({
               showSuggestions
               placeholder={p2.f.rolesPh}
             />
-<div>
-              <p className="label">{p2.f.places}</p>
+            <div role="group" aria-labelledby="w-places-h">
+              <p id="w-places-h" className="label">{p2.f.places}</p>
               <CountryPicker
                 value={d.extra.places}
                 onChange={(v) => {
@@ -333,7 +348,7 @@ export function OnboardingWizard({
         <p className="mt-auto pt-5 text-xs text-muted">{o.resume}</p>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           {step > 1 ? (
-            <button type="button" className="btn btn-outline !h-10" disabled={pending} onClick={() => go(step - 1, false)}>
+            <button type="button" className="btn btn-outline !h-10" disabled={pending} onClick={() => go(step - 1)}>
               <ArrowLeft size={15} aria-hidden="true" /> {o.back}
             </button>
           ) : (
@@ -341,7 +356,7 @@ export function OnboardingWizard({
           )}
           <div className="flex flex-wrap gap-2">
             {step < STEPS.length && (
-              <button type="button" className="btn btn-ghost !h-10 text-muted" disabled={pending} onClick={() => go(step + 1, false)}>
+              <button type="button" className="btn btn-ghost !h-10 text-muted" disabled={pending} onClick={() => go(step + 1)}>
                 {o.skip}
               </button>
             )}
@@ -371,7 +386,6 @@ function F({ id, label, children }: { id: string; label: string; children: React
 function AiStep() {
   const { t } = useT();
   const a = t.profile2.onb.ai;
-  const toast = useToast();
   const [s, setS] = useState<Awaited<ReturnType<typeof aiStatus>> | null>(null);
   const [checking, start] = useTransition();
   const check = () =>
@@ -385,9 +399,6 @@ function AiStep() {
       live = false;
     };
   }, []);
-
-  const keyLine = "ANTHROPIC_API_KEY=...";
-  const copy = (c: string) => navigator.clipboard?.writeText(c).then(() => toast.success(a.copied, c));
 
   return (
     <div className="space-y-4">
@@ -430,12 +441,10 @@ function AiStep() {
                 <span className="mr-1.5 tabular font-semibold">2.</span>
                 {a.s2}
               </p>
-              <div className="flex items-center gap-2">
-                <code className="mono flex-1 overflow-x-auto rounded-lg border border-line bg-surface px-3 py-2 text-[0.82rem]">{keyLine}</code>
-                <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={`${a.copy}: ${keyLine}`} onClick={() => copy(keyLine)}>
-                  <Copy size={14} aria-hidden="true" />
-                </button>
-              </div>
+              {/* A new tab: this wizard keeps its place. */}
+              <a href="/app/settings#keys" target="_blank" rel="noopener" className="btn btn-secondary btn-sm">
+                {a.openKeys} <ExternalLink size={13} aria-hidden="true" />
+              </a>
             </li>
             <li>
               <span className="mr-1.5 tabular font-semibold">3.</span>

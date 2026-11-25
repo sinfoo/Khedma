@@ -26,11 +26,13 @@ export function CvImporter({
 }: {
   upload: UploadMeta | null;
   uploadText: string;
-  onUploaded: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void;
+  /** Needed with `showUpload`. */
+  onUploaded?: (meta: UploadMeta, text: string, markdown?: string, skills?: string[]) => void;
   skills: string[];
   onAddSkills: (skills: string[]) => void;
   hasMarkdown: boolean;
-  onSaveMarkdown: (md: string) => Promise<void> | void;
+  /** Resolves false when the save failed: the reviewed text then stays on screen. */
+  onSaveMarkdown: (md: string) => Promise<boolean | void> | boolean | void;
   startInReview?: boolean;
   showUpload?: boolean;
   adapt?: boolean;
@@ -52,16 +54,17 @@ export function CvImporter({
         <CvUpload
           upload={upload}
           adapt={adapt}
+          confirmReplace={hasMarkdown ? c.replaceWarn : undefined}
           onUploaded={(m, text, markdown, skills) => {
             setSource(text);
             setReview(null);
-            onUploaded(m, text, markdown, skills);
+            onUploaded?.(m, text, markdown, skills);
           }}
         />
       )}
 
       {review === null && (
-        <details className="group rounded-xl border border-line px-4 py-3">
+        <details className="group rounded-xl border border-line px-4 py-3" open={!showUpload && !source}>
           <summary className="cursor-pointer text-sm font-semibold">{c.pasteTitle}</summary>
           <div className="mt-3 space-y-2">
             <label className="sr-only" htmlFor="cv-paste">
@@ -147,8 +150,7 @@ export function CvImporter({
               aria-busy={saving}
               onClick={() =>
                 start(async () => {
-                  await onSaveMarkdown(review);
-                  setReview(null);
+                  if ((await onSaveMarkdown(review)) !== false) setReview(null);
                 })
               }
             >

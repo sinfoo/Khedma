@@ -45,13 +45,10 @@ export async function saveProfileDraft(draft: Partial<ProfileDraft>): Promise<{ 
     }
   }
   if (Object.keys(p).length) updateProfile(p);
+  // Without this the browser keeps the page as first rendered: coming back with the Back button reopened the editor on
+  // the old profile, and its next autosave wrote that old profile over the newer one. The sidebar also reads the profile.
+  revalidatePath("/app", "layout");
   return { ok: true, at: new Date().toISOString() };
-}
-
-export async function saveCvMarkdown(md: string): Promise<{ ok: boolean }> {
-  updateProfile({ cv_md: str(md, 60_000) });
-  revalidatePath("/app/profile");
-  return { ok: true };
 }
 
 export async function setOnboardingStep(step: number): Promise<void> {

@@ -17,7 +17,7 @@ import { FactGate, WritingLint, useFacts } from "@/components/writing-lint";
 
 // ---------- Markdown editor with a small toolbar ----------
 export function MarkdownEditor({ id, value, onChange, label, describedBy }: { id: string; value: string; onChange: (v: string) => void; label: string; describedBy?: string }) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const tb = t.profile2.cv.toolbar;
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -29,7 +29,7 @@ export function MarkdownEditor({ id, value, onChange, label, describedBy }: { id
     let selA = a;
     let selB = b;
     if (kind === "bold") {
-      const sel = value.slice(a, b) || "texte";
+      const sel = value.slice(a, b) || (locale === "fr" ? "texte" : "text");
       next = `${value.slice(0, a)}**${sel}**${value.slice(b)}`;
       selA = a + 2;
       selB = a + 2 + sel.length;
@@ -80,6 +80,8 @@ export function MarkdownEditor({ id, value, onChange, label, describedBy }: { id
         aria-describedby={describedBy}
         className="mono min-h-[55vh] flex-1 resize-y bg-surface p-3.5 text-[0.84rem] leading-relaxed outline-none"
         value={value}
+        // The server keeps 60 000 characters (actions/profile.ts): stop there instead of saving a cut CV as "Saved".
+        maxLength={60_000}
         spellCheck={false}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
@@ -119,7 +121,6 @@ export function StrengthMeter({ score, items, onJump }: { score: number; items: 
       <div className="mt-3">
         <Progress value={score} label={s.title} tone={tone} />
       </div>
-      <p className="mt-2 text-xs text-muted tabular">{fmt(s.done, { n: done.length, total: items.length })}</p>
       {todo.length ? (
         <ul className="mt-3 space-y-1">
           {todo.slice(0, showAll ? undefined : 4).map((i) => (
@@ -134,7 +135,10 @@ export function StrengthMeter({ score, items, onJump }: { score: number; items: 
                 }}
               >
                 <Circle size={16} className="mt-0.5 shrink-0 text-line-strong" aria-hidden="true" />
-                <span className="flex-1">{s.items[i.id]}</span>
+                <span className="flex-1">
+                  {s.items[i.id]}
+                  <span className="block text-xs text-muted">{s.why[i.id]}</span>
+                </span>
                 <span className="chip !px-1.5 text-[0.7rem] tabular">+{i.weight}</span>
               </a>
             </li>
@@ -142,7 +146,7 @@ export function StrengthMeter({ score, items, onJump }: { score: number; items: 
           {todo.length > 4 && (
             <li>
               <button type="button" className="btn btn-ghost btn-sm text-muted" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
-                {showAll ? t.common.close : `+${todo.length - 4}`}
+                {showAll ? s.less : fmt(s.more, { n: todo.length - 4 })}
               </button>
             </li>
           )}
@@ -154,7 +158,7 @@ export function StrengthMeter({ score, items, onJump }: { score: number; items: 
       )}
       {done.length > 0 && todo.length > 0 && (
         <details className="mt-2">
-          <summary className="cursor-pointer px-2 text-xs text-muted">{fmt(s.done, { n: done.length, total: items.length })}</summary>
+          <summary className="cursor-pointer px-2 py-1 text-xs text-muted tabular pointer-coarse:py-3">{fmt(s.done, { n: done.length, total: items.length })}</summary>
           <ul className="mt-1 space-y-1">
             {done.map((i) => (
               <li key={i.id} className="flex items-start gap-2 px-2 py-1 text-sm text-muted">
@@ -229,9 +233,12 @@ export function ReviewPanel({
   cvMd,
   onApplyRewrite,
   onReplaceCv,
+  beforeRun,
 }: {
   initial: CvReview | null;
   cvMd: string;
+  /** The review reads the CV saved on the server: save pending edits first. */
+  beforeRun?: () => Promise<unknown>;
   onApplyRewrite: (before: string, after: string) => boolean;
   onReplaceCv: (md: string) => void;
 }) {
@@ -248,9 +255,14 @@ export function ReviewPanel({
   const run = () =>
     start(async () => {
       setError(null);
-      const res = await runCvReview();
-      if (res.ok) setReview(res.review);
-      else setError(res.error === "empty" ? r.empty : r.error);
+      try {
+        await beforeRun?.();
+        const res = await runCvReview();
+        if (res.ok) setReview(res.review);
+        else setError(res.error === "empty" ? r.empty : r.error);
+      } catch {
+        setError(r.error);
+      }
     });
   const prio = (p: 1 | 2 | 3) => (p === 1 ? "chip-danger" : p === 2 ? "chip-saffron" : "");
   const prioLabel = (p: 1 | 2 | 3) => (p === 1 ? r.priority.p1 : p === 2 ? r.priority.p2 : r.priority.p3);
@@ -267,9 +279,14 @@ export function ReviewPanel({
               aria-busy={applying}
               onClick={() =>
                 startApply(async () => {
-                  const res = await applyReviewToCv();
-                  if (res.ok) setProposal({ md: res.md, engine: res.engine });
-                  else toast.error(res.error === "empty" ? r.empty : r.error);
+                  try {
+                    await beforeRun?.();
+                    const res = await applyReviewToCv();
+                    if (res.ok) setProposal({ md: res.md, engine: res.engine });
+                    else toast.error(res.error === "empty" ? r.empty : r.error);
+                  } catch {
+                    toast.error(r.error);
+                  }
                 })
               }
             >
@@ -317,7 +334,7 @@ export function ReviewPanel({
           <div className="space-y-3">
             <EngineChip engine={proposal.engine} t={t} />
             <FactGate findings={facts} confirmed={ack} onConfirm={setAck} />
-            <WritingLint text={proposal.md} onReplace={(s, n) => setProposal({ ...proposal, md: proposal.md.replace(s, n) })} />
+            <WritingLint text={proposal.md} onReplace={(s, n) => setProposal({ ...proposal, md: proposal.md.replace(s, () => n) })} />
             <div className="rounded-xl border border-line p-4">
               <Markdown>{proposal.md}</Markdown>
             </div>
@@ -412,8 +429,10 @@ export function ReviewPanel({
                         type="button"
                         className="btn btn-ghost btn-sm"
                         onClick={() => {
-                          navigator.clipboard.writeText(w.after);
-                          toast.success(r.copied);
+                          navigator.clipboard.writeText(w.after).then(
+                            () => toast.success(r.copied),
+                            () => toast.error(t.common.error),
+                          );
                         }}
                       >
                         <Copy size={14} aria-hidden="true" /> {r.copy}

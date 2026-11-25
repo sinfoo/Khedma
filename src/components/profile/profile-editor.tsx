@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Columns2, Compass, Eye, FileDown, FileText, Flag, GraduationCap, Import, MapPin, PencilLine, Plus, ScanSearch, Sparkles, Stethoscope, Target, Trash2, UserRound, Wand2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Columns2, Compass, Eye, FileDown, FileText, Flag, GraduationCap, Import, MapPin, PencilLine, Plus, ScanSearch, Sparkles, Stethoscope, Target, Trash2, UserRound, Wand2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -86,22 +87,29 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
   const { t, locale } = useT();
   const p2 = t.profile2;
   const toast = useToast();
+  const router = useRouter();
   const [d, setD] = useState<DraftState>(initial);
+  // Callbacks that finish later (an upload, the adapt phase, "Undo") patch the newest draft, not the one they closed over.
+  const latest = useRef(initial);
   const [upload, setUpload] = useState(initialUpload);
   const [uploadText, setUploadText] = useState(initialUploadText);
   const [mode, setMode] = useState<Mode>("split");
   const [tab, setTab] = useState<Tab>("cv");
   const [dialog, setDialog] = useState<null | "import" | "convert">(null);
+  const [emailTouched, setEmailTouched] = useState(false);
+  // Decided once: the page re-renders after each save, and the fold must not open or close under the cursor.
+  const [styleOpen] = useState(() => !!(initial.extra.writing_sample || initial.extra.house_rules));
 
   const save = useCallback((v: DraftState) => saveProfileDraft(v), []);
   const auto = useAutosave(save);
 
   const update = (patch: Partial<DraftState>) => {
-    const n = { ...d, ...patch };
+    const n = { ...latest.current, ...patch };
+    latest.current = n;
     setD(n);
     auto.schedule(n);
   };
-  const updateExtra = (patch: Partial<DraftState["extra"]>) => update({ extra: { ...d.extra, ...patch } });
+  const updateExtra = (patch: Partial<DraftState["extra"]>) => update({ extra: { ...latest.current.extra, ...patch } });
 
   const cvText = d.cv_md.trim() ? d.cv_md : uploadText;
   const strength = useMemo(() => profileStrength({ ...d, ...d.extra, cvText }), [d, cvText]);
@@ -111,30 +119,46 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
   const todo = strength.items.filter((i) => !i.done).sort((a, b) => b.weight - a.weight).slice(0, 2);
   const quickWins = todo.length;
   const quickWinGain = todo.reduce((s, i) => s + i.weight, 0);
+  const nextStep = todo[0];
+  const emailBad = emailTouched && !!d.email.trim() && !/^\S+@\S+\.\S+$/.test(d.email.trim());
+
+  /** Open the tab that holds a strength item's field and put the cursor in it. */
+  const jump = (href: string) => {
+    const map: Record<string, Tab> = { "#cv": "cv", "#cv-md": "cv", "#f-roles": "targets", "#f-types": "targets", "#f-skills": "skills", "#f-langs": "skills" };
+    const target = map[href] ?? (href.startsWith("#f-") ? "about" : "cv");
+    setTab(target);
+    if (target === "cv") setMode("split");
+    requestAnimationFrame(() => jumpTo(href === "#cv" ? "#cv-md" : href));
+  };
 
   const addSkills = (found: string[]) => {
-    const next = mergeSkills(d.skills, found);
-    const n = next.length - d.skills.length;
+    const next = mergeSkills(latest.current.skills, found);
+    const n = next.length - latest.current.skills.length;
     if (n > 0) update({ skills: next });
     if (n > 0) toast.success(fmt(p2.cv.skillsAdded, { n }));
     else toast.info(p2.cv.noNewSkills);
   };
 
   const saveMarkdown = async (md: string) => {
-    const n = { ...d, cv_md: md };
-    setD(n);
-    auto.schedule(n);
-    await auto.flush();
+    update({ cv_md: md });
+    // Say "saved" only once the server has it; on failure the reviewed text stays open.
+    if (!(await auto.flush())) {
+      toast.error(t.common.error, p2.status.error);
+      return false;
+    }
     setDialog(null);
     setMode("split");
     toast.success(p2.cv.savedMd);
+    return true;
   };
 
-  const tabs: { key: Tab; label: string; Icon: typeof Eye; hint: string }[] = [
+  const tabs: { key: Tab; label: string; short?: string; Icon: typeof Eye; hint: string }[] = [
+    // What matching reads comes first: CV, targets, skills. Identity and links are filled once.
     { key: "cv", label: p2.tabs.cv, Icon: FileText, hint: fmt(p2.cv.words, { n: words }) },
-    { key: "about", label: p2.tabs.about, Icon: UserRound, hint: d.name || p2.tabs.aboutHint },
     { key: "targets", label: p2.tabs.targets, Icon: Target, hint: fmt(p2.tabs.targetsHint, { n: d.target_roles.length, c: d.extra.places.countries.length }) },
-    { key: "skills", label: p2.tabs.skills, Icon: Sparkles, hint: fmt(p2.tabs.skillsHint, { n: d.skills.length, l: d.extra.langs.length }) },
+    // `short` keeps all four tabs on a 390px screen: a tab scrolled out of sight is a tab nobody opens.
+    { key: "skills", label: p2.tabs.skills, short: p2.sections.skills, Icon: Sparkles, hint: fmt(p2.tabs.skillsHint, { n: d.skills.length, l: d.extra.langs.length }) },
+    { key: "about", label: p2.tabs.about, Icon: UserRound, hint: d.name || p2.tabs.aboutHint },
   ];
   const modes: { key: Mode; label: string; Icon: typeof Eye }[] = [
     { key: "split", label: p2.cv.split, Icon: Columns2 },
@@ -160,7 +184,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
           <h1 className="truncate text-[1.7rem] leading-[1.1] tracking-[-0.02em]">{d.name || p2.title}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-[0.9rem] text-ink-2">
             <span className="min-w-0 truncate">{d.headline || p2.lead}</span>
-            <button type="button" className="inline-flex h-6 items-center gap-1 rounded-[7px] border border-line bg-surface px-2 text-[0.72rem] font-semibold text-muted hover:text-ink" onClick={() => { setTab("about"); requestAnimationFrame(() => jumpTo("#f-headline")); }}>
+            <button type="button" className="inline-flex h-6 items-center gap-1 rounded-[7px] border border-line bg-surface px-2 text-[0.72rem] font-semibold text-muted hover:text-ink pointer-coarse:h-10 pointer-coarse:px-3" onClick={() => jump("#f-headline")}>
               <PencilLine size={11} aria-hidden="true" /> {t.common.edit}
             </button>
           </p>
@@ -184,26 +208,69 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             <button type="button" className="btn btn-saffron" onClick={() => { setTab("cv"); setMode("review"); }}>
               <Wand2 size={14} aria-hidden="true" /> {p2.hero.review}
             </button>
-            <Link href="/app/profile/cv" className="btn btn-outline btn-sm !h-[34px]">
+            <Link
+              href="/app/profile/cv"
+              className="btn btn-outline btn-sm !h-[34px] pointer-coarse:!h-11"
+              onClick={(e) => {
+                // The templates page renders the saved CV: the last keystrokes go to the server before it opens.
+                if (auto.status !== "pending" && auto.status !== "saving") return;
+                e.preventDefault();
+                void auto.flush().then((ok) => (ok ? router.push("/app/profile/cv") : toast.error(t.common.error, p2.status.error)));
+              }}
+            >
               <FileDown size={13} aria-hidden="true" /> {p2.hero.export}
             </Link>
           </div>
         </div>
       </header>
 
+      {/* The one thing to do next, whatever tab is open: what is missing, why it matters, and a way there. */}
+      {nextStep && (
+        <section aria-label={p2.strength.next} className="card mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 px-[18px] py-3 rise" style={{ ["--i" as string]: 1 }}>
+          <div className="min-w-0 flex-1 basis-64">
+            <p className="eyebrow text-accent-text">{p2.strength.next}</p>
+            <p className="mt-0.5 text-[0.95rem] font-semibold">
+              {p2.strength.items[nextStep.id]} <span className="chip !px-1.5 align-middle text-[0.7rem] tabular">+{nextStep.weight}</span>
+            </p>
+            <p className="text-sm text-muted">{p2.strength.why[nextStep.id]}</p>
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => jump(nextStep.href)}>
+            {p2.strength.go} <ArrowRight size={14} aria-hidden="true" />
+          </button>
+        </section>
+      )}
+
       {/* Tabs */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rise" style={{ ["--i" as string]: 1 }}>
-        <nav aria-label={p2.title} role="tablist" className="seg max-w-full overflow-x-auto">
-          {tabs.map(({ key, label, Icon, hint }) => (
-            <button key={key} type="button" role="tab" aria-selected={tab === key} aria-controls={`panel-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className="seg-btn" title={hint}>
-              <Icon size={14} aria-hidden="true" /> {label}
+        <nav
+          aria-label={p2.title}
+          role="tablist"
+          className="seg max-w-full overflow-x-auto"
+          onKeyDown={(e) => {
+            // Arrow keys move between tabs; Tab then goes straight into the panel.
+            const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+            if (!step) return;
+            e.preventDefault();
+            const to = tabs[(tabs.findIndex((x) => x.key === tab) + step + tabs.length) % tabs.length].key;
+            setTab(to);
+            document.getElementById(`tab-${to}`)?.focus();
+          }}
+        >
+          {tabs.map(({ key, label, short, Icon, hint }) => (
+            <button key={key} type="button" role="tab" aria-selected={tab === key} tabIndex={tab === key ? 0 : -1} aria-controls={`panel-${key}`} id={`tab-${key}`} onClick={() => setTab(key)} className="seg-btn pointer-coarse:!h-10" title={hint}>
+              <Icon size={14} aria-hidden="true" />
+              {short ? (
+                <>
+                  <span className="sm:hidden">{short}</span>
+                  <span className="max-sm:hidden">{label}</span>
+                </>
+              ) : (
+                label
+              )}
             </button>
           ))}
         </nav>
-        <span className="flex items-center gap-2 text-[0.75rem] text-muted">
-          <SaveIndicator status={auto.status} at={auto.at} onRetry={() => void auto.flush()} />
-          <span className="tabular">{fmt(p2.cv.words, { n: words })} · {fmt(p2.cv.pages, { n: Math.max(1, Math.ceil(words / 450)) })}</span>
-        </span>
+        <SaveIndicator status={auto.status} at={auto.at} onRetry={() => void auto.flush()} />
       </div>
 
       {/* CV */}
@@ -213,19 +280,14 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div role="group" aria-label={p2.cv.title} className="seg seg-sm max-w-full overflow-x-auto">
                 {modes.map(({ key, label, Icon }) => (
-                  <button key={key} type="button" aria-pressed={mode === key} className={`seg-btn ${mode === key ? "on" : ""}`} onClick={() => setMode(key)}>
-                    <Icon size={13} aria-hidden="true" /> <span className={key === "split" ? "hidden lg:inline" : ""}>{label}</span>
+                  <button key={key} type="button" aria-pressed={mode === key} className={`seg-btn pointer-coarse:!h-10 ${mode === key ? "on" : ""}`} onClick={() => setMode(key)}>
+                    <Icon size={13} aria-hidden="true" /> <span className={key === "split" ? "sr-only lg:not-sr-only" : ""}>{label}</span>
                   </button>
                 ))}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => addSkills(extractSkills(cvText))} disabled={!cvText.trim()}>
-                  <ScanSearch size={14} aria-hidden="true" /> {p2.cv.extract}
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDialog("import")}>
-                  <Import size={14} aria-hidden="true" /> {p2.cv.importBtn}
-                </button>
-              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDialog("import")}>
+                <Import size={14} aria-hidden="true" /> {p2.cv.importBtn}
+              </button>
             </div>
 
             {(mode === "write" || mode === "split") && !d.cv_md.trim() && (
@@ -266,9 +328,11 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
               <ReviewPanel
                 initial={initialReview}
                 cvMd={d.cv_md}
+                beforeRun={auto.flush}
                 onApplyRewrite={(before, after) => {
                   if (!d.cv_md.includes(before)) return false;
-                  update({ cv_md: d.cv_md.replace(before, after) });
+                  // A function, so "$&" or "$1" in the new bullet is text and not a replace pattern.
+                  update({ cv_md: d.cv_md.replace(before, () => after) });
                   return true;
                 }}
                 onReplaceCv={(md) => {
@@ -298,10 +362,20 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
                         key={k}
                         type="button"
                         aria-pressed={pref === k}
-                        className={`px-2 py-0.5 text-xs font-semibold ${pref === k ? "bg-accent-soft text-accent-text" : "text-muted hover:text-ink"}`}
+                        className={`px-2 py-0.5 text-xs font-semibold pointer-coarse:min-h-10 pointer-coarse:px-3 ${pref === k ? "bg-accent-soft text-accent-text" : "text-muted hover:text-ink"}`}
                         onClick={() => {
+                          if (pref === k) return;
+                          const before = pref;
                           setPref(k);
-                          void chooseCvSource(k).then(() => toast.success(fmt(p2.cv.sourceChanged, { src: k === "upload" ? p2.cv.sourceUpload : p2.cv.sourceMarkdown })));
+                          chooseCvSource(k)
+                            .then((r) => {
+                              if (!r.ok) throw new Error("not saved");
+                              toast.success(fmt(p2.cv.sourceChanged, { src: k === "upload" ? p2.cv.sourceUpload : p2.cv.sourceMarkdown }));
+                            })
+                            .catch(() => {
+                              setPref(before);
+                              toast.error(t.common.error);
+                            });
                         }}
                       >
                         {k === "upload" ? p2.cv.sourceUpload : p2.cv.sourceMarkdown}
@@ -315,122 +389,53 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             </p>
           </div>
 
-          <aside className="space-y-4">
+          {/* No CV yet: on a phone the upload card comes before the empty editor, not after it. */}
+          <aside className={`space-y-4 ${cvText.trim() ? "" : "order-first lg:order-none"}`}>
             <div className="card p-4 rise" style={{ ["--i" as string]: 2 }}>
               <h2 id="sec-file" className="card-title text-[0.9rem]">{p2.cv.fileTitle}</h2>
               <p className="mb-3 mt-1 text-xs text-muted">{p2.cv.fileLead}</p>
               <CvUpload
                 upload={upload}
+                confirmReplace={d.cv_md.trim() ? p2.cv.replaceWarn : undefined}
                 onUploaded={(m, text, markdown, skills) => {
                   setUpload(m);
                   setUploadText(text);
-                  if (markdown) {
-                    update({ cv_md: markdown, ...(skills && skills.length > d.skills.length ? { skills } : {}) });
-                    if (skills && skills.length > d.skills.length) toast.success(fmt(p2.cv.skillsAdded, { n: skills.length - d.skills.length }));
+                  // Same threshold as the server: shorter text is not saved as the Markdown CV there, so it does not replace it here.
+                  if (markdown && markdown.trim().length > 40) {
+                    const had = latest.current.skills.length;
+                    const more = !!skills && skills.length > had;
+                    update({ cv_md: markdown, ...(more ? { skills } : {}) });
+                    if (more) toast.success(fmt(p2.cv.skillsAdded, { n: skills.length - had }));
                     setPref("markdown");
                     setMode("split");
                     toast.success(p2.cv.autoConverted, p2.cv.autoConvertedBody);
                   } else setPref("upload");
                 }}
+                // The adapt phase rewrote skills and target roles on the server: show them, and keep the next autosave from undoing them.
+                onAdapted={(a) => update({ skills: a.skills, ...(a.roles.length ? { target_roles: a.roles } : {}) })}
               />
             </div>
-            <StrengthMeter
-              score={strength.score}
-              items={strength.items}
-              onJump={(href) => {
-                const map: Record<string, Tab> = { "#cv": "cv", "#cv-md": "cv", "#f-name": "about", "#f-email": "about", "#f-github": "about", "#f-linkedin": "about", "#f-roles": "targets", "#f-types": "targets", "#f-skills": "skills", "#f-langs": "skills" };
-                const target = map[href] ?? (href.startsWith("#f-") ? "about" : "cv");
-                setTab(target);
-                if (target === "cv") setMode("split");
-                requestAnimationFrame(() => jumpTo(href === "#cv" ? "#cv-md" : href));
-              }}
-            />
+            <StrengthMeter score={strength.score} items={strength.items} onJump={jump} />
           </aside>
         </div>
       </section>
 
-      {/* About */}
-      <section id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden={tab !== "about"} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-identity">
-          {sectionTitle("sec-identity", p2.sections.identity)}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="f-name" label={p2.f.name}>
-              <input id="f-name" className="input" autoComplete="name" value={d.name} onChange={(e) => update({ name: e.target.value })} />
-            </Field>
-            <Field id="f-email" label={p2.f.email}>
-              <input id="f-email" type="email" className="input" autoComplete="email" value={d.email} onChange={(e) => update({ email: e.target.value })} />
-            </Field>
-            <Field id="f-phone" label={p2.f.phone}>
-              <input id="f-phone" type="tel" className="input" autoComplete="tel" placeholder="+216 …" value={d.extra.phone} onChange={(e) => updateExtra({ phone: e.target.value })} />
-            </Field>
-            <Field id="f-city" label={p2.f.city}>
-              <input id="f-city" className="input" autoComplete="address-level2" value={d.extra.city} onChange={(e) => updateExtra({ city: e.target.value })} />
-            </Field>
-            <Field id="f-school" label={p2.f.school}>
-              <input id="f-school" className="input" value={d.extra.school} onChange={(e) => updateExtra({ school: e.target.value })} />
-            </Field>
-            <Field id="f-level" label={p2.f.level}>
-              <input id="f-level" className="input" placeholder={p2.f.levelPh} value={d.extra.level} onChange={(e) => updateExtra({ level: e.target.value })} />
-            </Field>
-            <Field id="f-specialty" label={p2.f.specialty}>
-              <input id="f-specialty" className="input" placeholder={p2.f.specialtyPh} value={d.extra.specialty} onChange={(e) => updateExtra({ specialty: e.target.value })} />
-            </Field>
-          </div>
-          <Field id="f-headline" label={p2.f.headline}>
-            <textarea id="f-headline" className="input !min-h-20" placeholder={p2.f.headlinePh} value={d.headline} onChange={(e) => update({ headline: e.target.value })} />
-          </Field>
-          {suggestion && suggestion !== d.headline && (
-            <div className="-mt-2 flex items-start gap-2 rounded-lg bg-surface-2 p-2.5 text-sm">
-              <Wand2 size={14} className="mt-1 shrink-0 text-accent-text" aria-hidden="true" />
-              <p className="flex-1 text-ink-2">
-                <span className="sr-only">{p2.f.suggestion}: </span>
-                {suggestion}
-              </p>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => update({ headline: suggestion })}>
-                {p2.f.useSuggestion}
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-links" style={{ ["--i" as string]: 1 }}>
-          {sectionTitle("sec-links", p2.sections.links)}
-          {(["github", "linkedin", "portfolio"] as const).map((k) => (
-            <Field key={k} id={`f-${k}`} label={p2.f[k]}>
-              <input id={`f-${k}`} type="url" inputMode="url" className="input" placeholder={k === "github" ? "https://github.com/…" : k === "linkedin" ? "https://linkedin.com/in/…" : "https://…"} value={d.extra.links[k]} onChange={(e) => updateExtra({ links: { ...d.extra.links, [k]: e.target.value } })} />
-            </Field>
-          ))}
-          <p className="hint !mt-0">{p2.f.linkHint}</p>
-        </div>
-        <div className="card space-y-4 p-5 rise lg:col-span-2" aria-labelledby="sec-style" style={{ ["--i" as string]: 2 }}>
-          {sectionTitle("sec-style", p2.sections.style)}
-          <div className="grid gap-4 lg:grid-cols-2">
-            <Field id="f-writing-sample" label={p2.f.writingSample}>
-              <textarea id="f-writing-sample" className="input !min-h-36 leading-relaxed" maxLength={4000} placeholder={p2.f.writingSamplePh} aria-describedby="f-writing-sample-hint" value={d.extra.writing_sample} onChange={(e) => updateExtra({ writing_sample: e.target.value })} />
-              <p id="f-writing-sample-hint" className="hint">{p2.f.writingSampleHint}</p>
-            </Field>
-            <Field id="f-house-rules" label={p2.f.houseRules}>
-              <textarea id="f-house-rules" className="input !min-h-36 leading-relaxed" maxLength={1500} placeholder={p2.f.houseRulesPh} aria-describedby="f-house-rules-hint" value={d.extra.house_rules} onChange={(e) => updateExtra({ house_rules: e.target.value })} />
-              <p id="f-house-rules-hint" className="hint">{p2.f.houseRulesHint}</p>
-            </Field>
-          </div>
-        </div>
-      </section>
-
       {/* Targets */}
-      <section id="panel-targets" role="tabpanel" aria-labelledby="tab-targets" hidden={tab !== "targets"} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-places">
-          {sectionTitle("sec-places", p2.f.places)}
-          <CountryPicker
-            value={d.extra.places}
-            onChange={(v) => update({ extra: { ...d.extra, places: v }, target_locations: placesToLocations(v) })}
-          />
-          <p className="hint">{p2.places.hint}</p>
-        </div>
-        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-targets" style={{ ["--i" as string]: 1 }}>
+      <section id="panel-targets" role="tabpanel" aria-labelledby="tab-targets" hidden={tab !== "targets"} className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
+        {/* Roles and offer types drive scoring: they come first, on a phone too. */}
+        <div className="card space-y-4 p-5 rise" role="group" aria-labelledby="sec-targets">
           {sectionTitle("sec-targets", p2.sections.targets)}
           <ChipInput id="f-roles" label={p2.f.roles} values={d.target_roles} onChange={(v) => update({ target_roles: v })} suggestions={ROLE_SUGGESTIONS} showSuggestions placeholder={p2.f.rolesPh} />
           <TypesField value={d.target_types} onChange={(v) => update({ target_types: v })} />
           <AvailabilityField value={d.extra.availability} onChange={(v) => updateExtra({ availability: v })} />
+        </div>
+        <div className="card space-y-4 p-5 rise" role="group" aria-labelledby="sec-places" style={{ ["--i" as string]: 1 }}>
+          {sectionTitle("sec-places", p2.f.places)}
+          <CountryPicker
+            value={d.extra.places}
+            onChange={(v) => update({ extra: { ...latest.current.extra, places: v }, target_locations: placesToLocations(v) })}
+          />
+          <p className="hint">{p2.places.hint}</p>
         </div>
       </section>
 
@@ -454,7 +459,7 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             renderChip={(s) => (
               <select
                 aria-label={fmt(p2.skills.levelOf, { s })}
-                className="ml-0.5 rounded bg-transparent text-[0.7rem] font-medium text-accent-text outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)]"
+                className="ml-0.5 rounded bg-transparent text-[0.7rem] font-medium text-accent-text outline-none focus-visible:outline-2 focus-visible:outline-[var(--ring)] pointer-coarse:min-h-10"
                 value={d.extra.skill_levels[s] ?? ""}
                 onChange={(e) => {
                   const lv = { ...d.extra.skill_levels };
@@ -482,6 +487,81 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
         </div>
       </section>
 
+      {/* About */}
+      <section id="panel-about" role="tabpanel" aria-labelledby="tab-about" hidden={tab !== "about"} className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-identity">
+          {sectionTitle("sec-identity", p2.sections.identity)}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="f-name" label={p2.f.name}>
+              <input id="f-name" className="input" autoComplete="name" maxLength={120} value={d.name} onChange={(e) => update({ name: e.target.value })} />
+            </Field>
+            <Field id="f-email" label={p2.f.email}>
+              <input id="f-email" type="email" inputMode="email" className="input" autoComplete="email" value={d.email} aria-invalid={emailBad || undefined} aria-describedby={emailBad ? "f-email-err" : undefined} onChange={(e) => update({ email: e.target.value })} onBlur={() => setEmailTouched(true)} />
+              {emailBad && (
+                <p id="f-email-err" role="alert" className="mt-1 text-sm text-danger">
+                  {p2.f.emailInvalid}
+                </p>
+              )}
+            </Field>
+            <Field id="f-phone" label={p2.f.phone}>
+              <input id="f-phone" type="tel" className="input" autoComplete="tel" placeholder="+216 …" value={d.extra.phone} onChange={(e) => updateExtra({ phone: e.target.value })} />
+            </Field>
+            <Field id="f-city" label={p2.f.city}>
+              <input id="f-city" className="input" autoComplete="address-level2" value={d.extra.city} onChange={(e) => updateExtra({ city: e.target.value })} />
+            </Field>
+            <Field id="f-school" label={p2.f.school}>
+              <input id="f-school" className="input" value={d.extra.school} onChange={(e) => updateExtra({ school: e.target.value })} />
+            </Field>
+            <Field id="f-level" label={p2.f.level}>
+              <input id="f-level" className="input" placeholder={p2.f.levelPh} value={d.extra.level} onChange={(e) => updateExtra({ level: e.target.value })} />
+            </Field>
+            <Field id="f-specialty" label={p2.f.specialty}>
+              <input id="f-specialty" className="input" placeholder={p2.f.specialtyPh} value={d.extra.specialty} onChange={(e) => updateExtra({ specialty: e.target.value })} />
+            </Field>
+          </div>
+          <Field id="f-headline" label={p2.f.headline}>
+            <textarea id="f-headline" className="input !min-h-20" maxLength={300} placeholder={p2.f.headlinePh} value={d.headline} onChange={(e) => update({ headline: e.target.value })} />
+          </Field>
+          {suggestion && suggestion !== d.headline && (
+            <div className="-mt-2 flex items-start gap-2 rounded-lg bg-surface-2 p-2.5 text-sm">
+              <Wand2 size={14} className="mt-1 shrink-0 text-accent-text" aria-hidden="true" />
+              <p className="flex-1 text-ink-2">
+                <span className="sr-only">{p2.f.suggestion}: </span>
+                {suggestion}
+              </p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => update({ headline: suggestion })}>
+                {p2.f.useSuggestion}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="card space-y-4 p-5 rise" aria-labelledby="sec-links" style={{ ["--i" as string]: 1 }}>
+          {sectionTitle("sec-links", p2.sections.links)}
+          {(["github", "linkedin", "portfolio"] as const).map((k) => (
+            <Field key={k} id={`f-${k}`} label={p2.f[k]}>
+              <input id={`f-${k}`} type="url" inputMode="url" className="input" placeholder={k === "github" ? "https://github.com/…" : k === "linkedin" ? "https://linkedin.com/in/…" : "https://…"} value={d.extra.links[k]} onChange={(e) => updateExtra({ links: { ...d.extra.links, [k]: e.target.value } })} />
+            </Field>
+          ))}
+          <p className="hint !mt-0">{p2.f.linkHint}</p>
+        </div>
+        {/* Optional and set once: folded until it holds something. */}
+        <details className="card p-5 rise lg:col-span-2" open={styleOpen} style={{ ["--i" as string]: 2 }}>
+          <summary className="cursor-pointer text-base font-semibold pointer-coarse:py-2">
+            {p2.sections.style} <span className="ml-1 text-sm font-normal text-muted">· {t.common.optional}</span>
+          </summary>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <Field id="f-writing-sample" label={p2.f.writingSample}>
+              <textarea id="f-writing-sample" className="input !min-h-36 leading-relaxed" maxLength={4000} placeholder={p2.f.writingSamplePh} aria-describedby="f-writing-sample-hint" value={d.extra.writing_sample} onChange={(e) => updateExtra({ writing_sample: e.target.value })} />
+              <p id="f-writing-sample-hint" className="hint">{p2.f.writingSampleHint}</p>
+            </Field>
+            <Field id="f-house-rules" label={p2.f.houseRules}>
+              <textarea id="f-house-rules" className="input !min-h-36 leading-relaxed" maxLength={1500} placeholder={p2.f.houseRulesPh} aria-describedby="f-house-rules-hint" value={d.extra.house_rules} onChange={(e) => updateExtra({ house_rules: e.target.value })} />
+              <p id="f-house-rules-hint" className="hint">{p2.f.houseRulesHint}</p>
+            </Field>
+          </div>
+        </details>
+      </section>
+
       <Dialog
         open={dialog !== null}
         onClose={() => setDialog(null)}
@@ -494,16 +574,13 @@ export function ProfileEditor({ initial, upload: initialUpload, uploadText: init
             key={dialog}
             upload={upload}
             uploadText={uploadText}
-            onUploaded={(m, text) => {
-              setUpload(m);
-              setUploadText(text);
-            }}
             skills={d.skills}
             onAddSkills={addSkills}
             hasMarkdown={!!d.cv_md.trim()}
             onSaveMarkdown={saveMarkdown}
             startInReview={dialog === "convert"}
-            showUpload={dialog === "import"}
+            // Files go through the "CV file" card, which keeps this editor in step with what the server saved.
+            showUpload={false}
           />
         )}
       </Dialog>
@@ -545,7 +622,7 @@ export function TypesField({ value, onChange }: { value: string[]; onChange: (v:
       <legend className="label">{t.profile2.f.types}</legend>
       <div className="flex flex-wrap gap-2">
         {JOB_TYPES.map((ty) => (
-          <label key={ty} className="chip min-h-8 cursor-pointer !px-3 has-checked:!border-transparent has-checked:!bg-accent-soft has-checked:!text-accent-text">
+          <label key={ty} className="chip min-h-8 cursor-pointer !px-3 has-checked:!border-transparent has-checked:!bg-accent-soft has-checked:!text-accent-text pointer-coarse:min-h-10">
             <input
               type="checkbox"
               className="accent-[var(--accent)]"
@@ -563,6 +640,7 @@ export function TypesField({ value, onChange }: { value: string[]; onChange: (v:
 export function AvailabilityField({ value, onChange }: { value: { from: string; to: string }; onChange: (v: { from: string; to: string }) => void }) {
   const { t } = useT();
   const f = t.profile2.f;
+  const backwards = !!value.from && !!value.to && value.to < value.from;
   return (
     <fieldset>
       <legend className="label">{f.availability}</legend>
@@ -577,9 +655,14 @@ export function AvailabilityField({ value, onChange }: { value: { from: string; 
           <label className="text-xs text-muted" htmlFor="f-av-to">
             {f.availTo}
           </label>
-          <input id="f-av-to" type="date" className="input" min={value.from || undefined} value={value.to} onChange={(e) => onChange({ ...value, to: e.target.value })} />
+          <input id="f-av-to" type="date" className="input" min={value.from || undefined} value={value.to} aria-invalid={backwards || undefined} aria-describedby={backwards ? "f-av-err" : undefined} onChange={(e) => onChange({ ...value, to: e.target.value })} />
         </div>
       </div>
+      {backwards && (
+        <p id="f-av-err" role="alert" className="mt-1 text-sm text-danger">
+          {f.availOrder}
+        </p>
+      )}
     </fieldset>
   );
 }
@@ -612,13 +695,23 @@ export function LangsField({ value, onChange }: { value: { name: string; level: 
               </option>
             ))}
           </select>
-          <button type="button" className="btn btn-ghost btn-icon btn-sm" aria-label={fmt(l.remove, { x: x.name || l.name })} onClick={() => onChange(value.filter((_, k) => k !== i))}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon btn-sm"
+            aria-label={fmt(l.remove, { x: x.name || l.name })}
+            onClick={(e) => {
+              onChange(value.filter((_, k) => k !== i));
+              // Removed with the keyboard: focus moves to the row that took its place, or to "Add language".
+              if (e.detail === 0) requestAnimationFrame(() => (document.getElementById(`lang-${Math.min(i, value.length - 2)}`) ?? document.getElementById("lang-add"))?.focus());
+            }}
+          >
             <Trash2 size={14} aria-hidden="true" />
           </button>
         </div>
       ))}
       <button
         type="button"
+        id="lang-add"
         className="btn btn-secondary btn-sm"
         onClick={() => {
           const next = LANGUAGE_SUGGESTIONS.find((s) => !value.some((v) => v.name.toLowerCase() === s.toLowerCase())) ?? "";

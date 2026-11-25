@@ -4,50 +4,50 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt } from "@/lib/i18n/dict";
+import { createSaveQueue, type SaveStatus } from "./save-queue";
 
-export type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+export type { SaveStatus };
 
-/** Debounced autosave. Call schedule(value) on every change; the latest value wins. */
+/**
+ * Debounced autosave. Call schedule(value) on every change; the latest value wins and saves never overlap.
+ * flush() saves now and resolves false when the save failed. `save` must be stable (useCallback).
+ */
 export function useAutosave<T>(save: (v: T) => Promise<{ ok: boolean }>, delay = 700) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [at, setAt] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const pending = useRef<{ v: T } | null>(null);
+  const [queue] = useState(() =>
+    createSaveQueue<T>(save, (s) => {
+      if (s === "saved") setAt(Date.now());
+      setStatus(s);
+    }),
+  );
 
-  const flush = useCallback(async () => {
+  const flush = useCallback(() => {
     clearTimeout(timer.current);
-    const job = pending.current;
-    if (!job) return;
-    pending.current = null;
-    setStatus("saving");
-    try {
-      const r = await save(job.v);
-      if (!r.ok) throw new Error("save failed");
-      setAt(Date.now());
-      setStatus(pending.current ? "pending" : "saved");
-    } catch {
-      pending.current ??= job;
-      setStatus("error");
-    }
-  }, [save]);
+    return queue.flush();
+  }, [queue]);
 
   const schedule = useCallback(
     (v: T) => {
-      pending.current = { v };
-      setStatus("pending");
+      queue.set(v);
       clearTimeout(timer.current);
-      timer.current = setTimeout(flush, delay);
+      timer.current = setTimeout(() => void queue.flush(), delay);
     },
-    [flush, delay],
+    [queue, delay],
   );
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (pending.current) e.preventDefault();
+      if (queue.dirty()) e.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, []);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      // Leaving the page inside the debounce window still saves the last edit.
+      void flush();
+    };
+  }, [queue, flush]);
 
   return { status, at, schedule, flush };
 }
@@ -72,8 +72,9 @@ export function SaveIndicator({ status, at, onRetry }: { status: SaveStatus; at:
   return (
     <span className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted tabular">
       <span className="sr-only" aria-live="polite">
-        {status === "saving" ? s.saving : status === "pending" ? s.unsaved : status === "saved" ? fmt(s.savedAgo, { ago: s.justNow }) : s.error}
+        {status === "saving" ? s.saving : status === "pending" ? s.unsaved : status === "saved" ? fmt(s.savedAgo, { ago: s.justNow }) : status === "error" ? s.error : ""}
       </span>
+      {status === "idle" && s.auto}
       {status === "saving" && (
         <>
           <Loader2 size={14} className="animate-spin" aria-hidden="true" /> {s.saving}
