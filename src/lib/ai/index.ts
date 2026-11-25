@@ -213,17 +213,26 @@ export async function aiStreamResponse(settings: Settings, messages: ChatMessage
     try {
       const it = runStream(engine, messages);
       const first = await it.next();
+      // A stream that ends without a word (a refusal, an empty reply) would show the user a blank answer.
+      if (first.done) throw new Error("empty reply");
+      let gone = false; // the client stopped reading (Stop button, closed tab)
       const body = new ReadableStream<Uint8Array>({
         async start(ctrl) {
           try {
-            if (!first.done) ctrl.enqueue(enc.encode(first.value));
-            for await (const chunk of it) ctrl.enqueue(enc.encode(chunk));
+            ctrl.enqueue(enc.encode(first.value));
+            for await (const chunk of it) {
+              if (gone) break; // leaving the loop hangs up on the model too
+              ctrl.enqueue(enc.encode(chunk));
+            }
           } catch (e) {
-            ctrl.enqueue(enc.encode(`
+            if (!gone) ctrl.enqueue(enc.encode(`
 
 [${(e as Error).message}]`));
           }
-          ctrl.close();
+          if (!gone) ctrl.close();
+        },
+        cancel() {
+          gone = true;
         },
       });
       return new Response(body, { headers: { ...headers, "x-engine": engine.label } });

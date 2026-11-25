@@ -122,20 +122,25 @@ export async function* claudeStream(opts: { model: string; messages: ChatMessage
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += dec.decode(value, { stream: true });
-    let nl: number;
-    while ((nl = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      if (!line.startsWith("data:")) continue;
-      const ev = JSON.parse(line.slice(5)) as { type: string; delta?: { type?: string; text?: string }; error?: { message?: string } };
-      if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) yield ev.delta.text;
-      else if (ev.type === "error") throw new Error(ev.error?.message ?? "Claude stream error");
-      else if (ev.type === "message_stop") return;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        const ev = JSON.parse(line.slice(5)) as { type: string; delta?: { type?: string; text?: string }; error?: { message?: string } };
+        if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta" && ev.delta.text) yield ev.delta.text;
+        else if (ev.type === "error") throw new Error(ev.error?.message ?? "Claude stream error");
+        else if (ev.type === "message_stop") return;
+      }
     }
+  } finally {
+    // The reader left early (Stop button, closed tab): hang up, or the model keeps writing, and billing, to the end.
+    void reader.cancel().catch(() => {});
   }
 }
 
