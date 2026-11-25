@@ -132,7 +132,9 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): { inserted:
       const fks = foreignKeys(t).filter((f) => f.table !== t);
       const map = new Map<unknown, { id: unknown; inserted: boolean }>();
       maps.set(t, map);
-      const names = cols.map((c) => c.name).filter((c) => c !== intPk);
+      // A new id is assigned on insert, except when the key is the parent's id (application_extras, apply_packs,
+      // job_checks): that one is the remapped foreign key and must be written.
+      const names = cols.map((c) => c.name).filter((c) => c !== intPk || fks.some((f) => f.from === c));
       rows: for (const src of b.tables[t]) {
         const row = { ...src };
         for (const fk of fks) {
@@ -158,15 +160,18 @@ export function restoreBackup(b: Backup, mode: "merge" | "replace"): { inserted:
   return { inserted };
 }
 
-/** Erase user data, keep profile, sources (config) and settings:* preferences. */
+/** kv values that are settings without the "settings:" prefix: the clipper and extension token, CV and search preferences. */
+const KEPT_KV = ["clip_token", "cv_source_pref", "doc:style", "search:prefs"];
+
+/** Erase user data, keep the profile (with its uploaded CV file), sources (config) and settings. */
 export function resetAll(): void {
   const d = db();
-  const keep = new Set(["profile", "sources", "kv"]);
+  const keep = new Set(["profile", "cv_uploads", "sources", "kv"]);
   d.exec("PRAGMA foreign_keys = OFF");
   d.exec("BEGIN");
   try {
     for (const t of dataTables().reverse()) if (!keep.has(t)) d.exec(`DELETE FROM ${q(t)}`);
-    d.exec("DELETE FROM kv WHERE key NOT LIKE 'settings:%'");
+    d.exec(`DELETE FROM kv WHERE key NOT LIKE 'settings:%' AND key NOT IN (${KEPT_KV.map((k) => `'${k}'`).join(",")})`);
     d.exec("UPDATE sources SET last_scan = NULL, last_count = 0");
     d.exec("COMMIT");
   } catch (e) {

@@ -49,10 +49,29 @@ test("backup round trip: validate, merge without duplicates, replace exactly, re
   assert.equal((db().prepare("SELECT id FROM jobs").get() as { id: number }).id, a);
   assert.equal(b.previewBackup(backup!).find((p) => p.table === "jobs")?.current, 1);
 
+  // Reset keeps what belongs to the profile and the settings: the uploaded CV, the clipper token.
+  (await import("@/lib/cv/source")).getUpload();
+  db().prepare("INSERT INTO cv_uploads (file_name, stored_name, mime, size, text, uploaded_at) VALUES ('cv.pdf','1-cv.pdf','application/pdf',1,'text','2026-01-01')").run();
+  kvSet("clip_token", "tok");
   b.resetAll();
+  assert.equal(n("cv_uploads"), 1, "the profile's uploaded CV survives a reset");
+  assert.equal((db().prepare("SELECT value FROM kv WHERE key = 'clip_token'").get() as { value: string }).value, '"tok"', "the bookmarklet keeps working");
   assert.equal(n("jobs"), 0);
   assert.equal(n("applications"), 0);
   assert.equal(n("profile"), 1);
   assert.equal((db().prepare("SELECT COUNT(*) AS n FROM kv WHERE key = 'settings:autoscan'").get() as { n: number }).n, 1);
   assert.equal((db().prepare("SELECT COUNT(*) AS n FROM kv WHERE key = 'cache:x'").get() as { n: number }).n, 0);
+});
+
+test("merge keeps rows keyed by their parent's id (application extras) on the remapped application", async () => {
+  const { db, upsertJob, ensureApplication } = await import("@/lib/db");
+  const { setExtras, getExtras } = await import("@/lib/repo/apps");
+  const b = await import("./backup");
+  const job = upsertJob({ title: "Dev", company: "Acme", location: "", remote: false, url: "https://x/extras", source: "manual", type: "stage", description: "", tags: [], posted_at: null, deadline: null }).id;
+  setExtras(ensureApplication(job).id, { checklist: ["letter_skipped"] });
+  const { backup } = b.validateBackup(JSON.parse(JSON.stringify(b.exportBackup())));
+  db().exec("DELETE FROM jobs");
+  b.restoreBackup(backup!, "merge");
+  const app = db().prepare("SELECT a.id FROM applications a JOIN jobs j ON j.id = a.job_id WHERE j.url = 'https://x/extras'").get() as { id: number };
+  assert.deepEqual(getExtras(app.id).checklist, ["letter_skipped"]);
 });
