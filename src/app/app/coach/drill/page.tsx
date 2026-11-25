@@ -7,6 +7,7 @@ import { isTrack, orderDrill } from "@/lib/coach/logic";
 import { drillStates } from "@/lib/repo/coach";
 import { PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
+import { coachCounts } from "@/components/coach/counts";
 import { Drill } from "@/components/coach/drill";
 
 export const generateMetadata = pageTitle("drill");
@@ -35,7 +36,7 @@ export default async function DrillPage({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader eyebrow={t.coach2.title} title={d.heading} lead={d.lead} />
-      <CoachTabs t={t} current="drill" />
+      <CoachTabs t={t} current="drill" counts={coachCounts()} />
       <nav aria-label={d.track} className="mb-6 flex flex-wrap items-center gap-1.5">
         {[null, ...TRACKS].map((tr) => (
           <Link

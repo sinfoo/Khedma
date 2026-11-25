@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Form from "next/form";
 import Link from "next/link";
 import { after } from "next/server";
 import { ArrowUpRight, Search, Sparkles } from "lucide-react";
@@ -89,7 +90,8 @@ export default async function LearnPage({ searchParams }: PageProps<"/app/learn"
 
       <section className="mt-8" aria-labelledby="browse-h">
         <h2 id="browse-h" className="mb-3 text-[1.25rem] tracking-[-0.015em]">{m.searchTitle}</h2>
-        <form action="/app/learn" method="get" className="card grid gap-3 p-4">
+        {/* next/form: the search stays a client navigation (no full reload) and the page stays where the results are. */}
+        <Form action="/app/learn" scroll={false} className="card grid gap-3 p-4">
           <div className="flex gap-2">
             <label htmlFor="learn-q" className="sr-only">{m.search}</label>
             <input id="learn-q" name="q" defaultValue={q} placeholder={m.searchPh} className="input !h-10 min-w-0 flex-1" />
@@ -104,14 +106,14 @@ export default async function LearnPage({ searchParams }: PageProps<"/app/learn"
             <Select name="source" label={m.filters.source} value={source ?? ""} any={m.filters.any} options={Object.keys(counts.sources).map((k) => [k, SOURCE_NAMES[k] ?? k])} />
             <Select name="hours" label={m.filters.hours} value={maxHours ? String(maxHours) : ""} any={m.filters.any} options={Object.entries(m.hoursOpts)} />
           </div>
-        </form>
+        </Form>
 
         <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={m.filters.field}>
           {FIELD_KEYS.filter((k) => counts.fields[k]).map((k) => {
             const { Icon, hue } = FIELD_STYLE[k];
             return (
               <li key={k}>
-                <Link href={qs({ field: field === k ? null : k })} aria-current={field === k ? "page" : undefined} className="chip lc-chip min-h-7" style={hueVar(hue)}>
+                <Link href={qs({ field: field === k ? null : k })} scroll={false} aria-current={field === k ? "page" : undefined} className="chip lc-chip min-h-7" style={hueVar(hue)}>
                   <Icon size={13} aria-hidden="true" /> {m.fields[k]} <span className="mono opacity-70">{counts.fields[k]}</span>
                 </Link>
               </li>

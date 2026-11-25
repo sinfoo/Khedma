@@ -129,12 +129,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
         <aside className="flex flex-col gap-3">
           {/* Calibration and silent companies live on Insights; the week's report links there instead of repeating them. */}
-          <section className="card p-4" style={{ ["--i" as string]: 2 }}>
+          <section className="card p-4 rise" style={{ ["--i" as string]: 2 }}>
             <h2 className="card-title mb-1.5 text-[0.9rem]">{t.shell2.titles.insights}</h2>
             <p className="text-[0.78rem] text-muted">{r.insightsLink}</p>
             <Link href="/app/insights" className="btn btn-outline btn-sm mt-2.5">{t.shell2.titles.insights} →</Link>
           </section>
-          <section className="card p-4" style={{ ["--i" as string]: 4 }}>
+          <section className="card p-4 rise" style={{ ["--i" as string]: 3 }}>
             <h2 className="card-title mb-1.5 text-[0.9rem]">{r.exportHtml}</h2>
             <p className="text-[0.78rem] text-muted">{r.lead}</p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">

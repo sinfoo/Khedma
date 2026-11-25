@@ -14,7 +14,7 @@ export function CoachTabs({ t, current, counts = {} }: { t: Dict; current: "prac
     { key: "debrief", href: "/app/coach/debrief", label: c.debrief },
   ] as const;
   return (
-    <nav aria-label={c.label} className="seg max-w-full overflow-x-auto no-print">
+    <nav aria-label={c.label} className="seg mb-[18px] max-w-full overflow-x-auto no-print">
       {tabs.map((x) => (
         <Link key={x.key} href={x.href} aria-current={current === x.key ? "page" : undefined} className="seg-btn">
           {x.label}

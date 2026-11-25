@@ -3,6 +3,7 @@ import { getDict } from "@/lib/i18n/server";
 import { listStories } from "@/lib/repo/coach";
 import { PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
+import { coachCounts } from "@/components/coach/counts";
 import { StoriesBoard } from "@/components/coach/stories-board";
 
 export const generateMetadata = pageTitle("stories");
@@ -13,7 +14,7 @@ export default async function StoriesPage() {
   return (
     <>
       <PageHeader eyebrow={t.coach2.title} title={t.coach2.stories.heading} />
-      <CoachTabs t={t} current="stories" />
+      <CoachTabs t={t} current="stories" counts={coachCounts()} />
       <StoriesBoard stories={stories} />
     </>
   );

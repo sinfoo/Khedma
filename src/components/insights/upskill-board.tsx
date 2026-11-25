@@ -134,12 +134,16 @@ export function UpskillBoard({ matrix, plan }: { matrix: Matrix; plan: PlanView 
                   })}
                 </ol>
                 <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                  {p.resources.map((r) => (
-                    <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border border-line bg-surface-2 px-2.5 text-[0.72rem] font-semibold text-ink-2 hover:border-line-strong">
-                      <BookOpen size={11} aria-hidden="true" /> {r.title}
-                      <span className="sr-only"> ({m.external})</span>
-                    </a>
-                  ))}
+                  {p.resources.map((r) => {
+                    // "Courses in Khedma" is a page of this app: it opens here, not in a new tab.
+                    const ext = !r.url.startsWith("/");
+                    return (
+                      <Link key={r.url} href={r.url} target={ext ? "_blank" : undefined} rel={ext ? "noopener noreferrer" : undefined} className="inline-flex h-[26px] items-center gap-1 whitespace-nowrap rounded-full border border-line bg-surface-2 px-2.5 text-[0.72rem] font-semibold text-ink-2 hover:border-line-strong">
+                        <BookOpen size={11} aria-hidden="true" /> {r.title}
+                        {ext && <span className="sr-only"> ({m.external})</span>}
+                      </Link>
+                    );
+                  })}
                   {!acquired && (
                     <button
                       type="button"

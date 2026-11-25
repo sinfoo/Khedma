@@ -4,23 +4,16 @@ import { ChevronRight, MessagesSquare } from "lucide-react";
 import { getDict } from "@/lib/i18n/server";
 import { fmt } from "@/lib/i18n/dict";
 import { listApplications } from "@/lib/db";
-import { BANK } from "@/lib/coach/bank";
 import { detectLanguage } from "@/lib/ai/heuristic";
 import { allInterviewStarts } from "@/lib/repo/apps";
-import { drillStates, listSessions, listStories } from "@/lib/repo/coach";
+import { listSessions } from "@/lib/repo/coach";
+import { PageHeader } from "@/components/kit";
 import { ScoreRing, fmtDate, scoreColor, scoreLabel } from "@/components/ui";
 import { CoachTabs } from "@/components/coach/parts";
+import { coachCounts } from "@/components/coach/counts";
 import { StartForm } from "@/components/coach/start-form";
 
 export const generateMetadata = pageTitle("coach");
-
-function dueCount(now: number) {
-  const states = drillStates();
-  return BANK.filter((q) => q.type === "technical").filter((q) => {
-    const s = states.get(q.id);
-    return s && Date.parse(s.due_at) <= now;
-  }).length;
-}
 
 export default async function CoachPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { t, locale } = await getDict();
@@ -40,8 +33,6 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
   const last4 = done.slice(0, 4).reverse();
   const avg = done.length ? done.reduce((n, s) => n + s.score!, 0) / done.length : null;
   const trendUp = last4.length >= 2 && last4[last4.length - 1].score! > last4[0].score!;
-  const stories = listStories().length;
-  const due = dueCount(now.getTime());
   const suggested = apps.find((a) => a.interviewAt);
   const suggestedLabel = suggested?.interviewAt
     ? `${new Date(suggested.interviewAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-GB", { weekday: "long", hour: "2-digit", minute: "2-digit" })} · ${c.start.suggested}`
@@ -50,13 +41,9 @@ export default async function CoachPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <header className="mb-[18px] flex flex-wrap items-end justify-between gap-4 rise">
-        <div className="min-w-0">
-          <h1 className="text-[1.75rem] leading-[1.1] tracking-[-0.025em] sm:text-[2rem]">{c.title}</h1>
-          <p className="mt-1.5 text-muted">{lead}</p>
-        </div>
-        <CoachTabs t={t} current="practice" counts={{ stories, drill: due }} />
-      </header>
+      {/* Same place as on the three other tabs, so the tab row does not move when you switch. */}
+      <PageHeader title={c.title} lead={lead} />
+      <CoachTabs t={t} current="practice" counts={coachCounts(now.getTime())} />
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
         <StartForm apps={apps} preselect={Number.isInteger(pre) && pre > 0 ? pre : (suggested?.id ?? null)} locale={locale} suggestedLabel={suggestedLabel} />

@@ -6,6 +6,7 @@ import { fmt } from "@/lib/i18n/dict";
 import { listDebriefs } from "@/lib/repo/coach";
 import { CompanyAvatar, EmptyState, PageHeader } from "@/components/kit";
 import { CoachTabs } from "@/components/coach/parts";
+import { coachCounts } from "@/components/coach/counts";
 import { fmtDate } from "@/components/ui";
 
 export const generateMetadata = pageTitle("debriefs");
@@ -22,7 +23,7 @@ export default async function DebriefListPage() {
         lead={d.lead}
         actions={<Link href="/app/coach/debrief/new" className="btn btn-primary"><Plus size={16} aria-hidden="true" /> {d.newCta}</Link>}
       />
-      <CoachTabs t={t} current="debrief" />
+      <CoachTabs t={t} current="debrief" counts={coachCounts()} />
       {rows.length === 0 ? (
         <EmptyState icon={<NotebookPen size={22} aria-hidden="true" />} title={d.listEmpty} hint={d.listEmptyHint}>
           <Link href="/app/coach/debrief/new" className="btn btn-primary">{d.newCta}</Link>
