@@ -4,6 +4,7 @@ import { getCvSource } from "../cv/source";
 import { getProfileExtra } from "../cv/profile-extra";
 import { refineCandidateModel } from "../ai/discover";
 import { lastRunAt } from "../repo/sources";
+import { localStamp } from "../repo/apps";
 import { buildCandidateModel, FIELDS, LEVELS, hashInputs, type CandidateModel, type Field, type Level } from "./profile-model";
 import {
   recommendActions,
@@ -97,7 +98,7 @@ export interface ForYou {
 function upcomingInterviews(): Map<number, string> {
   const rows = db()
     .prepare("SELECT application_id, MIN(starts_at) AS at FROM interviews WHERE starts_at >= ? GROUP BY application_id")
-    .all(new Date().toISOString().slice(0, 16)) as { application_id: number; at: string }[];
+    .all(localStamp(new Date())) as { application_id: number; at: string }[]; // starts_at is local wall-clock time
   return new Map(rows.map((r) => [r.application_id, r.at]));
 }
 

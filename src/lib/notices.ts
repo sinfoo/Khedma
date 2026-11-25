@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { addDays, localDate, localStamp } from "./repo/apps";
 
 export interface Notice {
   key: string;
@@ -11,12 +12,12 @@ export interface Notice {
 }
 
 /** Due reminders, interviews in the next 48h and offer deadlines in the next 3 days. */
-export function getNotices(): Notice[] {
+export function getNotices(now = new Date()): Notice[] {
   const d = db();
-  const now = new Date();
-  const soon = new Date(now.getTime() + 48 * 3600_000).toISOString().slice(0, 16);
-  const today = now.toISOString().slice(0, 10);
-  const in3 = new Date(now.getTime() + 3 * 86400_000).toISOString().slice(0, 10);
+  // Stored dates and times are local wall-clock: compare them with the local day and time, not the UTC ones.
+  const soon = localStamp(new Date(now.getTime() + 48 * 3600_000));
+  const today = localDate(now);
+  const in3 = addDays(today, 3);
   const reminders = d
     .prepare(
       `SELECT r.id, r.title, r.due_at, r.application_id, r.job_id, j.company FROM reminders r
@@ -31,11 +32,11 @@ export function getNotices(): Notice[] {
        JOIN applications a ON a.id = i.application_id JOIN jobs j ON j.id = a.job_id
        WHERE i.starts_at >= ? AND i.starts_at <= ? ORDER BY i.starts_at LIMIT 10`,
     )
-    .all(now.toISOString().slice(0, 16), soon) as { id: number; starts_at: string; kind: string; application_id: number; company: string; title: string }[];
+    .all(localStamp(now), soon) as { id: number; starts_at: string; kind: string; application_id: number; company: string; title: string }[];
   const deadlines = d
     .prepare(
       `SELECT j.id, j.title, j.company, j.deadline FROM jobs j LEFT JOIN applications a ON a.job_id = j.id
-       WHERE j.archived = 0 AND j.deadline IS NOT NULL AND j.deadline >= ? AND j.deadline <= ?
+       WHERE j.archived = 0 AND j.deadline IS NOT NULL AND substr(j.deadline, 1, 10) >= ? AND substr(j.deadline, 1, 10) <= ?
        AND (a.id IS NULL OR a.status = 'evaluated') ORDER BY j.deadline LIMIT 10`,
     )
     .all(today, in3) as { id: number; title: string; company: string; deadline: string }[];

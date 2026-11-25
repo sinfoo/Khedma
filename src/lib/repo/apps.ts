@@ -44,6 +44,8 @@ export const isKind = (s: unknown): s is InterviewKind => typeof s === "string" 
 const pad = (n: number) => String(n).padStart(2, "0");
 /** Local calendar date "YYYY-MM-DD". */
 export const localDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+/** Local wall-clock "YYYY-MM-DDTHH:mm": the shape interviews and timed reminders are stored in. */
+export const localStamp = (d: Date) => `${localDate(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 export const isDate = (s: unknown): s is string =>
   typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s + "T00:00:00Z"));
 export const isDateTime = (s: unknown): s is string =>
@@ -345,7 +347,8 @@ export function applyStageChange(id: number, to: AppState, followupTitle: string
       const company = (d.prepare("SELECT company FROM jobs WHERE id = ?").get(app.job_id) as Row | undefined)?.company ?? "";
       snapshot.reminderId = addReminder({ application_id: id, title: followupTitle.replace("{company}", String(company)), due_at: fx.followupDue, kind: "followup" });
     }
-    if (to === "evaluated") d.prepare("UPDATE reminders SET done = 1 WHERE application_id = ? AND kind = 'followup' AND done = 0").run(id);
+    // Leaving "Applied" for any stage ends its follow-up reminder: an answer, an interview or a closed application is not chased with "follow up on your application".
+    if (to !== "applied") d.prepare("UPDATE reminders SET done = 1 WHERE application_id = ? AND kind = 'followup' AND done = 0").run(id);
     d.exec("COMMIT");
   } catch (e) {
     d.exec("ROLLBACK");
