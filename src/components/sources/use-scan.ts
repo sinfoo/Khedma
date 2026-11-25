@@ -9,12 +9,17 @@ import type { JobType } from "@/lib/types";
 export type { FoundJob, WidenCounts };
 
 export interface SourceStatus {
-  state: "queued" | "running" | "done" | "error";
+  /** "stopped": the scan ended (Stop, or a cut connection) before this source was read. */
+  state: "queued" | "running" | "done" | "error" | "stopped";
   added?: number;
   listed?: number;
   kept?: number;
   /** Matched offers the database already had. */
   known?: number;
+  /** Known offers the scan refreshed (new deadline, fuller description). */
+  updated?: number;
+  /** Read less than ten minutes ago: answered from that reading, the board was not asked again. */
+  cached?: boolean;
   dropped?: Record<string, number>;
   error?: string;
   /** Done, but part of the source failed (one keyword rate-limited, a page timed out). */
@@ -33,6 +38,8 @@ export interface ScanDone {
   added: number;
   errors: number;
   duplicates: number;
+  /** Of the duplicates, the stored offers this scan refreshed. */
+  updated?: number;
   dropped?: Record<string, number>;
   closed?: number;
   jobs: { id: number; title: string; company: string }[];
@@ -60,7 +67,8 @@ export interface ScanRequest {
 }
 
 /** `error` is a raw code ("HTTP 500", "interrupted"…): show it through errorReason(). */
-export type ScanOutcome = { kind: "done"; done: ScanDone } | { kind: "skipped" } | { kind: "busy" } | { kind: "cancelled" } | { kind: "error"; error: string };
+/** `ms`: how long the scan really took, by the server's clock (a page that attached late did not see its start). */
+export type ScanOutcome = { kind: "done"; done: ScanDone; ms?: number } | { kind: "skipped" } | { kind: "busy" } | { kind: "cancelled" } | { kind: "error"; error: string };
 
 /** What the Sources page keeps in sessionStorage so Back restores the whole result, not just the rows. */
 export interface ScanSnapshot {
@@ -77,6 +85,8 @@ export function useScan() {
   const [plan, setPlan] = useState<ScanPlan | null>(null);
   const [jobs, setJobs] = useState<FoundJob[]>([]);
   const [total, setTotal] = useState(0);
+  // When the running scan started, by the server's clock.
+  const [startedAt, setStartedAt] = useState(0);
   const busy = useRef(false);
   const ctrl = useRef<AbortController | null>(null);
 
@@ -90,11 +100,16 @@ export function useScan() {
     ctrl.current = new AbortController();
     let done: ScanDone | null = null;
     let error: string | undefined;
+    let started = 0;
+    let finished = 0;
     try {
       const res = await req();
       if (res.status === 204) return null;
       if (res.status === 409) return { kind: "busy" };
       if (!res.ok || !res.body) return { kind: "error", error: `HTTP ${res.status}` };
+      started = Number(res.headers.get("x-scan-started")) || Date.now();
+      finished = Number(res.headers.get("x-scan-finished")) || 0;
+      setStartedAt(started);
       setRunning(true);
       const reader = res.body.getReader();
       const dec = new TextDecoder();
@@ -123,7 +138,7 @@ export function useScan() {
               setStatus(init);
             }
           } else if (e.type === "source") {
-            const next: SourceStatus = e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, kept: e.kept, known: e.known, dropped: e.dropped, error: e.error, warning: e.warning };
+            const next: SourceStatus = e.status === "running" ? { state: "running" } : { state: e.status, added: e.added, listed: e.listed, kept: e.kept, known: e.known, updated: e.updated, cached: e.cached, dropped: e.dropped, error: e.error, warning: e.warning };
             setStatus((st) => {
               const out = { ...st };
               for (const k of keysOf(e)) out[k] = next;
@@ -144,8 +159,10 @@ export function useScan() {
       busy.current = false;
       ctrl.current = null;
       setRunning(false);
+      // No "done" event (Stop, cut connection): the sources still waiting were not read, and no longer will be.
+      if (!done) setStatus((st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, v.state === "running" || v.state === "queued" ? { state: "stopped" as const } : v])));
     }
-    if (done) return { kind: "done", done: merge ? { ...done, retry: true } : done };
+    if (done) return { kind: "done", done: merge ? { ...done, retry: true } : done, ms: (finished || Date.now()) - started };
     return { kind: "error", error: error ?? "interrupted" };
   }, []);
 
@@ -154,8 +171,11 @@ export function useScan() {
       (await follow(() => fetch("/api/sources/scan", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(opts), signal: ctrl.current?.signal }), !!opts.keys?.length)) ?? { kind: "skipped" },
     [follow],
   );
-  /** Reattach to a scan still running on the server (the page was left or reloaded); null when none is. */
-  const attach = useCallback(() => follow(() => fetch("/api/sources/scan", { signal: ctrl.current?.signal })), [follow]);
+  /**
+   * Reattach to a scan still running on the server (the page was left or reloaded); null when none is.
+   * `since`: when none is running, replay the last scan if it started at or after that time.
+   */
+  const attach = useCallback((since?: number) => follow(() => fetch(`/api/sources/scan${since ? `?since=${since}` : ""}`, { signal: ctrl.current?.signal })), [follow]);
 
   const finished = plan ? plan.runs.filter((r) => ["done", "error"].includes(status[r.key]?.state ?? "")).length : 0;
   const dropped: Record<string, number> = {};
@@ -171,9 +191,16 @@ export function useScan() {
     setStatus(s.status ?? {});
     setTotal(s.plan?.runs.length ?? 0);
   }, []);
+  /** Forget the previous scan before a new one starts, so its offers and sources never show under the new one. */
+  const reset = useCallback(() => {
+    setJobs([]);
+    setPlan(null);
+    setStatus({});
+    setTotal(0);
+  }, []);
   /** Offers brought back by a widen button, appended to the feed. */
   const addJobs = useCallback((more: FoundJob[]) => setJobs((js) => [...js, ...more.filter((m) => !js.some((j) => j.id === m.id))]), []);
-  return { start, attach, stop, restore, addJobs, running, status, total, finished, plan, jobs, dropped };
+  return { start, attach, stop, restore, reset, addJobs, startedAt, running, status, total, finished, plan, jobs, dropped };
 }
 
 /**

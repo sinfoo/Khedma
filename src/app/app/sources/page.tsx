@@ -3,7 +3,8 @@ import { ScanPanel } from "@/components/sources/scan-panel";
 import { SourcesTabs } from "@/components/sources/tabs";
 import { getProfile } from "@/lib/db";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { defaultKeywords, getScanOptions, listSavedSearches, searchCountries, listSourceRows } from "@/lib/repo/sources";
+import { defaultKeywords, getScanOptions, getSearchPrefs, listSavedSearches, searchCountries, listSourceRows } from "@/lib/repo/sources";
+import { buildFilter } from "@/lib/search/filter";
 import { cvForMatching } from "@/lib/repo/offers";
 
 export const generateMetadata = pageTitle("sources");
@@ -28,6 +29,8 @@ export default async function SourcesPage({ searchParams }: PageProps<"/app/sour
         autoStart={typed.length > 0}
         typed={typed.length > 0}
         saved={getScanOptions()}
+        // The types the filter falls back to when the form picks none (same rule as the scan: preferences, then profile).
+        defaultTypes={buildFilter({ keywords: [], profile, places: { countries: [], remote: "yes" }, prefs: getSearchPrefs() }).types}
         searches={listSavedSearches()}
       />
     </>

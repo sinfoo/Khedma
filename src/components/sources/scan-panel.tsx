@@ -72,6 +72,7 @@ export function ScanPanel({
   typed = false,
   cvKeywords = [],
   saved = { types: [], negatives: [] },
+  defaultTypes = [],
   searches: initialSearches = [],
 }: {
   keywords: string[];
@@ -85,6 +86,8 @@ export function ScanPanel({
   cvKeywords?: string[];
   /** Search options kept from the last scan. */
   saved?: { types: JobType[]; negatives: string[] };
+  /** Contract types the scan keeps when none is picked here (work preferences, else the profile's targets). */
+  defaultTypes?: JobType[];
   /** Named searches to run again in one click. */
   searches?: SavedSearch[];
 }) {
@@ -93,7 +96,7 @@ export function ScanPanel({
   const toast = useToast();
   const router = useRouter();
   const params = useSearchParams();
-  const { start, attach, stop, restore, addJobs, running, status, total, finished, plan, jobs, dropped } = useScan();
+  const { start, attach, stop, restore, reset, addJobs, startedAt: scanStartedAt, running, status, total, finished, plan, jobs, dropped } = useScan();
   const [kw, setKw] = useState(keywords.join(", "));
   const [countries, setCountries] = useState<string[]>(places.countries);
   const [remote, setRemote] = useState<Remote>(places.remote);
@@ -106,6 +109,8 @@ export function ScanPanel({
   const [preparing, startPrepare] = useTransition();
   const [done, setDone] = useState<ScanDone | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
+  // What the running scan was asked for, fixed when it starts; null for a scan this page only follows.
+  const [searched, setSearched] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [scoreTick, setScoreTick] = useState(0);
@@ -115,20 +120,24 @@ export function ScanPanel({
   const num = (n: number) => n.toLocaleString(locale);
   const countryName = (code: string) => (code === REMOTE_CODE ? t.common.remote : (countryByCode(code)?.[L] ?? code));
 
-  // Clock in the stage header.
+  // Clock in the stage header, from the scan's own start: a page that reattaches mid-scan shows the real time.
   useEffect(() => {
     if (!running || retrying) return;
-    startedAt.current = Date.now();
-    const id = setInterval(() => setElapsed(Math.round((Date.now() - startedAt.current) / 1000)), 1000);
+    startedAt.current = scanStartedAt || Date.now();
+    const id = setInterval(() => setElapsed(Math.max(0, Math.round((Date.now() - startedAt.current) / 1000))), 1000);
     return () => clearInterval(id);
-  }, [running, retrying]);
+  }, [running, retrying, scanStartedAt]);
 
   const allTerms = split(kw);
   const terms = allTerms.slice(0, MAX_KW);
   const negList = split(negatives);
   const preview = planSearch({ keywords: terms, countries, remote, enabledSources: sources });
-  // What this search asks for, shown while it runs and kept in its summary.
-  const lookingFor = [terms.join(" · ") || "—", countries.map(countryName).join(", "), types.length ? types.map((ty) => t.jobTypes[ty]).join(", ") : "", negList.length ? fmt(m.without, { v: negList.join(", ") }) : ""].filter(Boolean);
+  // What a search asks for, shown while it runs and kept in its summary.
+  const describe = (kws: string[]) =>
+    [kws.join(" · ") || "—", countries.map(countryName).join(", "), types.length ? types.map((ty) => t.jobTypes[ty]).join(", ") : "", negList.length ? fmt(m.without, { v: negList.join(", ") }) : ""].filter(Boolean).join(" · ");
+  // A scan started elsewhere (another tab, before a reload): only its plan says what it searches.
+  const planned = (p: typeof plan) => [...new Set((p?.runs ?? []).flatMap((r) => r.keywords))].slice(0, MAX_KW).join(" · ");
+  const lookingFor = searched ?? planned(plan);
 
   // Mirror of the live state for the async scan callbacks (a stopped scan is summed from it).
   const live = useRef({ jobs, status, dropped, plan });
@@ -146,20 +155,28 @@ export function ScanPanel({
       added: js.length,
       errors: runs.filter((r) => st[r.key]?.state === "error").length,
       duplicates: runs.reduce((a, r) => a + (st[r.key]?.known ?? 0), 0),
+      updated: runs.reduce((a, r) => a + (st[r.key]?.updated ?? 0), 0),
       dropped: dr,
       jobs: [],
       stopped: true,
     };
   };
 
-  const settle = (r: ScanOutcome, asked: boolean) => {
+  /** `label`: what this page asked the scan for; absent when it only follows a scan started elsewhere. */
+  const settle = (r: ScanOutcome, asked: boolean, label?: string) => {
+    const what = label ?? planned(live.current.plan);
     if (r.kind === "done") {
       const retry = asked || !!r.done.retry;
       // A retry adds to the scan it retries; its widen counts cover the whole scan.
-      setDone((d) => (retry && d ? { ...d, added: d.added + r.done.added, duplicates: d.duplicates + r.done.duplicates, widen: r.done.widen } : { ...r.done, searched: lookingFor.join(" · ") }));
+      setDone((d) =>
+        retry && d
+          ? { ...d, added: d.added + r.done.added, duplicates: d.duplicates + r.done.duplicates, updated: (d.updated ?? 0) + (r.done.updated ?? 0), widen: r.done.widen }
+          : { ...r.done, searched: what },
+      );
+      if (!retry && r.ms) setElapsed(Math.round(r.ms / 1000));
       router.refresh();
     } else if (r.kind === "busy") toast.info(t.sources2.busy);
-    else if (r.kind === "cancelled") setDone({ ...stoppedDone(), searched: lookingFor.join(" · ") });
+    else if (r.kind === "cancelled") setDone({ ...stoppedDone(), searched: what });
     else if (r.kind === "error") setFailure(r.error);
   };
 
@@ -168,29 +185,52 @@ export function ScanPanel({
   /** `use`: scan with these keywords instead of the box's ("Auto scan" passes the CV's). `keys`: retry only these runs. */
   const run = (use?: string[], keys?: string[]) => {
     setFailure(null);
+    const label = describe(use ?? terms);
     if (keys) setRetrying(true);
     else {
+      // The previous scan leaves the page now: its offers and sources must not show under the new one,
+      // and a reload in the middle must not bring it back as "the last scan".
+      reset();
       setDone(null);
       setElapsed(0);
+      setSearched(label);
+      try {
+        // `pending`: this tab started a scan at that time; if the page is left before it ends, coming back shows how it ended.
+        sessionStorage.setItem(FEED_KEY, JSON.stringify({ pending: Math.floor(seconds() * 1000) }));
+      } catch {
+        // storage blocked: nothing was kept anyway
+      }
     }
     startPrepare(async () => {
       const untouched = !use && !typed && terms.join(",").toLowerCase() === keywords.slice(0, MAX_KW).join(",").toLowerCase();
       const r = await start({ keywords: untouched ? undefined : (use ?? terms), countries, remote, types, negatives: negList, keys });
       // Another tab (or this page before a reload) is scanning: follow that scan instead.
       const followed = r.kind === "busy" && !keys ? await attach() : null;
-      settle(followed ?? r, !!keys);
+      if (followed) setSearched(null);
+      settle(followed ?? r, !!keys, followed || keys ? undefined : label);
       setRetrying(false);
     });
   };
 
-  // Back on the page while a scan still runs on the server: pick it up where it is.
+  // Back on the page while a scan still runs on the server: pick it up where it is. When the scan this tab started
+  // ended meanwhile, its whole log is replayed instead, so its result is not lost.
   useEffect(() => {
     if (autoStart) return;
-    void attach().then((r) => {
+    void (async () => {
+      let r = await attach();
+      if (!r) {
+        let since = 0;
+        try {
+          since = Number((JSON.parse(sessionStorage.getItem(FEED_KEY) ?? "null") as { pending?: number } | null)?.pending) || 0;
+          if (since) sessionStorage.removeItem(FEED_KEY);
+        } catch {
+          // private mode or bad JSON: nothing pending
+        }
+        if (since) r = await attach(since);
+      }
       if (!r || r.kind === "busy") return; // busy = this page already follows it (dev runs effects twice)
-      setElapsed(0);
       settle(r, false);
-    });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -289,6 +329,7 @@ export function ScanPanel({
         </button>
       </div>
       <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted" role="group" aria-label={m.countries}>
+        <span className="eyebrow mr-0.5 text-[0.68rem]" aria-hidden="true">{m.countries}</span>
         {countryChips.slice(0, allCountries || countryChips.length <= 8 ? undefined : 6).map((code) => {
           const on = countries.includes(code);
           return (
@@ -331,6 +372,31 @@ export function ScanPanel({
         </label>
         <Link href="/app/profile" className="ml-1 font-semibold text-accent-text">{m.addCountry}</Link>
       </p>
+      {/* Contract types sit in the form itself: "internships only" is the first thing a student sets. */}
+      <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[0.72rem] text-muted" role="group" aria-label={t.offers2.searchBar.typesLabel}>
+        <span className="eyebrow mr-0.5 text-[0.68rem]" aria-hidden="true">{t.offers2.searchBar.typesLabel}</span>
+        {JOB_TYPES.map((ty) => {
+          const on = types.includes(ty);
+          return (
+            <button
+              key={ty}
+              type="button"
+              aria-pressed={on}
+              disabled={busy}
+              className={`chip !h-6 cursor-pointer !py-0 text-[0.7rem] ${on ? "chip-accent" : "opacity-70"}`}
+              onClick={() => {
+                const next = on ? types.filter((x) => x !== ty) : [...types, ty];
+                setTypes(next);
+                persistOptions({ types: next });
+              }}
+            >
+              {t.jobTypes[ty]}
+            </button>
+          );
+        })}
+        {/* Nothing picked is not "everything": the scan then keeps the types of the work preferences. */}
+        {types.length === 0 && <span className="ml-1">{defaultTypes.length ? fmt(m.typesDefault, { v: defaultTypes.map((ty) => t.jobTypes[ty]).join(", ") }) : m.typesAny}</span>}
+      </p>
       <p id="scan-kw-hint" className="mt-1.5 flex flex-wrap items-center gap-x-1.5 text-[0.72rem] text-muted">
         <span>{keywords.length ? fmt(m.fromCv, { kw: keywords.join(", ") }) : preview.runs.length ? fmt(m.ready, { n: preview.runs.length }) : m.noSources}</span>
         {allTerms.length > MAX_KW && <span className="font-semibold text-saffron">{fmt(m.kwCap, { n: MAX_KW })}</span>}
@@ -339,7 +405,7 @@ export function ScanPanel({
         )}
         <button type="button" className="ml-auto inline-flex items-center gap-1 font-semibold text-accent-text" aria-expanded={options} aria-controls="scan-options" onClick={() => setOptions((o) => !o)}>
           <Settings2 size={12} aria-hidden="true" /> {m.options}
-          {(types.length > 0 || negList.length > 0) && <span className="chip chip-accent !h-4 !px-1.5 !py-0 text-[0.62rem]">{types.length + negList.length}</span>}
+          {negList.length > 0 && <span className="chip chip-accent !h-4 !px-1.5 !py-0 text-[0.62rem]">{negList.length}</span>}
         </button>
       </p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[0.72rem]" role="group" aria-label={m.savedSearches}>
@@ -361,7 +427,7 @@ export function ScanPanel({
             >
               {[s.keywords.slice(0, 3).join(", "), s.countries.map(countryName).join(", ")].filter(Boolean).join(" · ")}
             </button>
-            <button type="button" className="btn btn-ghost btn-icon !size-5" aria-label={fmt(m.deleteSaved, { name: s.keywords.join(", ") })} onClick={async () => setSearches(await deleteSavedSearch(s.id))}>
+            <button type="button" className="btn btn-ghost btn-icon !size-6" aria-label={fmt(m.deleteSaved, { name: s.keywords.join(", ") })} onClick={async () => setSearches(await deleteSavedSearch(s.id))}>
               <X size={11} aria-hidden="true" />
             </button>
           </span>
@@ -380,31 +446,10 @@ export function ScanPanel({
       </div>
       {options && (
         <div id="scan-options" className="mt-2 space-y-2 rounded-xl border border-line bg-surface p-3 text-sm" style={{ animation: "pop .18s ease both" }}>
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t.offers2.searchBar.typesLabel}>
-            <span className="eyebrow text-[0.68rem]" aria-hidden="true">{t.offers2.searchBar.typesLabel}</span>
-            {JOB_TYPES.map((ty) => {
-              const on = types.includes(ty);
-              return (
-                <button
-                  key={ty}
-                  type="button"
-                  aria-pressed={on}
-                  className={`chip min-h-7 cursor-pointer ${on ? "chip-accent" : ""}`}
-                  onClick={() => {
-                    const next = on ? types.filter((x) => x !== ty) : [...types, ty];
-                    setTypes(next);
-                    persistOptions({ types: next });
-                  }}
-                >
-                  {t.jobTypes[ty]}
-                </button>
-              );
-            })}
-          </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <label className="flex items-center gap-2">
               <span className="eyebrow text-[0.68rem]">{t.offers2.searchBar.remoteLabel}</span>
-              <select id="scan-remote" className="input !h-8 !w-auto !py-0 text-sm" value={remote} onChange={(e) => setRemote(e.target.value as Remote)}>
+              <select id="scan-remote" className="input !h-8 !w-auto !py-0 text-sm" value={remote} disabled={busy} onChange={(e) => setRemote(e.target.value as Remote)}>
                 {(["yes", "only", "no"] as const).map((r) => (
                   <option key={r} value={r}>{t.offers2.searchBar.remoteOpts[r]}</option>
                 ))}
@@ -412,7 +457,7 @@ export function ScanPanel({
             </label>
             <label className="flex min-w-48 flex-1 items-center gap-2">
               <span className="eyebrow shrink-0 text-[0.68rem]">{t.offers2.searchBar.negatives}</span>
-              <input id="scan-negatives" className="input !h-8 min-w-0 flex-1 !py-0 text-sm" value={negatives} placeholder={t.offers2.searchBar.negativesPh} onChange={(e) => setNegatives(e.target.value)} onBlur={() => persistOptions({})} />
+              <input id="scan-negatives" className="input !h-8 min-w-0 flex-1 !py-0 text-sm" value={negatives} disabled={busy} placeholder={t.offers2.searchBar.negativesPh} onChange={(e) => setNegatives(e.target.value)} onBlur={() => persistOptions({})} />
             </label>
           </div>
           <p className="text-[0.75rem] text-muted">
@@ -576,12 +621,14 @@ export function ScanPanel({
                 )}
                 {scanning && (
                   <div>
-                    <div className="bar">
+                    <div className="bar" role="progressbar" aria-label={m.progressLabel} aria-valuemin={0} aria-valuemax={total} aria-valuenow={finished} aria-valuetext={fmt(t.sources2.radar.progress, { done: finished, total })}>
                       <span style={{ width: `${pct}%` }} />
                     </div>
-                    <p className="mt-1.5 text-[0.72rem] text-muted">
-                      {m.lookingFor} <span className="mono text-ink-2">{lookingFor.join(" · ")}</span>
-                    </p>
+                    {lookingFor && (
+                      <p className="mt-1.5 text-[0.72rem] text-muted">
+                        {m.lookingFor} <span className="mono text-ink-2">{lookingFor}</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -607,7 +654,9 @@ export function ScanPanel({
             elapsed={elapsed}
             finished={finished}
             total={total}
-            lookingFor={lookingFor.join(" · ")}
+            lookingFor={lookingFor}
+            cached={blips.filter((b) => b.st?.cached).length}
+            silent={blips.filter((b) => b.st?.state === "done" && !b.st.listed).length}
             onScored={() => setScoreTick((n) => n + 1)}
             onWiden={onWiden}
           />
@@ -640,9 +689,10 @@ function SourceList({ blips, summary, open = false }: { blips: Blip[]; summary: 
           const cls = state === "done" ? "border-transparent bg-success-soft text-success" : state === "running" ? "border-transparent bg-accent-soft text-accent-text" : state === "error" ? "border-transparent bg-danger-soft text-danger" : "border-line bg-surface text-ink-2";
           const dot = state === "done" ? "var(--success)" : state === "running" ? "var(--accent)" : state === "error" ? "var(--danger)" : "var(--line-strong)";
           const partial = state === "done" && b.st?.warning ? `${s.srPartial}: ${errorReason(t, b.st.warning)}` : undefined;
-          const sr = state === "done" ? `${fmt(s.srKept, { n: b.st?.added ?? 0 })}${partial ? ` (${partial})` : ""}` : state === "error" ? `${s.srError}: ${errorReason(t, b.st?.error)}` : state === "running" ? s.srRunning : s.srQueued;
+          const note = partial ?? (state === "done" && b.st?.cached ? s.srCached : undefined);
+          const sr = state === "done" ? `${fmt(s.srKept, { n: b.st?.added ?? 0 })}${note ? ` (${note})` : ""}` : state === "error" ? `${s.srError}: ${errorReason(t, b.st?.error)}` : state === "running" ? s.srRunning : state === "stopped" ? s.srStopped : s.srQueued;
           return (
-            <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls}`} title={state === "error" ? errorReason(t, b.st?.error) : partial}>
+            <li key={b.key} className={`inline-flex h-6 items-center gap-1.5 whitespace-nowrap rounded-full border pl-1.5 pr-2 text-[0.7rem] font-semibold transition-all ${cls} ${state === "stopped" ? "opacity-60" : ""}`} title={state === "error" ? errorReason(t, b.st?.error) : state === "stopped" ? s.srStopped : note}>
               <span className="size-1.5 rounded-full" style={{ background: dot }} aria-hidden="true" />
               {b.label}
               {state === "done" && <span className="mono opacity-80" aria-hidden="true">+{b.st?.added ?? 0}{partial ? " !" : ""}</span>}
@@ -661,6 +711,8 @@ function SourceResults({ blips, busy, onRetry }: { blips: Blip[]; busy: boolean;
   const m = t.sources2.scan2;
   const failed = blips.filter((b) => b.st?.state === "error");
   const retrying = blips.filter((b) => b.st?.state === "running" || b.st?.state === "queued");
+  const read = blips.filter((b) => b.st?.state === "done" || b.st?.state === "error").length;
+  const notRead = blips.length - read - retrying.length;
   return (
     <section aria-label={m.sourcesTitle} className="card py-1">
       {failed.length + retrying.length > 0 && (
@@ -691,7 +743,7 @@ function SourceResults({ blips, busy, onRetry }: { blips: Blip[]; busy: boolean;
           </ul>
         </div>
       )}
-      <SourceList blips={blips} summary={fmt(m.sourcesRead, { n: blips.length, errors: failed.length })} />
+      <SourceList blips={blips} summary={`${fmt(m.sourcesRead, { n: read, errors: failed.length })}${notRead > 0 ? ` · ${fmt(m.sourcesNotRead, { n: notRead })}` : ""}`} />
     </section>
   );
 }
@@ -713,6 +765,8 @@ function Feed({
   finished,
   total,
   lookingFor,
+  cached,
+  silent,
   onScored,
   onWiden,
 }: {
@@ -728,6 +782,10 @@ function Feed({
   finished: number;
   total: number;
   lookingFor: string;
+  /** Sources answered from a reading under ten minutes old. */
+  cached: number;
+  /** Sources that answered without an error and listed no offer at all (nothing for these keywords, or a page that changed). */
+  silent: number;
   onScored: () => void;
   onWiden: (w: "type" | "age") => Promise<unknown>;
 }) {
@@ -826,24 +884,26 @@ function Feed({
     skipped ? fmt(m.sourcesSkipped, { n: skipped }) : "",
     skippedBlacklist ? fmt(t.sources2.radar.skippedBlacklist, { n: skippedBlacklist }) : "",
     done?.closed ? fmt(m.closedRemoved, { n: done.closed }) : "",
+    cached ? fmt(m.cachedNote, { n: cached }) : "",
+    silent ? fmt(m.silentNote, { n: silent }) : "",
   ].filter(Boolean);
   const w = done?.widen;
 
   return (
-    // overflow-clip, not hidden: the done banner below stays sticky while the list scrolls.
+    // overflow-clip, not hidden: the done banner below stays sticky while the list scrolls (not on phones: it would cover half the screen).
     <section aria-label={m.feedLabel} className="card flex flex-col overflow-clip" style={{ minHeight: done && !jobs.length ? 0 : show ? 520 : 320 }}>
       {done && (
-        <div className="sticky top-14 z-10 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg-elev px-[18px] py-3.5" style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) .25s both" }}>
+        <div className="z-10 flex flex-wrap items-center gap-x-3.5 gap-y-2.5 border-b border-line bg-bg-elev px-[18px] py-3.5 sm:sticky sm:top-14" style={{ animation: "pop .35s cubic-bezier(.2,.7,.2,1) .25s both" }}>
           <span className="tile tile-sm tone-success !size-10 !rounded-xl" style={{ animation: "land .6s cubic-bezier(.2,.7,.2,1) .3s both" }}>
             <CircleCheck size={20} aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1 basis-64">
             <h2 className="text-[1.05rem] tracking-[-0.01em]">{fmt(m.feedAll, { n: jobs.length })}</h2>
             <p className="mt-0.5 text-[0.8rem] text-muted">
-              {fmt(m.summary2, { listed: num(listed), dupes: num(done.duplicates), dropped: num(dropped), s: elapsed })}
+              {fmt(m.summary2, { listed: num(listed), added: num(jobs.length), updated: num(done.updated ?? 0), same: num(Math.max(0, done.duplicates - (done.updated ?? 0))), dropped: num(dropped), s: elapsed })}
               {done.stopped && ` ${m.stoppedNote}`}
             </p>
-            <p className="mt-0.5 text-[0.75rem] text-muted">{fmt(m.searchedFor, { v: done.searched ?? lookingFor })}</p>
+            {(done.searched ?? lookingFor) && <p className="mt-0.5 text-[0.75rem] text-muted">{fmt(m.searchedFor, { v: done.searched ?? lookingFor })}</p>}
             {reasons.length > 0 && (
               <p className="mt-0.5 text-[0.75rem] text-muted">
                 {m.droppedBecause} {reasons.map(([k, n]) => `${t.sources2.radar.reasons[k as keyof typeof t.sources2.radar.reasons] ?? k} ${num(n)}`).join(" · ")}
@@ -894,7 +954,8 @@ function Feed({
       )}
       {!done && show && (
         <div className="flex items-center justify-between border-b border-line px-[18px] py-3.5">
-          <h2 className="card-title">{m.feedLive}</h2>
+          {/* "Live" only while it is: after a cut connection these are the offers found before it. */}
+          <h2 className="card-title">{scanning ? m.feedLive : m.feedLabel}</h2>
           <span className="text-[0.78rem] text-muted">{fmt(m.feedSub, { n: jobs.length, done: finished, total })}</span>
         </div>
       )}

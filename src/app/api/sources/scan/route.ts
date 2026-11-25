@@ -11,9 +11,16 @@ interface Live {
   lines: string[];
   subs: Set<(line: string | null) => void>;
   stop: AbortController;
+  startedAt: number;
+  finishedAt?: number;
 }
-const g = globalThis as { __khedmaScanLive?: Live | null };
+// `__khedmaScanLast`: the log of the scan that ended last (one log, replaced each time), for the page that started
+// it and comes back after it ended.
+const g = globalThis as { __khedmaScanLive?: Live | null; __khedmaScanLast?: Live };
 const NDJSON = { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" };
+/** The scan's clock travels with the stream, so a page that attaches late shows the real elapsed time. */
+const stream = (live: Live) =>
+  new Response(follow(live), { headers: { ...NDJSON, "x-scan-started": String(live.startedAt), ...(live.finishedAt && { "x-scan-finished": String(live.finishedAt) }) } });
 const enc = new TextEncoder();
 
 /**
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
   if (trigger === "auto" && !autoScanDue()) return new Response(null, { status: 204 });
   if (scanBusy() || g.__khedmaScanLive) return Response.json({ error: "A scan is already running" }, { status: 409 });
 
-  const live: Live = { lines: [], subs: new Set(), stop: new AbortController() };
+  const live: Live = { lines: [], subs: new Set(), stop: new AbortController(), startedAt: Date.now() };
   g.__khedmaScanLive = live;
   const send = (e: ScanEvent | { type: "error"; error: string }) => {
     const line = `${JSON.stringify(e)}\n`;
@@ -70,21 +77,29 @@ export async function POST(req: Request) {
     } catch (e) {
       send({ type: "error", error: (e as Error).message });
     } finally {
+      live.finishedAt = Date.now();
+      g.__khedmaScanLast = live;
       g.__khedmaScanLive = null;
       for (const s of live.subs) s(null);
     }
   })();
-  return new Response(follow(live), { headers: NDJSON });
+  return stream(live);
 }
 
 /**
  * Reattach to the running scan: every event so far, then the rest live. 204 when no scan is running.
  * `?status=1` only says whether one is running (the topbar's radar spins during a background scan).
+ * `?since=<ms>`: when none is running, replay the last scan if it started at or after that time (the page that
+ * started a scan, left, and came back after it ended).
  */
 export function GET(req: Request) {
   const live = g.__khedmaScanLive;
-  if (new URL(req.url).searchParams.has("status")) return Response.json({ running: !!live }, { headers: { "cache-control": "no-store" } });
-  return live ? new Response(follow(live), { headers: NDJSON }) : new Response(null, { status: 204 });
+  const q = new URL(req.url).searchParams;
+  if (q.has("status")) return Response.json({ running: !!live }, { headers: { "cache-control": "no-store" } });
+  if (live) return stream(live);
+  const last = g.__khedmaScanLast;
+  const since = Number(q.get("since"));
+  return last && q.has("since") && Number.isFinite(since) && last.startedAt >= since ? stream(last) : new Response(null, { status: 204 });
 }
 
 /** Stop the running scan (the Stop button). It still records what it found so far. */
