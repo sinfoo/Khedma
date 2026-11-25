@@ -86,13 +86,19 @@ export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverag
       // storage blocked or malformed: keep the defaults
     }
   }, []);
-  useEffect(() => {
+  // Stored when the student picks something, not from an effect: an effect also runs on load, before the stored choice
+  // is applied, and wrote the defaults over it (in dev, where effects run twice, the choice was lost on every reload).
+  const choose = (patch: { tpl?: Template; accent?: AccentKey; labels?: Locale | "asis" }) => {
+    const next = { tpl, accent, labels, ...patch };
+    setTpl(next.tpl);
+    setAccent(next.accent);
+    setLabels(next.labels);
     try {
-      localStorage.setItem("khedma:cv-studio", JSON.stringify({ tpl, accent, labels }));
+      localStorage.setItem("khedma:cv-studio", JSON.stringify(next));
     } catch {
       // storage blocked
     }
-  }, [tpl, accent, labels]);
+  };
   const hex = tpl === "ats" ? "#111111" : ACCENTS.find((a) => a.key === accent)!.hex;
   const ats = atsVerify(markdown, LAYOUT[tpl]);
   const textLocale: Locale = labels === "asis" ? locale : labels;
@@ -160,7 +166,7 @@ export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverag
           <div className="space-y-1.5">
             {TEMPLATES.map((k) => (
               <label key={k} className="card flex cursor-pointer items-start gap-3 p-3 has-checked:!border-accent has-checked:!bg-accent-soft">
-                <input type="radio" name="tpl" className="mt-1 accent-[var(--accent)]" checked={tpl === k} onChange={() => setTpl(k)} />
+                <input type="radio" name="tpl" className="mt-1 accent-[var(--accent)]" checked={tpl === k} onChange={() => choose({ tpl: k })} />
                 <span>
                   <span className="block text-sm font-semibold">{s.templates[k]}</span>
                   <span className="block text-xs text-muted">{s.templateHints[k]}</span>
@@ -174,8 +180,8 @@ export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverag
           <legend className="label">{s.accent}</legend>
           <div className="flex flex-wrap gap-2">
             {ACCENTS.map((a) => (
-              <label key={a.key} className="relative cursor-pointer" title={s.accents[a.key]}>
-                <input type="radio" name="accent" className="peer sr-only" checked={accent === a.key} onChange={() => setAccent(a.key)} />
+              <label key={a.key} className="relative -m-1 cursor-pointer p-1" title={s.accents[a.key]}>
+                <input type="radio" name="accent" className="peer sr-only" checked={accent === a.key} onChange={() => choose({ accent: a.key })} />
                 <span className="sr-only">{s.accents[a.key]}</span>
                 <span
                   aria-hidden="true"
@@ -192,7 +198,7 @@ export function CvStudio({ markdown, fromUpload, fileBase, paper = "a4", coverag
           <div className="inline-flex rounded-xl border border-line bg-surface-2 p-0.5">
             {(["fr", "en", "asis"] as const).map((k) => (
               <label key={k} className="btn btn-sm cursor-pointer !border-0 has-checked:!bg-surface has-checked:!text-ink has-checked:!shadow-[var(--shadow-sm)] text-muted has-focus-visible:outline-2 has-focus-visible:outline-[var(--ring)]">
-                <input type="radio" name="labels" className="sr-only" checked={labels === k} onChange={() => setLabels(k)} />
+                <input type="radio" name="labels" className="sr-only" checked={labels === k} onChange={() => choose({ labels: k })} />
                 {k === "asis" ? (
                   <>
                     <span aria-hidden="true">Aa</span>
