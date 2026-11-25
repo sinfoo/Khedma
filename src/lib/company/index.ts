@@ -1,5 +1,6 @@
 // Company area: profiles derived from offers, user preferences (rating, notes, blacklist), research cache, liveness checks.
-import { db, listJobs, migrate, type JobWithMeta } from "@/lib/db";
+import { cache } from "react";
+import { autoArchive, db, listJobs, migrate, type JobWithMeta } from "@/lib/db";
 import type { AppState } from "@/lib/types";
 import { extractSkills } from "@/lib/ai/heuristic";
 import { canonicalName, companySlug } from "./normalize";
@@ -166,8 +167,10 @@ function pickName(jobs: JobWithMeta[]): string {
  * 15× faster with hundreds of offers.
  */
 export function statsFor(jobs: JobWithMeta[], deep = true): CompanyStats {
-  const today = new Date().toISOString().slice(0, 10);
-  const open = jobs.filter((j) => !j.archived && !(j.deadline && j.deadline < today));
+  const now = new Date();
+  // Local calendar day: the UTC date is still yesterday during the first hour of a Tunisian day.
+  const today = new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  const open = new Set(jobs.filter((j) => !j.archived && !(j.deadline && j.deadline.slice(0, 10) < today)));
   const types: Record<string, number> = {};
   const locs = new Map<string, number>();
   const skills = new Map<string, number>();
@@ -179,7 +182,7 @@ export function statsFor(jobs: JobWithMeta[], deep = true): CompanyStats {
     const loc = j.remote && !j.location ? "Remote" : j.location.trim();
     if (loc) locs.set(loc, (locs.get(loc) ?? 0) + 1);
     for (const s of new Set([...extractSkills(`${j.title}\n${j.tags.join(", ")}${deep ? `\n${j.description}` : ""}`)])) skills.set(s, (skills.get(s) ?? 0) + 1);
-    if (j.evaluation && open.includes(j)) scores.push(j.evaluation.global);
+    if (j.evaluation && open.has(j)) scores.push(j.evaluation.global);
     if (j.application) {
       applications++;
       outcomes[j.application.status] = (outcomes[j.application.status] ?? 0) + 1;
@@ -187,7 +190,7 @@ export function statsFor(jobs: JobWithMeta[], deep = true): CompanyStats {
   }
   const dates = jobs.map((j) => j.posted_at ?? j.created_at).sort();
   return {
-    open: open.length,
+    open: open.size,
     total: jobs.length,
     types,
     locations: [...locs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([l]) => l),
@@ -218,14 +221,16 @@ function syncCompanies(groups: Map<string, JobWithMeta[]>): void {
   }
 }
 
-function loadAll(): { rows: Map<string, Company>; groups: Map<string, JobWithMeta[]> } {
+// Read once per page render: the company page asked for every offer three times (title, profile, its offers) and
+// the comparison page once per application compared.
+const loadAll = cache((): { rows: Map<string, Company>; groups: Map<string, JobWithMeta[]> } => {
   ensureSchema();
   const groups = groupJobs(allJobs());
   syncCompanies(groups);
   const rows = new Map<string, Company>();
   for (const r of db().prepare("SELECT * FROM companies").all() as Row[]) rows.set(r.slug as string, rowToCompany(r));
   return { rows, groups };
-}
+});
 
 export function listCompanies(): CompanyRow[] {
   const { rows, groups } = loadAll();
@@ -240,7 +245,7 @@ export function getCompany(slug: string): CompanyRow | null {
 
 /** All offers of a company, open first, newest first. */
 export function companyJobs(slug: string): JobWithMeta[] {
-  return (groupJobs(allJobs()).get(slug) ?? []).sort((a, b) => Number(a.archived) - Number(b.archived) || b.created_at.localeCompare(a.created_at));
+  return [...(loadAll().groups.get(slug) ?? [])].sort((a, b) => Number(a.archived) - Number(b.archived) || b.created_at.localeCompare(a.created_at));
 }
 
 export type CompanyPatch = Partial<Pick<Company, "website" | "careers_url" | "sector" | "size" | "hq" | "description" | "notes" | "rating" | "blacklisted" | "blacklist_reason" | "researched_at" | "research">>;
@@ -299,7 +304,7 @@ export function saveCheck(c: Omit<JobCheck, "checked_at">): JobCheck {
 
 /**
  * After a complete listing of one board: its stored offers that are no longer listed are closed (check + archived;
- * tracked ones stay in the pipeline with the closed mark), and closed ones that came back are open again.
+ * starred and tracked ones stay where they are with the closed mark), and closed ones that came back are open again.
  * Returns the ids closed now.
  */
 export function syncBoard(source: string, listed: { urls: string[]; companies: string[] }): number[] {
@@ -308,7 +313,7 @@ export function syncBoard(source: string, listed: { urls: string[]; companies: s
   const live = new Set(listed.urls.map(canonicalPostingUrl));
   const rows = db()
     .prepare(
-      `SELECT j.id, j.url, j.archived, c.status, (SELECT 1 FROM applications a WHERE a.job_id = j.id) AS tracked
+      `SELECT j.id, j.url, c.status
        FROM jobs j LEFT JOIN job_checks c ON c.job_id = j.id
        WHERE j.source = ? AND j.company IN (${listed.companies.map(() => "?").join(",")})`,
     )
@@ -319,7 +324,7 @@ export function syncBoard(source: string, listed: { urls: string[]; companies: s
     const isLive = live.has(canonicalPostingUrl(r.url as string));
     if (!isLive && r.status !== "closed") {
       saveCheck({ job_id: id, status: "closed", http_status: null, reason: "no longer listed on the employer's board" });
-      if (!r.tracked && !r.archived) db().prepare("UPDATE jobs SET archived = 1 WHERE id = ?").run(id);
+      autoArchive([id]); // never an offer the user starred or applied to
       closed.push(id);
     } else if (isLive && r.status === "closed") {
       saveCheck({ job_id: id, status: "open", http_status: null, reason: "listed again on the employer's board" });
