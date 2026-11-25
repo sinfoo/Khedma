@@ -1,7 +1,7 @@
 // Sources area data access: per-source scan config, scan runs history, auto-scan setting
 // and the scan orchestrator shared by the streaming route and the server actions.
 import { getProfileExtra } from "../cv/profile-extra";
-import { autoArchive, db, getProfile, kvGet, kvSet, latestEvaluation, listJobs, migrate, upsertJob, type NewJob } from "../db";
+import { autoArchive, db, getProfile, kvGet, kvSet, listJobs, migrate, upsertJob, type NewJob } from "../db";
 import { JOB_TYPES, type JobType, type Profile } from "../types";
 import { CATALOG, dedupeKey, detectAts, isProviderKind, scanSource, type ProviderKind, type ScanOptions, type ScanResult } from "../sources";
 import { mapLimit, scanSignal } from "../sources/http";
@@ -19,6 +19,7 @@ import { cvKeywords, EVERYDAY_TOOLS, LANGUAGE_WORDS, SOFT_SKILLS } from "../sear
 import { sweep } from "../search/sweep";
 import { extractSkills } from "../ai/heuristic";
 import { cvForMatching } from "./offers";
+import { latestEvaluationV2 } from "./evaluations";
 
 export { getSearchPrefs, setSearchPrefs } from "../search/store";
 export { sweep } from "../search/sweep";
@@ -278,6 +279,10 @@ export interface RunSourceDetail {
   kept?: number;
   added: number;
   known: number;
+  /** Known offers whose stored row the scan refreshed (new deadline, fuller description). */
+  updated?: number;
+  /** Answered from the short-lived request cache: the board was not read again. */
+  cached?: boolean;
   dropped?: Record<string, number>;
   error?: string;
   /** Some offers came back but part of the source failed. */
@@ -357,7 +362,7 @@ export function feedState(ids: number[]): Record<number, FeedRowState> {
     .all(...ids) as Row[];
   const out: Record<number, FeedRowState> = {};
   for (const r of rows) {
-    const e = latestEvaluation(r.id as number);
+    const e = latestEvaluationV2(r.id as number); // the v2 row: the plain one carries no triage
     const tr = e?.triage;
     out[r.id as number] = {
       ev: e ? { global: e.global, verdict: e.verdict, engine: e.engine, triage: tr ? { verdict: tr.verdict, skipped: tr.skipped, reason: tr.reason } : undefined } : null,
@@ -417,7 +422,7 @@ export type ScanEvent =
   | { type: "job"; job: FoundJob }
   | { type: "liveness"; checked: number; closed: number[] }
   | { type: "sweep"; urgent: number; merged: number; expired: number }
-  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[]; widen: WidenCounts };
+  | { type: "done"; run_id: number; added: number; errors: number; duplicates: number; updated: number; dropped: Record<string, number>; closed: number; jobs: { id: number; title: string; company: string }[]; widen: WidenCounts };
 
 /** Filter steps the user can loosen after a scan: accept every contract type, or postings up to 60 days old. */
 export type Widen = "type" | "age";
@@ -526,7 +531,7 @@ async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Om
   const order: Tier[] = usesKeywords ? [1, 2, 3] : [1];
   for (const t of order) {
     const keywords = t === 1 ? run.keywords : tiers[t];
-    if (t > 1 && (out.total >= TIER_MIN[(t - 1) as Tier] || !keywords.length)) break;
+    if (t > 1 && (out[tiers.gate ?? "total"] >= TIER_MIN[(t - 1) as Tier] || !keywords.length)) break;
     const r = await scanSource(run, profile, { ...opts, keywords });
     if (r.listed) listed = r.listed;
     for (const j of r.jobs) if (!tierOf.has(j.url)) tierOf.set(j.url, t);
@@ -536,6 +541,8 @@ async function scanTiered(run: PlanRun, profile: Profile, tiers: Tiers, opts: Om
       total: out.total + r.total,
       matched: out.matched + r.matched,
       known: out.known + r.known,
+      updated: (out.updated ?? 0) + (r.updated ?? 0),
+      cached: t === 1 ? r.cached : out.cached && r.cached,
       dropped: Object.fromEntries([...new Set([...Object.keys(out.dropped), ...Object.keys(r.dropped)])].map((k) => [k, (out.dropped[k] ?? 0) + (r.dropped[k] ?? 0)])),
       error: r.error ?? out.error,
     };
@@ -591,7 +598,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       else drops.set(j.url, { job: j, reason: d.reasons[0] ?? "other" });
       return d;
     };
-    const tiers = buildTiers(keywords, roles);
+    const tiers = buildTiers(keywords, roles, filter.types);
     const known = knownIndex();
     const tracked = new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label)));
     const applied = prefs.applyOnceAtCompany ? appliedCompanies() : new Set<string>();
@@ -609,7 +616,7 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       let res: Awaited<ReturnType<typeof scanTiered>>;
       try {
         // Every fetch and pause this source makes honours Stop, whichever provider makes it.
-        res = await scanSignal.run(opts.signal, () => scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, places, decide }));
+        res = await scanSignal.run(opts.signal, () => scanTiered(run, profile, tiers, { keepAll: run.keepAll && !opts.keywords?.length, isKnown: known.has, refresh: known.refresh, seen: new Set(), places, decide }));
       } catch (e) {
         res = { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, tierOf: new Map(), error: (e as Error).message };
       }
@@ -636,11 +643,13 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       if (res.listed) gone.push(...syncBoard(run.kind, res.listed));
       // URLs shrink to their host: keyed APIs carry the key in the path or query string.
       const clean = res.error?.replace(/https?:\/\/([^/\s?#]+)\S*/g, "$1").slice(0, 300);
-      const error = clean && !res.jobs.length && !res.total ? clean : undefined;
+      // A source cut short by Stop did not fail: no error on it, and its saved row keeps its last real result.
+      const stopped = !!opts.signal?.aborted && !!clean;
+      const error = clean && !stopped && !res.jobs.length && !res.total ? clean : undefined;
       // Some offers came back but part of the source failed (one keyword rate-limited): done, with a warning.
-      const warning = !error ? clean : undefined;
-      if (run.sourceId) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
-      const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, dropped: res.dropped, error, warning, ms: Date.now() - t0 };
+      const warning = !error && !stopped ? clean : undefined;
+      if (run.sourceId && !stopped) db().prepare("UPDATE sources SET last_scan=?, last_count=?, last_total=?, last_error=? WHERE id=?").run(new Date().toISOString(), added, res.total, error ?? null, run.sourceId);
+      const d: RunSourceDetail = { id: run.sourceId ?? 0, key: run.key, label: run.label, listed: res.total, matched: res.matched, kept: res.jobs.length, added, known: res.known, updated: res.updated, cached: res.cached, dropped: res.dropped, error, warning, ms: Date.now() - t0 };
       emit({ type: "source", status: error ? "error" : "done", ...d });
       return d;
     };
@@ -684,10 +693,16 @@ export async function runScan(opts: ScanRequest = {}): Promise<ScanRun | null> {
       w === "type" ? { ...filterOpts, types: [...JOB_TYPES] } : { ...filterOpts, prefs: { ...prefs, hoursOld: (prefs.hoursOld && Math.max(prefs.hoursOld, WIDEN_HOURS)) as SearchPrefs["hoursOld"] } };
     const last: LastDrops = { runId, drops, rank, applied, filterFor: (w) => buildFilter(loosen(w)).decide };
     globalThis.__khedmaLastDrops = last;
-    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, dropped, closed: closed.length, jobs: best, widen: widenCounts(last, known) });
+    emit({ type: "done", run_id: runId, added: sum("added"), errors, duplicates, updated: detail.reduce((a, d) => a + (d.updated ?? 0), 0), dropped, closed: closed.length, jobs: best, widen: widenCounts(last, known) });
     return listRuns(1)[0];
   } finally {
     globalThis.__khedmaScanBusy = false;
+    // A scan that threw half-way would read as "running" until the next restart: no scan runs now, so close it.
+    try {
+      closeStuckRuns();
+    } catch {
+      // the table does not exist yet: nothing to close
+    }
   }
 }
 
@@ -710,9 +725,18 @@ export function rerankOpenJobs(): number {
     tracked: new Set(all.filter((s) => s.company && s.enabled).map((s) => companyKey(s.label))),
   };
   const jobs = listJobs();
-  for (const j of jobs) {
-    const r = scoreJob(j, rank);
-    setRelevance(j.id, r.score, r.why);
+  // One transaction: a commit per offer blocked the server for seconds after a new CV with thousands of offers.
+  const d = db();
+  d.exec("BEGIN");
+  try {
+    for (const j of jobs) {
+      const r = scoreJob(j, rank);
+      setRelevance(j.id, r.score, r.why);
+    }
+    d.exec("COMMIT");
+  } catch (e) {
+    d.exec("ROLLBACK");
+    throw e;
   }
   return jobs.length;
 }

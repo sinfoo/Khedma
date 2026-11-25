@@ -1,6 +1,7 @@
 // Search persistence: relevance on the job row, dedupe / recheck policy, known-offer index. Server only.
 import { db, kvGet, kvSet, migrate, type NewJob } from "../db";
-import { dedupeKey } from "../sources/classify";
+import { stripHidden } from "../ai/text";
+import { dedupeKey, placeholderCompany } from "../sources/classify";
 import { fold } from "./filter";
 import { normalizePrefs, type SearchPrefs } from "./prefs";
 import { companyKey } from "./rank";
@@ -30,6 +31,8 @@ export function ensureSearchSchema(): void {
      CREATE TRIGGER IF NOT EXISTS jobs_archived_at AFTER UPDATE OF archived ON jobs WHEN NEW.archived = 1 AND OLD.archived = 0
      BEGIN UPDATE jobs SET archived_at = datetime('now') WHERE id = NEW.id; END;`,
   );
+  // When a scan last saw the posting on its board (stored offers are seen again at the same URL).
+  migrate("search:005-last-seen", "ALTER TABLE jobs ADD COLUMN last_seen TEXT;");
 }
 
 /** Distinct posting URLs per role (dedupeKey), from stored offers and copies the dedupe skipped. */
@@ -89,9 +92,12 @@ export function setSearchSettings(s: Partial<SearchSettings>): void {
   kvSet(KEY, { ...getSearchSettings(), ...s });
 }
 
-/** Cross-source key: company + title (+ location when `dedup_include_location`). */
-export function historyKey(job: Pick<NewJob, "company" | "title" | "location">, includeLocation: boolean): string {
-  const base = dedupeKey(job.company, job.title);
+/**
+ * Cross-source key: company + title (+ location when `dedup_include_location`). An offer with no real employer
+ * name is only ever the same as itself: its key carries its URL.
+ */
+export function historyKey(job: Pick<NewJob, "company" | "title" | "location"> & Partial<Pick<NewJob, "url" | "source">>, includeLocation: boolean): string {
+  const base = placeholderCompany(job.company, job.source) && job.url ? `${dedupeKey(job.company, job.title)}|${job.url}` : dedupeKey(job.company, job.title);
   return includeLocation ? `${base}|${fold(job.location).replace(/[^a-z0-9]+/g, " ").trim()}` : base;
 }
 
@@ -102,6 +108,12 @@ export interface KnownIndex {
   /** Already stored (by URL) or still deduped (by company + title). */
   has: (job: NewJob) => boolean;
   add: (job: NewJob) => void;
+  /**
+   * A stored offer listed again at the same URL: stamps `last_seen` and takes what the board changed (a new
+   * deadline, a fuller description, a missing posting date). Stars, notes, scores and applications are untouched.
+   * True when the row changed.
+   */
+  refresh: (job: NewJob) => boolean;
   /** Same role already listed by another board during this search. */
   seen: Set<string>;
 }
@@ -117,7 +129,7 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
   const hasChecks = !!d.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'job_checks'").get();
   const rows = d
     .prepare(
-      `SELECT j.url, j.company, j.title, j.location, j.archived, COALESCE(j.archived_at, j.created_at) AS created_at${hasChecks ? ", c.status AS liveness" : ", NULL AS liveness"}
+      `SELECT j.url, j.source, j.company, j.title, j.location, j.archived, COALESCE(j.archived_at, j.created_at) AS created_at${hasChecks ? ", c.status AS liveness" : ", NULL AS liveness"}
        FROM jobs j${hasChecks ? " LEFT JOIN job_checks c ON c.job_id = j.id" : ""}`,
     )
     .all() as Row[];
@@ -126,7 +138,7 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
   const cutoff = Date.now() - settings.recheck_after_days * 86_400_000;
   for (const r of rows) {
     urls.add(r.url as string);
-    const job = { company: r.company as string, title: r.title as string, location: (r.location as string) ?? "" };
+    const job = { company: r.company as string, title: r.title as string, location: (r.location as string) ?? "", url: r.url as string, source: r.source as NewJob["source"] };
     const dead = r.liveness === "closed";
     const recent = settings.recheck_after_days === 0 || sqliteTime(String(r.created_at)) >= cutoff;
     if (!r.archived || dead || recent) keys.add(historyKey(job, settings.dedup_include_location));
@@ -134,7 +146,20 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
   const seen = new Set<string>();
   const sight = d.prepare("INSERT OR IGNORE INTO job_sightings (key, url) VALUES (?, ?)");
   const note = (j: NewJob) => sight.run(dedupeKey(j.company, j.title), j.url);
+  const stored = d.prepare("SELECT id, deadline, description FROM jobs WHERE url = ?");
+  const stamp = d.prepare("UPDATE jobs SET last_seen = ?, deadline = COALESCE(?, deadline), description = COALESCE(?, description), posted_at = COALESCE(posted_at, ?) WHERE id = ?");
   return {
+    refresh: (j) => {
+      // Known only through company + title: that is another posting of the role, not this row.
+      const row = stored.get(j.url) as Row | undefined;
+      if (!row) return false;
+      const deadline = j.deadline && j.deadline !== row.deadline ? j.deadline : null;
+      // Only a longer text replaces the stored one: a listing summary must not erase the full posting read earlier.
+      const text = stripHidden(j.description ?? "");
+      const description = text.length > String(row.description ?? "").length ? text : null;
+      stamp.run(new Date().toISOString(), deadline, description, j.posted_at, row.id as number);
+      return !!(deadline || description);
+    },
     has: (j) => {
       const hit = urls.has(j.url) || keys.has(historyKey(j, settings.dedup_include_location));
       if (hit) note(j);
@@ -142,6 +167,7 @@ export function knownIndex(settings: SearchSettings = getSearchSettings()): Know
     },
     add: (j) => {
       note(j);
+      stamp.run(new Date().toISOString(), null, null, null, Number((stored.get(j.url) as Row | undefined)?.id ?? 0));
       urls.add(j.url);
       keys.add(historyKey(j, settings.dedup_include_location));
     },

@@ -1,7 +1,7 @@
 import type { NewJob } from "../db";
 import type { Profile, Source } from "../types";
 import { extractTags, guessType, matchesProfile } from "./classify";
-import { mapLimit } from "./http";
+import { mapLimit, scanCache } from "./http";
 import { canonicalPostingUrl } from "./url";
 import * as greenhouse from "./greenhouse";
 import * as lever from "./lever";
@@ -57,7 +57,7 @@ import { COUNTRY_FEEDS, type ProviderKind } from "./catalog";
 export const SUGGESTED_SOURCES: Pick<Source, "kind" | "label" | "handle">[] = [
   { kind: "greenhouse", label: "Vercel", handle: "vercel" },
   { kind: "greenhouse", label: "GitLab", handle: "gitlab" },
-  { kind: "greenhouse", label: "Doctolib", handle: "doctolib" },
+  // Doctolib left Greenhouse (its board answers 404 since 2026-11): not suggested any more.
   { kind: "lever", label: "Qonto", handle: "qonto" },
   { kind: "ashby", label: "Supabase", handle: "supabase" },
   { kind: "ashby", label: "Replit", handle: "replit" },
@@ -177,6 +177,10 @@ export interface ScanOptions {
   keepAll?: boolean;
   /** Already-stored offers: they are skipped before any detail page is fetched. */
   isKnown?: (job: NewJob) => boolean;
+  /** Called for each matched offer that is already stored, to refresh its row; true when something changed. */
+  refresh?: (job: NewJob) => boolean;
+  /** Offer URLs already read by an earlier query of the same board (keyword tiers): not counted or fetched twice. */
+  seen?: Set<string>;
   /** Detail pages fetched per scan (politeness cap). */
   maxDetails?: number;
   /** Where the user wants to apply; offers in other countries are dropped (unknown locations pass). */
@@ -196,25 +200,39 @@ export interface ScanResult {
   /** Every offer URL and employer name of a complete board listing (FULL_BOARDS only), to close what disappeared. */
   listed?: { urls: string[]; companies: string[] };
   jobs: NewJob[];
-  /** Raw listing count before filtering. */
+  /** Distinct offers listed, before filtering. */
   total: number;
   /** Offers that passed the profile filter (before skipping known ones). */
   matched: number;
   /** Matched offers already in the database (same URL or same company + title). */
   known: number;
+  /** Known offers whose stored row changed (new deadline, fuller description). */
+  updated?: number;
+  /** Every request was answered from the short-lived cache: nothing new was read from the board. */
+  cached?: boolean;
   /** Why offers were dropped, by bucket ("senior", "location", "type", "title"…). */
   dropped: Record<string, number>;
   error?: string;
 }
 
-/** Scan one source: list, dedupe by url, filter, skip known offers, enrich with detail pages. */
-export async function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
+/** Scan one source: list, dedupe by url, filter, refresh and skip known offers, enrich the new ones with detail pages. */
+export function scanSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions = {}): Promise<ScanResult> {
+  const requests = { hits: 0, misses: 0 };
+  return scanCache.run(requests, async () => {
+    const r = await readSource(source, profile, opts);
+    return { ...r, cached: requests.hits > 0 && requests.misses === 0 };
+  });
+}
+
+async function readSource(source: { kind: string; handle: string }, profile: Profile, opts: ScanOptions): Promise<ScanResult> {
   const provider = PROVIDERS[source.kind as ProviderKind];
   if (!provider) return { jobs: [], total: 0, matched: 0, known: 0, dropped: {}, error: `Unknown source kind: ${source.kind}` };
   const listed = await provider.list(source.handle, opts.keywords ?? []);
   const error = listed.error;
-  const jobs = listed.jobs.map((j) => ({ ...j, url: canonicalPostingUrl(j.url) }));
-  const seen = new Set<string>();
+  const seen = opts.seen ?? new Set<string>();
+  const all = listed.jobs.map((j) => ({ ...j, url: canonicalPostingUrl(j.url) }));
+  // One offer listed twice (two pages, two keywords, an earlier tier) counts once.
+  const jobs = all.filter((j) => !seen.has(j.url) && !!seen.add(j.url));
   const dropped: Record<string, number> = {};
   const decide = (j: NewJob): Decision => {
     if (opts.keepAll) return { keep: true, reasons: [] };
@@ -231,12 +249,13 @@ export async function scanSource(source: { kind: string; handle: string }, profi
     }
     return d.keep;
   };
-  const matched = jobs.filter((j) => {
-    if (seen.has(j.url) || !keep(j)) return false;
-    seen.add(j.url);
-    return true;
-  });
-  const fresh = opts.isKnown ? matched.filter((j) => !opts.isKnown!(j)) : matched;
+  const matched = jobs.filter(keep);
+  const fresh: NewJob[] = [];
+  let updated = 0;
+  for (const j of matched) {
+    if (!opts.isKnown?.(j)) fresh.push(j);
+    else if (opts.refresh?.(j)) updated++;
+  }
 
   let out = fresh;
   if (provider.detail && fresh.length) {
@@ -252,6 +271,6 @@ export async function scanSource(source: { kind: string; handle: string }, profi
     }, provider.detailGapMs ?? 400);
     out = [...enriched, ...fresh.slice(cap)].filter(keep);
   }
-  const complete = !error && jobs.length && FULL_BOARDS.has(source.kind) ? { urls: jobs.map((j) => j.url), companies: [...new Set(jobs.map((j) => j.company))] } : undefined;
-  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, dropped, error, listed: complete };
+  const complete = !error && all.length && FULL_BOARDS.has(source.kind) ? { urls: all.map((j) => j.url), companies: [...new Set(all.map((j) => j.company))] } : undefined;
+  return { jobs: out, total: jobs.length, matched: matched.length, known: matched.length - fresh.length, updated, dropped, error, listed: complete };
 }

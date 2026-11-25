@@ -1,6 +1,6 @@
 // Housekeeping pass over open offers: urgent deadlines and mass postings. Server only.
 import { db, KEPT_BY_USER } from "../db";
-import { dedupeKey } from "../sources/classify";
+import { dedupeKey, placeholderCompany } from "../sources/classify";
 import { ensureSearchSchema } from "./store";
 
 type Row = Record<string, unknown>;
@@ -12,6 +12,8 @@ export interface SweepResult {
   merged: { keptId: number; archived: number[]; locations: string[] }[];
   /** Offers archived because their deadline passed (never starred or tracked ones). */
   expired: number[];
+  /** Offers archived as expired whose deadline was moved forward since: open again. */
+  reopened: number[];
 }
 
 export const URGENT_DAYS = 7;
@@ -45,13 +47,28 @@ export function expiredDeadline(deadline: string | null, now = Date.now()): bool
 export function sweep(now = Date.now()): SweepResult {
   ensureSearchSchema();
   const d = db();
-  const rows = d.prepare(`SELECT id, title, company, location, deadline, match_why, (${KEPT_BY_USER}) AS kept FROM jobs WHERE archived = 0 ORDER BY id`).all() as Row[];
+  // First, so a reopened offer takes part in the rest of the pass: the scan refreshed a deadline the board extended.
+  const tags = (prev: unknown): string[] => {
+    try {
+      return JSON.parse(String(prev || "[]")) as string[];
+    } catch {
+      return [];
+    }
+  };
+  const back = (d.prepare(`SELECT id, deadline, match_why FROM jobs WHERE archived = 1 AND deadline IS NOT NULL AND match_why LIKE '%"expired"%'`).all() as Row[]).filter(
+    (r) => !expiredDeadline(r.deadline as string, now),
+  );
+  const reopen = d.prepare("UPDATE jobs SET archived = 0, match_why = ? WHERE id = ?");
+  for (const r of back) reopen.run(JSON.stringify(tags(r.match_why).filter((w) => w !== "expired")), r.id as number);
+  const rows = d.prepare(`SELECT id, title, company, source, location, deadline, match_why, (${KEPT_BY_USER}) AS kept FROM jobs WHERE archived = 0 ORDER BY id`).all() as Row[];
   const urgent = rows
     .filter((r) => urgentDeadline((r.deadline as string) ?? null, now))
     .map((r) => ({ id: r.id as number, title: r.title as string, company: r.company as string, deadline: r.deadline as string }));
 
   const groups = new Map<string, Row[]>();
   for (const r of rows) {
+    // No employer name: the same title in three cities is three employers, never one requisition.
+    if (placeholderCompany(r.company as string, r.source as string)) continue;
     const k = dedupeKey(r.company as string, r.title as string);
     groups.set(k, [...(groups.get(k) ?? []), r]);
   }
@@ -66,15 +83,7 @@ export function sweep(now = Date.now()): SweepResult {
     const rest = others.filter((r) => !r.kept);
     // ponytail: the joined list lives in `location`; a locations[] column can replace it if other features need the parts.
     upd.run(locs.join(" · "), keep.id as number);
-    const why = (id: number, prev: unknown) => {
-      let list: string[] = [];
-      try {
-        list = JSON.parse(String(prev || "[]")) as string[];
-      } catch {
-        list = [];
-      }
-      return JSON.stringify([...list.filter((w) => !w.startsWith("merged:")), `merged:${id}`]);
-    };
+    const why = (id: number, prev: unknown) => JSON.stringify([...tags(prev).filter((w) => !w.startsWith("merged:")), `merged:${id}`]);
     for (const r of rest) arch.run(why(keep.id as number, r.match_why), r.id as number);
     merged.push({ keptId: keep.id as number, archived: rest.map((r) => r.id as number), locations: locs });
   }
@@ -82,15 +91,6 @@ export function sweep(now = Date.now()): SweepResult {
   const expiredRows = (d.prepare(`SELECT id, deadline, match_why FROM jobs WHERE archived = 0 AND deadline IS NOT NULL AND NOT (${KEPT_BY_USER})`).all() as Row[]).filter(
     (r) => expiredDeadline(r.deadline as string, now),
   );
-  const tag = (prev: unknown) => {
-    let list: string[] = [];
-    try {
-      list = JSON.parse(String(prev || "[]")) as string[];
-    } catch {
-      list = [];
-    }
-    return JSON.stringify([...list.filter((w) => w !== "expired"), "expired"]);
-  };
-  for (const r of expiredRows) arch.run(tag(r.match_why), r.id as number);
-  return { urgent, merged, expired: expiredRows.map((r) => r.id as number) };
+  for (const r of expiredRows) arch.run(JSON.stringify([...tags(r.match_why).filter((w) => w !== "expired"), "expired"]), r.id as number);
+  return { urgent, merged, expired: expiredRows.map((r) => r.id as number), reopened: back.map((r) => r.id as number) };
 }

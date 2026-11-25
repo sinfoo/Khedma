@@ -42,7 +42,8 @@ export function mapGreenhouse(json: GhPayload, slug: string): NewJob[] {
 
 export async function scan(handle: string): Promise<{ jobs: NewJob[]; error?: string }> {
   const slug = handle.trim().toLowerCase();
-  const { data, error } = await getJson<GhPayload>(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(slug)}/jobs?content=true`);
+  // A large board (GitLab) sends every posting's full text in one answer of several MB: 10 s is not enough on a slow line.
+  const { data, error } = await getJson<GhPayload>(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(slug)}/jobs?content=true`, { timeoutMs: 30_000 });
   if (!data) return { jobs: [], error };
   return { jobs: mapGreenhouse(data, slug) };
 }

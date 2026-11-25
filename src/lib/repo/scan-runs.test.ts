@@ -21,6 +21,23 @@ test("a run left unfinished by a previous server is closed, finished runs are un
   assert.equal(closeStuckRuns(), 0);
 });
 
+test("a scan that throws half-way is recorded as finished and frees the scan lock", async () => {
+  const { runScan, listRuns, scanBusy } = await import("./sources");
+  // No saved source has this id, so nothing is fetched; the listener fails on the first event.
+  await assert.rejects(runScan({ ids: [987654], onEvent: () => { throw new Error("listener gone"); } }), /listener gone/);
+  assert.equal(scanBusy(), false);
+  assert.ok(listRuns(1)[0].finished_at, "the run does not stay 'running'");
+});
+
+test("the restored scan feed keeps the triage outcome of an evaluation", async () => {
+  const { upsertJob } = await import("@/lib/db");
+  const { insertEvaluationV2 } = await import("./evaluations");
+  const { feedState } = await import("./sources");
+  const id = upsertJob({ title: "Dev", company: "Acme", location: "", remote: false, url: "https://x/feed", source: "manual", type: "stage", description: "", tags: [], posted_at: null, deadline: null }).id;
+  insertEvaluationV2({ job_id: id, global: 2, match: 2, target: 2, growth: 2, culture: 2, red_flags: 4, strengths: [], gaps: [], flags: [], verdict: "skip", summary: "", engine: "heuristic", triage: { score: 10, verdict: "fail", skipped: true, reason: "senior role" } });
+  assert.equal(feedState([id])[id].ev?.triage?.reason, "senior role");
+});
+
 test("saved sources of a board that became link-only leave the list", async () => {
   const { db } = await import("@/lib/db");
   const { listSourceRows } = await import("./sources");
