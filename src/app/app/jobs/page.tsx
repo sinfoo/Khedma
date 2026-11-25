@@ -13,16 +13,6 @@ import { listOfferRows, listSources, listViews, parseFilters, unevaluated } from
 import { db, getProfile, stats } from "@/lib/db";
 import { getEngine } from "@/lib/ai";
 import { getProfileExtra } from "@/lib/cv/profile-extra";
-import { REMOTE_CODE, countryOf } from "@/lib/geo";
-
-const countryCodesOf = (rows: { location: string; remote: boolean }[]) => {
-  const set = new Set<string>();
-  for (const r of rows) {
-    const c = countryOf(r.location) ?? (r.remote ? REMOTE_CODE : null);
-    if (c) set.add(c);
-  }
-  return [...set].sort((a, b) => (a === REMOTE_CODE ? 1 : b === REMOTE_CODE ? -1 : a.localeCompare(b)));
-};
 
 export const generateMetadata = pageTitle("offers");
 
@@ -95,13 +85,12 @@ export default async function JobsPage({ searchParams }: PageProps<"/app/jobs">)
           </>
         }
       />
+      {/* No key on the filters: the browser follows the URL itself, and a remount would drop the selection and a running evaluation. */}
       <OffersBrowser
-        key={JSON.stringify(f)}
         all={all}
         filters={f}
         views={listViews()}
         sources={listSources()}
-        countryCodes={countryCodesOf(all)}
         myCountries={getProfileExtra().places.countries}
         pending={pending}
         autoEvaluate={sp.evaluate === "1"}

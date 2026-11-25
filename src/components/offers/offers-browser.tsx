@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useOptimistic, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { AlarmClock, Archive, ArchiveRestore, Copy, ExternalLink, FileText, MapPin, MoreHorizontal, Sparkles, Star, Trash2, Wifi, X, Bookmark, Send } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlarmClock, Archive, ArchiveRestore, Copy, ExternalLink, FileText, Loader2, MapPin, MoreHorizontal, Sparkles, Star, Trash2, Wifi, X, Bookmark, Send } from "lucide-react";
 import { useT } from "@/lib/i18n/client";
 import { fmt, sourceName } from "@/lib/i18n/dict";
 import { useToast } from "@/components/kit/toast";
@@ -14,9 +14,9 @@ import { PostingLink } from "@/components/posting-link";
 import { ScoreRing, StateChip, VerdictChip, daysUntil, fmtDate, scoreColor, scoreLabel } from "@/components/ui";
 import type { AppState } from "@/lib/types";
 import type { SavedView } from "@/lib/repo/offers";
-import { BEST_BATCH, applyFilters, filtersToQuery, parseFilters, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
+import { BEST_BATCH, applyFilters, facetCounts, filtersToQuery, parseFilters, placeOf, postedDay, type OfferFilters, type OfferRow } from "@/lib/offers-filter";
 import { applyTo, archiveOffers, deleteOffers, evaluateOffer, starOffers, tailorCvFor, trackOffers, undoDelete } from "@/app/actions/jobs";
-import { OffersToolbar } from "./offers-toolbar";
+import { CLEAR_FILTERS, OffersToolbar, countActive } from "./offers-toolbar";
 import { EvergreenChip } from "./evergreen-chip";
 
 type Patch = { ids: number[]; patch?: Partial<OfferRow>; remove?: boolean };
@@ -49,12 +49,35 @@ const subscribeView = (l: () => void) => {
   return () => viewListeners.delete(l);
 };
 
+// "New" marks: offers added since the previous visit to this list, in this browser. A visit lasts as long as the
+// list is opened again within 30 minutes, so the marks survive a trip to an offer and back. The first visit marks nothing.
+const VISIT_KEY = "khedma:offers-visit";
+const VISIT_GAP = 30 * 60_000;
+let newSince: string | null | undefined;
+const readNewSince = (): string | null => {
+  if (newSince !== undefined) return newSince;
+  newSince = null;
+  try {
+    const now = Date.now();
+    const v = JSON.parse(localStorage.getItem(VISIT_KEY) ?? "null") as { since: string | null; at: number } | null;
+    // Same format as jobs.created_at (UTC, "yyyy-mm-dd hh:mm:ss"), so plain string comparison works.
+    if (v) newSince = now - v.at < VISIT_GAP ? v.since : new Date(v.at).toISOString().slice(0, 19).replace("T", " ");
+    localStorage.setItem(VISIT_KEY, JSON.stringify({ since: newSince, at: now }));
+  } catch {
+    /* storage blocked: no marks */
+  }
+  return newSince;
+};
+// Nothing to listen to; leaving the list forgets the cached value so the next visit reads it again.
+const subscribeVisit = () => () => {
+  newSince = undefined;
+};
+
 export function OffersBrowser({
   all,
   filters: initialFilters,
   views,
   sources,
-  countryCodes,
   myCountries,
   pending,
   autoEvaluate,
@@ -63,7 +86,6 @@ export function OffersBrowser({
   filters: OfferFilters;
   views: SavedView[];
   sources: string[];
-  countryCodes: string[];
   myCountries: string[];
   pending: { id: number; title: string }[];
   autoEvaluate: boolean;
@@ -77,11 +99,22 @@ export function OffersBrowser({
 
   const storedView = useSyncExternalStore(subscribeView, () => memView ?? readView(), () => null);
   const view: View = storedView ?? "table";
+  const since = useSyncExternalStore(subscribeVisit, readNewSince, () => null);
 
   // Filters apply instantly in the browser; the URL is kept in sync without a server round-trip,
   // except for "archived" which needs a different dataset from the server.
   const [filters, setFilters] = useState<OfferFilters>(initialFilters);
   const query = filtersToQuery(filters);
+  // The other way round: when the URL moves without us (a saved view, a link to this page, the archive coming back
+  // from the server), the filters follow it. A server refresh for the URL we already show changes nothing here, so
+  // starring or scoring after a filter change keeps the selection, the "show more" position and a running evaluation.
+  const sp = useSearchParams();
+  const urlQuery = filtersToQuery(parseFilters(sp));
+  const [seenUrl, setSeenUrl] = useState(urlQuery);
+  if (seenUrl !== urlQuery) {
+    setSeenUrl(urlQuery);
+    if (urlQuery !== query) setFilters(parseFilters(sp));
+  }
   const setParams = useCallback(
     (patch: Record<string, string | null>) => {
       const p = new URLSearchParams(filtersToQuery(filters));
@@ -101,6 +134,16 @@ export function OffersBrowser({
     [filters, router],
   );
   const rows = useMemo(() => applyFilters(all, filters), [all, filters]);
+  const facets = useMemo(() => facetCounts(all, filters), [all, filters]);
+  // Countries present in the offers, most offers first, so the first pills are the useful ones.
+  const countryCodes = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const r of all) {
+      const c = placeOf(r);
+      if (c) n.set(c, (n.get(c) ?? 0) + 1);
+    }
+    return [...n].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+  }, [all]);
 
   // ---------- optimistic rows ----------
   const [list, applyPatch] = useOptimistic(rows, (cur: OfferRow[], p: Patch) =>
@@ -134,7 +177,12 @@ export function OffersBrowser({
   const run = (patch: Patch, fn: () => Promise<unknown>) =>
     startAction(async () => {
       applyPatch(patch);
-      await fn();
+      try {
+        await fn();
+      } catch {
+        // The optimistic change rolls back by itself; say so instead of throwing the whole page to the error screen.
+        toast.error(t.common.error);
+      }
     });
 
   const star = (ids: number[], on: boolean) =>
@@ -157,6 +205,10 @@ export function OffersBrowser({
 
   const track = (ids: number[]) => {
     const fresh = ids.filter((id) => !shown.find((r) => r.id === id)?.appId);
+    if (!fresh.length) {
+      toast.info(o.list2.alreadyTracked, undefined, { label: o.openPipeline, onClick: () => router.push("/app/pipeline") });
+      return;
+    }
     run({ ids: fresh, patch: { status: "evaluated", appId: -1 } }, async () => {
       await trackOffers(fresh);
       // Count only the offers that were not tracked yet, and point at where they went.
@@ -164,6 +216,7 @@ export function OffersBrowser({
     });
   };
 
+  const [applying, setApplying] = useState<number | null>(null);
   const [confirmIds, setConfirmIds] = useState<number[] | null>(null);
   const doDelete = (ids: number[]) =>
     run({ ids, remove: true }, async () => {
@@ -267,6 +320,8 @@ export function OffersBrowser({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const filtered = countActive(filters) > 0;
+  const emptyArchive = filters.archived && all.length === 0;
   const selRows = shown.filter((r) => sel.includes(r.id));
   const dupSel = selRows.filter((r) => r.dup?.newer).map((r) => r.id);
   const allStarred = selRows.length > 0 && selRows.every((r) => r.starred);
@@ -281,16 +336,28 @@ export function OffersBrowser({
     onEvaluate: () => void evaluate([{ id: r.id, title: r.title }]),
     onTrack: () => track([r.id]),
     onTailor: () => startAction(async () => await tailorCvFor(r.id)),
-    onApply: () => startAction(async () => await applyTo(r.id)),
+    // Set outside the transition so the button answers at once; the redirect to the application takes a moment.
+    onApply: () => {
+      setApplying(r.id);
+      startAction(async () => {
+        try {
+          await applyTo(r.id);
+        } finally {
+          setApplying(null);
+        }
+      });
+    },
+    applying: applying === r.id,
     onArchive: () => archive([r.id]),
     onDelete: () => setConfirmIds([r.id]),
     archivedView: filters.archived,
+    isNew: since !== null && r.created_at > since,
     locale,
   });
 
   return (
     <>
-      <OffersToolbar filters={filters} setParams={setParams} sources={sources} countries={countryCodes} myCountries={myCountries} view={view} setView={writeView} views={views} query={query} />
+      <OffersToolbar filters={filters} setParams={setParams} sources={sources} countries={countryCodes} myCountries={myCountries} facets={facets} view={view} setView={writeView} views={views} query={query} />
 
       <div aria-live="polite" className="sr-only">{progress ? fmt(o.progress, { i: progress.i, n: progress.n }) : ""}</div>
       {progress && (
@@ -339,10 +406,23 @@ export function OffersBrowser({
 
       <div aria-busy={navPending} className={`transition-opacity ${navPending ? "opacity-60" : ""}`}>
         {shown.length === 0 ? (
+          // Three different dead ends: an empty archive, a default list where everything is expired or "skip", and filters that match nothing.
           <div className="card px-6 py-12 text-center">
-            <p className="display text-xl">{o.noMatch}</p>
-            <p className="mt-2 text-muted">{o.noMatchHint}</p>
-            <Link href="/app/jobs" className="btn btn-outline mt-5">{o.clear}</Link>
+            <p className="display text-xl">{emptyArchive ? o.list2.noArchived : !filtered && hidden > 0 ? fmt(o.list2.allHidden, { n: hidden }) : o.noMatch}</p>
+            {(emptyArchive || filtered) && <p className="mt-2 text-muted">{emptyArchive ? o.list2.noArchivedHint : o.noMatchHint}</p>}
+            {unscoredHidden > 0 && <p className="mt-1 text-sm text-muted">{fmt(o.unscoredHidden, { n: unscoredHidden })}</p>}
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {hidden > 0 && (
+                <button type="button" className="btn btn-outline" onClick={() => setParams({ all: "1" })}>
+                  {filtered ? `${fmt(o.hiddenExpired, { n: hidden })} · ${o.showHidden}` : o.showHidden}
+                </button>
+              )}
+              {filtered && (
+                <button type="button" className="btn btn-outline" onClick={() => setParams(CLEAR_FILTERS)}>
+                  {emptyArchive ? o.back : o.clear}
+                </button>
+              )}
+            </div>
           </div>
         ) : view === "table" ? (
           <div className="card overflow-x-auto">
@@ -353,6 +433,9 @@ export function OffersBrowser({
                     type="checkbox"
                     className="size-4 accent-[var(--accent)]"
                     aria-label={o.col.selectAll}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allOn && page.some((r) => selected.has(r.id));
+                    }}
                     checked={allOn}
                     onChange={() => setSelected(allOn ? new Set() : new Set(page.map((r) => r.id)))}
                   />
@@ -437,10 +520,18 @@ interface RowProps {
   onTrack: () => void;
   onTailor: () => void;
   onApply: () => void;
+  applying: boolean;
   onArchive: () => void;
   onDelete: () => void;
   archivedView: boolean;
+  /** Added since the previous visit to the list. */
+  isNew: boolean;
   locale: string;
+}
+
+function NewChip() {
+  const { t } = useT();
+  return <span className="chip chip-accent !py-0 text-[0.68rem]" title={t.offers2.list2.newHint}>{t.offers2.list2.isNew}</span>;
 }
 
 const STATE_FG: Record<string, string> = {
@@ -472,6 +563,12 @@ function Deadline({ date, locale }: { date: string | null; locale: string }) {
   );
 }
 
+/** A keyword estimate is not an evaluation: both layouts say so next to the number. */
+function EstimateChip() {
+  const { t } = useT();
+  return <span className="chip !h-5 !px-1.5 !py-0 text-[0.65rem] text-muted" title={t.offers2.list2.estimateHint}>{t.offers2.list2.estimate}</span>;
+}
+
 function Fit({ r }: { r: OfferRow }) {
   const { t } = useT();
   if (r.score === null)
@@ -481,14 +578,17 @@ function Fit({ r }: { r: OfferRow }) {
       </span>
     );
   return (
-    <span className="flex min-w-0 items-center gap-2" role="img" aria-label={`${scoreLabel(t, r.score)}${r.verdict ? ` · ${t.verdicts[r.verdict]}` : ""}${r.engine === "heuristic" ? ` · ${t.offers2.list2.estimateHint}` : ""}`}>
-      <span className="bar !w-[42px] shrink-0">
-        <span style={{ width: `${((r.score - 1) / 4) * 100}%`, background: scoreColor(r.score) }} />
+    // Two lines like the cells around it: on one line the verdict was squeezed out of the column by the "estimate" chip.
+    <span className="block min-w-0" role="img" aria-label={`${scoreLabel(t, r.score)}${r.verdict ? ` · ${t.verdicts[r.verdict]}` : ""}${r.engine === "heuristic" ? ` · ${t.offers2.list2.estimateHint}` : ""}`}>
+      <span className="flex items-center gap-2">
+        <span className="bar !w-[42px] shrink-0">
+          <span style={{ width: `${((r.score - 1) / 4) * 100}%`, background: scoreColor(r.score) }} />
+        </span>
+        <span className="mono text-[0.82rem] font-semibold">{r.score.toFixed(1)}</span>
+        {r.engine === "heuristic" && <EstimateChip />}
       </span>
-      <span className="mono text-[0.82rem] font-semibold">{r.score.toFixed(1)}</span>
-      {r.engine === "heuristic" && <span className="chip !h-5 !px-1.5 !py-0 text-[0.65rem] text-muted" title={t.offers2.list2.estimateHint}>{t.offers2.list2.estimate}</span>}
       {r.verdict && (
-        <span className="truncate text-[0.72rem] font-semibold" style={{ color: VERDICT_FG[r.verdict] }}>
+        <span className="mt-0.5 block truncate text-[0.72rem] font-semibold" style={{ color: VERDICT_FG[r.verdict] }}>
           {t.verdicts[r.verdict]}
         </span>
       )}
@@ -501,6 +601,7 @@ function Score({ r, size }: { r: OfferRow; size: number }) {
   return r.score !== null ? (
     <span className="inline-flex items-center gap-2">
       <ScoreRing dec={t.a11y.decimal} value={r.score} size={size} label={scoreLabel(t, r.score)} animate={false} />
+      {r.engine === "heuristic" && <EstimateChip />}
       {r.verdict && <VerdictChip verdict={r.verdict} t={t} />}
     </span>
   ) : (
@@ -534,12 +635,14 @@ function ApplyButton(p: RowProps) {
       type="button"
       // A wall of identical blue buttons buries the best matches: only strong ones (4+/5) get the filled style.
       className={`btn btn-sm ${p.r.score !== null && p.r.score >= 4 ? "btn-primary" : "btn-outline"}`}
+      disabled={p.applying}
+      aria-busy={p.applying}
       onClick={(e) => {
         e.stopPropagation();
         p.onApply();
       }}
     >
-      <Send size={13} aria-hidden="true" /> {t.offers2.apply}
+      {p.applying ? <Loader2 size={13} className="animate-spin" aria-hidden="true" /> : <Send size={13} aria-hidden="true" />} {t.offers2.apply}
     </button>
   );
 }
@@ -606,8 +709,10 @@ function TableRow(p: RowProps) {
             {r.title}
           </Link>
           <p className="flex items-center gap-1.5 truncate text-[0.75rem] text-muted">
+            {p.isNew && <NewChip />}
             <span className="truncate">
-              {r.company} · {o.list2.via} {sourceName(t, r.source)} · {fmtDate(r.created_at, p.locale)}
+              {/* The posting date when the board gives one (what "Newest" and the "Posted" filter read), else the day it was added. */}
+              {r.company} · {o.list2.via} {sourceName(t, r.source)} · {fmtDate(postedDay(r), p.locale)}
             </span>
             <DupChip r={r} />
             <EvergreenChip reasons={r.evergreen} t={t} />
@@ -670,6 +775,7 @@ function OfferCard(p: RowProps & { i: number }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm text-muted">
+        {p.isNew && <NewChip />}
         {r.location && <span className="inline-flex items-center gap-1"><MapPin size={13} aria-hidden="true" />{r.location}</span>}
         {r.remote && <span className="inline-flex items-center gap-1 text-accent-text"><Wifi size={13} aria-hidden="true" />{t.offers2.remote}</span>}
         <DupChip r={r} />

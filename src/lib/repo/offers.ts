@@ -25,6 +25,7 @@ const toRow = (j: JobWithMeta, dup: OfferRow["dup"], postings = 0): OfferRow => 
   url: j.url,
   tags: j.tags.slice(0, 6),
   deadline: j.deadline,
+  posted_at: j.posted_at,
   created_at: j.created_at,
   archived: j.archived,
   starred: j.starred,
@@ -97,11 +98,13 @@ export function findDuplicates(jobs: { id: number; company: string; title: strin
   }
   for (const group of byCompany.values()) {
     const sorted = [...group].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id - b.id);
+    // Tokens once per offer, not once per pair: an employer with 800 offers took a second on every list render.
+    const tokens = sorted.map((j) => titleTokens(j.title));
     for (let i = 0; i < sorted.length; i++) {
       for (let k = i + 1; k < sorted.length; k++) {
         const a = sorted[i];
         const b = sorted[k];
-        if (jaccard(titleTokens(a.title), titleTokens(b.title)) < 0.7) continue;
+        if (jaccard(tokens[i], tokens[k]) < 0.7) continue;
         if (!out.has(b.id) || !out.get(b.id)!.newer) out.set(b.id, { id: a.id, title: a.title, newer: true });
         if (!out.has(a.id)) out.set(a.id, { id: b.id, title: b.title, newer: false });
       }
