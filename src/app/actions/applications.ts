@@ -23,6 +23,7 @@ import { getDict, getLocale } from "@/lib/i18n/server";
 import { listDebriefs } from "@/lib/repo/coach";
 import { classifyReplyAI } from "@/lib/ai/reply";
 import { draftFollowup, isDraftVariant, type FollowupDraft } from "@/lib/ai/cadence";
+import { parseTs } from "@/lib/apps/cadence";
 import { isReplyKind, MAX_REPLY_CHARS, type ReplyResult } from "@/lib/apps/reply";
 import {
   addReminder as repoAddReminder,
@@ -46,6 +47,7 @@ import {
   isDateTime,
   isKind,
   isState,
+  localDate,
   listContacts,
   getOffer,
   setOffer,
@@ -242,7 +244,10 @@ export async function saveOffer(id: number, raw: unknown): Promise<Result> {
   if (o.respondBy && o.respondBy !== before.respondBy) {
     const { t } = await getDict();
     const job = getJob(getApplication(id)!.job_id);
-    repoAddReminder({ application_id: id, title: fmt(t.apps2.offer.reminder, { company: job?.company ?? "" }), due_at: o.respondBy, kind: "custom" });
+    const title = fmt(t.apps2.offer.reminder, { company: job?.company ?? "" });
+    // A changed date moves the reminder: the one for the old date would otherwise stay on Today and in the calendar.
+    for (const r of listReminders(id)) if (!r.done && r.title === title && r.due_at === before.respondBy) repoDeleteReminder(id, r.id);
+    repoAddReminder({ application_id: id, title, due_at: o.respondBy, kind: "custom" });
   }
   refresh();
   return { ok: true };
@@ -342,6 +347,8 @@ export async function draftCadenceMessage(id: number, variant: string, opts: { c
   if (!job) return fail("notFound");
   const contact = okId(opts?.contactId) ? listContacts(id).find((c) => c.id === opts.contactId) : undefined;
   const cad = cadenceFor([{ id, status: app.status, applied_at: app.applied_at, company: job.company }]).get(id);
+  // applied_at is stored in UTC: its first ten characters are the day before for anything sent just after midnight here.
+  const appliedAt = parseTs(app.applied_at);
   try {
     const r = await draftFollowup(variant, {
       job,
@@ -349,7 +356,7 @@ export async function draftCadenceMessage(id: number, variant: string, opts: { c
       locale: await getLocale(),
       contactName: contact?.name,
       days: cad?.daysSince ?? 7,
-      appliedOn: app.applied_at?.slice(0, 10) ?? null,
+      appliedOn: appliedAt ? localDate(appliedAt) : null,
       missedAt: isDateTime(opts?.missedAt) ? opts.missedAt!.replace("T", " ") : null,
     });
     return { ok: true, ...r };

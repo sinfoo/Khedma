@@ -27,7 +27,8 @@ export function OfferCard({ id, initial }: { id: number; initial: OfferRecord })
     <section className="card p-[18px]" aria-labelledby="offer-h">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <h2 id="offer-h" className="text-[1.15rem] tracking-[-0.01em]">{m.title}</h2>
-        <Link href={`/app/pipeline/compare?ids=${id}`} className="btn btn-ghost btn-sm ml-auto"><GitCompareArrows size={14} aria-hidden="true" /> {m.compare}</Link>
+        {/* To the table, where the offers to compare are ticked: comparing needs two, and this link used to open the page with one. */}
+        <Link href="/app/pipeline?view=table" className="btn btn-ghost btn-sm ml-auto"><GitCompareArrows size={14} aria-hidden="true" /> {m.compare}</Link>
       </div>
       <p className="mb-3 text-[0.82rem] text-muted">{m.lead}</p>
       <div className="grid gap-3 sm:grid-cols-3">
